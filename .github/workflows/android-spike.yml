@@ -1,0 +1,37 @@
+name: KONOHA Android 0.0.1
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: konoha-unity-android
+  cancel-in-progress: false
+jobs:
+  android:
+    # A cloud Linux VM with licensed Unity and bundled Android SDK/NDK/JDK.
+    # This is not the player's phone and does not require the owner to own a PC.
+    runs-on: [self-hosted, Linux, X64, konoha-unity-6000-0-60]
+    timeout-minutes: 90
+    env:
+      UNITY_EDITOR: ${{ vars.UNITY_EDITOR }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate source structure
+        run: python3 scripts/source-check.py
+      - name: Prepare, test and build APK
+        run: bash scripts/android-build.sh
+      - name: Upload APK and provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: KONOHA_0.0.1-${{ github.sha }}
+          path: Builds/Android/
+          if-no-files-found: error
+      - name: Upload test evidence and build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: KONOHA_0.0.1-logs-${{ github.sha }}
+          path: TestResults/
+          if-no-files-found: warn

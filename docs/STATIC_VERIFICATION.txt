@@ -1,0 +1,17 @@
+STATIC VERIFICATION - 2026-09-19
+
+Source structure: PASS
+Bash syntax: PASS
+Workflow YAML parse: PASS
+accept-eight-passing: PASS (synthetic validator fixture, not Unity evidence)
+reject-empty: PASS (synthetic validator fixture, not Unity evidence)
+reject-failed: PASS (synthetic validator fixture, not Unity evidence)
+reject-skipped: PASS (synthetic validator fixture, not Unity evidence)
+reject-malformed: PASS (synthetic validator fixture, not Unity evidence)
+accept-expected-container: PASS (synthetic zip fixture, not APK evidence)
+reject-non-arm64-container: PASS (synthetic zip fixture, not APK evidence)
+
+Unity/C# compilation: NOT RUN
+Unity EditMode 8 tests: NOT RUN
+APK compilation/install: NOT RUN
+Real Android input/camera/performance: NOT RUN

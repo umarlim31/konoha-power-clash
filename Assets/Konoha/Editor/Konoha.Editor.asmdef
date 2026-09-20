@@ -1,0 +1,6 @@
+{
+  "name": "Konoha.Editor",
+  "rootNamespace": "Konoha.Editor",
+  "references": ["Konoha.Runtime", "Unity.ugui", "Unity.RenderPipelines.Core.Runtime", "Unity.RenderPipelines.Universal.Runtime"],
+  "includePlatforms": ["Editor"]
+}

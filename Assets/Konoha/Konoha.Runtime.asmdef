@@ -1,0 +1,5 @@
+{
+  "name": "Konoha.Runtime",
+  "rootNamespace": "Konoha",
+  "references": ["Unity.ugui"]
+}
