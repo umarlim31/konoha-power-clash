@@ -59,6 +59,16 @@ namespace Konoha.Tests
             Assert.That(stick.handle.anchoredPosition, Is.EqualTo(Vector2.zero));
         }
 
+        [Test] public void NetworkingFoundationPackagesAndAssembliesResolve()
+        {
+            Assert.That(NetworkingFoundationCompileGate.NetcodeType.Assembly.GetName().Name,
+                Is.EqualTo("Unity.Netcode.Runtime"));
+            Assert.That(NetworkingFoundationCompileGate.NetcodeTransportAdapterType.Assembly.GetName().Name,
+                Is.EqualTo("Unity.Netcode.Runtime"));
+            Assert.That(NetworkingFoundationCompileGate.TransportType.Assembly.GetName().Name,
+                Is.EqualTo("Unity.Networking.Transport"));
+        }
+
         [Test] public void AndroidIsArm64Il2CppLandscapeOnly()
         {
             Assert.That(PlayerSettings.Android.targetArchitectures, Is.EqualTo(AndroidArchitecture.ARM64));

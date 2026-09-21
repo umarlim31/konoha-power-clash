@@ -1,5 +1,5 @@
 {
   "name": "Konoha.Runtime",
   "rootNamespace": "Konoha",
-  "references": ["Unity.ugui"]
+  "references": ["Unity.ugui", "Unity.Netcode.Runtime", "Unity.Networking.Transport"]
 }
