@@ -7,16 +7,16 @@ namespace Konoha.Networking
 {
     public sealed class NetworkPlayerCombat : NetworkBehaviour
     {
-        public const int MaxHealth = 100;
+        public const int MaxWibawa = 100;
         public const int BasicAttackDamage = 20;
 
         public float attackRange = 2.7f;
         public float attackCooldown = 0.65f;
-        public float respawnDelay = 3f;
+        public float respawnDelay = 6f;
         public TextMesh healthLabel;
 
         private NetworkVariable<int> health = new NetworkVariable<int>(
-            MaxHealth,
+            MaxWibawa,
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Server);
 
@@ -35,11 +35,12 @@ namespace Konoha.Networking
         private float localNextAttackTime;
         private double serverNextAttackTime;
         private bool serverRespawnRunning;
+        private Coroutine respawnRoutine;
         private Camera cachedCamera;
         private NetworkPlayerIdentity identity;
         private NetworkPlayerMovement movement;
 
-        public int Health => health.Value;
+        public int Wibawa => health.Value;
         public bool IsKnockedOut => knockedOut.Value;
 
         public override void OnNetworkSpawn()
@@ -69,6 +70,9 @@ namespace Konoha.Networking
 
             if (attackButton != null)
                 attackButton.onClick.RemoveListener(TryBasicAttack);
+
+            if (respawnRoutine != null)
+                StopCoroutine(respawnRoutine);
 
             base.OnNetworkDespawn();
         }
@@ -117,7 +121,14 @@ namespace Konoha.Networking
 
         public void TryBasicAttack()
         {
-            if (!IsOwner || !IsSpawned || knockedOut.Value)
+            NetworkMatchManager match = NetworkMatchManager.Instance;
+
+            if (!IsOwner ||
+                !IsSpawned ||
+                knockedOut.Value ||
+                match == null ||
+                !match.AllowsGameplay ||
+                match.IsRuler(OwnerClientId))
                 return;
 
             if (Time.unscaledTime < localNextAttackTime)
@@ -130,7 +141,14 @@ namespace Konoha.Networking
         [ServerRpc]
         private void BasicAttackServerRpc()
         {
-            if (knockedOut.Value || NetworkManager == null || NetworkManager.SpawnManager == null)
+            NetworkMatchManager match = NetworkMatchManager.Instance;
+
+            if (knockedOut.Value ||
+                match == null ||
+                !match.AllowsGameplay ||
+                match.IsRuler(OwnerClientId) ||
+                NetworkManager == null ||
+                NetworkManager.SpawnManager == null)
                 return;
 
             double now = Time.realtimeSinceStartupAsDouble;
@@ -139,16 +157,25 @@ namespace Konoha.Networking
 
             serverNextAttackTime = now + attackCooldown;
 
+            int attackerTeam = NetworkTeamUtility.GetTeam(OwnerClientId);
             NetworkPlayerCombat bestTarget = null;
             float bestDistanceSqr = attackRange * attackRange;
 
             foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
             {
-                if (networkObject == null || networkObject == NetworkObject)
+                if (networkObject == null ||
+                    networkObject == NetworkObject ||
+                    !networkObject.IsPlayerObject)
+                    continue;
+
+                if (NetworkTeamUtility.GetTeam(networkObject.OwnerClientId) == attackerTeam)
                     continue;
 
                 NetworkPlayerCombat candidate = networkObject.GetComponent<NetworkPlayerCombat>();
-                if (candidate == null || !candidate.IsSpawned || candidate.knockedOut.Value || candidate.health.Value <= 0)
+                if (candidate == null ||
+                    !candidate.IsSpawned ||
+                    candidate.knockedOut.Value ||
+                    candidate.health.Value <= 0)
                     continue;
 
                 Vector3 delta = candidate.transform.position - transform.position;
@@ -178,7 +205,24 @@ namespace Konoha.Networking
             Debug.Log(
                 "[KONOHA COMBAT] Hit | attacker=" + OwnerClientId +
                 " | target=" + bestTarget.OwnerClientId +
-                " | hp=" + bestTarget.health.Value);
+                " | wibawa=" + bestTarget.health.Value);
+        }
+
+        public void ServerResetForMatch()
+        {
+            if (!IsServer)
+                return;
+
+            if (respawnRoutine != null)
+            {
+                StopCoroutine(respawnRoutine);
+                respawnRoutine = null;
+            }
+
+            serverRespawnRunning = false;
+            health.Value = MaxWibawa;
+            knockedOut.Value = false;
+            respawnTicket.Value += 1;
         }
 
         private void ApplyServerDamage(int damage)
@@ -186,11 +230,14 @@ namespace Konoha.Networking
             if (!IsServer || knockedOut.Value)
                 return;
 
-            int nextHealth = Mathf.Clamp(health.Value - Mathf.Max(0, damage), 0, MaxHealth);
+            int nextHealth = Mathf.Clamp(health.Value - Mathf.Max(0, damage), 0, MaxWibawa);
             health.Value = nextHealth;
 
             if (nextHealth == 0 && !serverRespawnRunning)
-                StartCoroutine(ServerKnockoutAndRespawn());
+            {
+                NetworkMatchManager.Instance?.HandlePlayerKnockedOut(OwnerClientId);
+                respawnRoutine = StartCoroutine(ServerKnockoutAndRespawn());
+            }
         }
 
         private IEnumerator ServerKnockoutAndRespawn()
@@ -198,14 +245,15 @@ namespace Konoha.Networking
             serverRespawnRunning = true;
             knockedOut.Value = true;
 
-            Debug.Log("[KONOHA COMBAT] KO | player=" + OwnerClientId);
+            Debug.Log("[KONOHA COMBAT] WIBAWA RUNTUH | player=" + OwnerClientId);
 
             yield return new WaitForSecondsRealtime(respawnDelay);
 
             respawnTicket.Value += 1;
-            health.Value = MaxHealth;
+            health.Value = MaxWibawa;
             knockedOut.Value = false;
             serverRespawnRunning = false;
+            respawnRoutine = null;
 
             Debug.Log("[KONOHA COMBAT] RESPAWN | player=" + OwnerClientId);
         }
@@ -245,7 +293,7 @@ namespace Konoha.Networking
             if (controllerWasEnabled)
                 controller.enabled = false;
 
-            transform.position = GetSpawnPosition(OwnerClientId);
+            transform.position = NetworkTeamUtility.GetSpawnPosition(OwnerClientId);
             transform.rotation = Quaternion.identity;
 
             if (controllerWasEnabled)
@@ -258,30 +306,32 @@ namespace Konoha.Networking
                 " | position=" + transform.position);
         }
 
-        private static Vector3 GetSpawnPosition(ulong clientId)
-        {
-            if (clientId == 0)
-                return new Vector3(-3f, 0.1f, -3f);
-
-            if (clientId == 1)
-                return new Vector3(3f, 0.1f, -3f);
-
-            int slot = (int)(clientId % 6);
-            float x = -6f + slot * 2.4f;
-            float z = clientId % 2 == 0 ? 1f : 4f;
-            return new Vector3(x, 0.1f, z);
-        }
-
         private void UpdateAttackButtonVisual()
         {
             if (!IsOwner || attackButton == null)
                 return;
 
-            if (knockedOut.Value)
+            NetworkMatchManager match = NetworkMatchManager.Instance;
+            bool gameplayLocked =
+                knockedOut.Value ||
+                match == null ||
+                !match.AllowsGameplay ||
+                match.IsRuler(OwnerClientId);
+
+            if (gameplayLocked)
             {
                 attackButton.interactable = false;
+
                 if (attackButtonLabel != null)
-                    attackButtonLabel.text = "ATTACK\nKO";
+                {
+                    if (knockedOut.Value)
+                        attackButtonLabel.text = "ATTACK\nRUNTUH";
+                    else if (match != null && match.IsRuler(OwnerClientId))
+                        attackButtonLabel.text = "ATTACK\nPENGUASA";
+                    else
+                        attackButtonLabel.text = "ATTACK";
+                }
+
                 return;
             }
 
@@ -301,13 +351,13 @@ namespace Konoha.Networking
 
             if (knockedOut.Value)
             {
-                healthLabel.text = "KO | RESPAWN...";
+                healthLabel.text = "WIBAWA RUNTUH\nRESPAWN...";
                 healthLabel.color = new Color(1f, 0.30f, 0.27f);
                 return;
             }
 
             int current = health.Value;
-            healthLabel.text = "HP " + current + "/" + MaxHealth;
+            healthLabel.text = "WIBAWA " + current + "/" + MaxWibawa;
             healthLabel.color = current > 50
                 ? new Color(0.55f, 1f, 0.55f)
                 : current > 20
