@@ -127,6 +127,9 @@ namespace Konoha.Networking
             (State == GreyboxMatchState.Waiting || State == GreyboxMatchState.Result) &&
             PlayerCount >= 2;
 
+        public bool CanUseDebugTest =>
+            IsServer && State == GreyboxMatchState.Playing;
+
         public override void OnNetworkSpawn()
         {
             base.OnNetworkSpawn();
@@ -205,6 +208,25 @@ namespace Konoha.Networking
                 return;
 
             ChairActionServerRpc();
+        }
+
+        public void RequestDebugTimerFromLocal()
+        {
+            if (!CanUseDebugTest)
+                return;
+
+            matchTimeRemaining.Value = Mathf.Min(matchTimeRemaining.Value, 10f);
+            Debug.Log("[KONOHA MATCH] DEBUG timer set to 10 seconds.");
+        }
+
+        public void RequestDebugPowerFromLocal()
+        {
+            if (!CanUseDebugTest)
+                return;
+
+            cyanPower.Value = Mathf.Max(cyanPower.Value, 95);
+            orangePower.Value = Mathf.Max(orangePower.Value, 95);
+            Debug.Log("[KONOHA MATCH] DEBUG both teams set to 95 POWER.");
         }
 
         public bool IsRuler(ulong clientId)
