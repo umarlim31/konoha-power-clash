@@ -21,6 +21,7 @@ namespace Konoha.Networking
         private Button dodgeButton;
         private Text dodgeButtonLabel;
         private float nextDodgeTime;
+        private float ignoreChairPinUntil;
 
         private void Awake()
         {
@@ -64,7 +65,9 @@ namespace Konoha.Networking
             NetworkMatchManager match = NetworkMatchManager.Instance;
             bool knockedOut = combat != null && combat.IsKnockedOut;
             bool matchLocked = match == null || !match.AllowsGameplay;
-            bool ruler = match != null && match.IsRuler(OwnerClientId);
+            bool ruler = match != null &&
+                         match.IsRuler(OwnerClientId) &&
+                         Time.unscaledTime >= ignoreChairPinUntil;
             bool movementLocked = knockedOut || matchLocked || ruler;
 
             UpdateDodgeButtonVisual(knockedOut, matchLocked);
@@ -140,7 +143,10 @@ namespace Konoha.Networking
 
             bool leavingChair = match.IsRuler(OwnerClientId);
             if (leavingChair)
+            {
+                ignoreChairPinUntil = Time.unscaledTime + 0.45f;
                 match.RequestChairActionFromLocal();
+            }
 
             nextDodgeTime = Time.unscaledTime + dodgeCooldown;
 
