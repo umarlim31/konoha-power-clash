@@ -15,9 +15,11 @@ namespace Konoha.Networking
         public float dodgeCooldown = 1.15f;
 
         private CharacterController controller;
+        private NetworkPlayerCombat combat;
         private TouchJoystick joystick;
         private MobileCombatCamera cameraFollow;
         private Button dodgeButton;
+        private Text dodgeButtonLabel;
         private float nextDodgeTime;
 
         private void Awake()
@@ -26,6 +28,7 @@ namespace Konoha.Networking
                 motor = GetComponent<CharacterMotor>();
 
             controller = GetComponent<CharacterController>();
+            combat = GetComponent<NetworkPlayerCombat>();
         }
 
         public override void OnNetworkSpawn()
@@ -58,6 +61,15 @@ namespace Konoha.Networking
             if (joystick == null || motor == null || cameraFollow == null || dodgeButton == null)
                 BindLocalControls();
 
+            bool locked = combat != null && combat.IsKnockedOut;
+            UpdateDodgeButtonVisual(locked);
+
+            if (locked)
+            {
+                joystick?.ResetInput();
+                return;
+            }
+
             if (joystick != null && motor != null)
                 motor.Step(new MoveIntent(joystick.Value), Mathf.Min(Time.deltaTime, 0.05f));
         }
@@ -66,6 +78,9 @@ namespace Konoha.Networking
         {
             if (!IsOwner)
                 return;
+
+            if (combat == null)
+                combat = GetComponent<NetworkPlayerCombat>();
 
             if (joystick == null)
                 joystick = Object.FindFirstObjectByType<TouchJoystick>();
@@ -88,6 +103,7 @@ namespace Konoha.Networking
 
                 if (dodgeButton != null)
                 {
+                    dodgeButtonLabel = dodgeButton.GetComponentInChildren<Text>();
                     dodgeButton.onClick.RemoveListener(TryDodge);
                     dodgeButton.onClick.AddListener(TryDodge);
                 }
@@ -96,7 +112,13 @@ namespace Konoha.Networking
 
         public void TryDodge()
         {
-            if (!IsOwner || !IsSpawned || controller == null || Time.unscaledTime < nextDodgeTime)
+            if (!IsOwner || !IsSpawned || controller == null)
+                return;
+
+            if (combat != null && combat.IsKnockedOut)
+                return;
+
+            if (Time.unscaledTime < nextDodgeTime)
                 return;
 
             nextDodgeTime = Time.unscaledTime + dodgeCooldown;
@@ -107,6 +129,35 @@ namespace Konoha.Networking
 
             controller.Move(direction * dodgeDistance);
             Debug.Log("[KONOHA MOVE] Dodge | client=" + OwnerClientId);
+        }
+
+        public void ResetLocalInput()
+        {
+            if (IsOwner)
+                joystick?.ResetInput();
+        }
+
+        private void UpdateDodgeButtonVisual(bool locked)
+        {
+            if (dodgeButton == null)
+                return;
+
+            float remaining = Mathf.Max(0f, nextDodgeTime - Time.unscaledTime);
+
+            if (locked)
+            {
+                dodgeButton.interactable = false;
+                if (dodgeButtonLabel != null)
+                    dodgeButtonLabel.text = "DODGE\nKO";
+                return;
+            }
+
+            dodgeButton.interactable = remaining <= 0f;
+
+            if (dodgeButtonLabel != null)
+                dodgeButtonLabel.text = remaining > 0f
+                    ? "DODGE\n" + remaining.ToString("0.0")
+                    : "DODGE";
         }
     }
 }
