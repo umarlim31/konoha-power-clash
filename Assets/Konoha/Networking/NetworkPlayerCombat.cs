@@ -21,6 +21,7 @@ namespace Konoha.Networking
         private Button attackButton;
         private float localNextAttackTime;
         private double serverNextAttackTime;
+        private Camera cachedCamera;
 
         public int Health => health.Value;
 
@@ -30,6 +31,8 @@ namespace Konoha.Networking
 
             health.OnValueChanged += OnHealthChanged;
             RefreshHealthLabel(health.Value);
+
+            cachedCamera = Camera.main;
 
             if (IsOwner)
                 BindAttackButton();
@@ -49,6 +52,22 @@ namespace Konoha.Networking
         {
             if (IsOwner && attackButton == null)
                 BindAttackButton();
+        }
+
+        private void LateUpdate()
+        {
+            if (!IsSpawned || healthLabel == null)
+                return;
+
+            if (cachedCamera == null)
+                cachedCamera = Camera.main;
+
+            if (cachedCamera == null)
+                return;
+
+            Vector3 direction = healthLabel.transform.position - cachedCamera.transform.position;
+            if (direction.sqrMagnitude > 0.001f)
+                healthLabel.transform.rotation = Quaternion.LookRotation(direction);
         }
 
         private void BindAttackButton()
