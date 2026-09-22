@@ -26,7 +26,7 @@ namespace Konoha.Editor
         public const string Generated = "Assets/Konoha/Generated";
         public const string ScenePath = Generated + "/SpikeArena.unity";
 
-        [MenuItem("Konoha/Prepare Build 0.0.1 (regenerates greybox)")]
+        [MenuItem("Konoha/Prepare Build 0.0.4A (regenerates greybox)")]
         public static void Prepare()
         {
             if (Application.unityVersion != UnityVersion)
@@ -52,13 +52,13 @@ namespace Konoha.Editor
         {
             PlayerSettings.companyName = "KonohaPrototype";
             PlayerSettings.productName = "KONOHA Spike";
-            PlayerSettings.bundleVersion = "0.0.3";
+            PlayerSettings.bundleVersion = "0.0.4";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.spike");
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
-            PlayerSettings.Android.bundleVersionCode = 5;
+            PlayerSettings.Android.bundleVersionCode = 6;
             PlayerSettings.Android.useCustomKeystore = false;
             // Activity avoids the documented GameActivity dev-build issue on this pinned editor.
             PlayerSettings.Android.applicationEntry = AndroidApplicationEntry.Activity;
@@ -142,6 +142,24 @@ namespace Konoha.Editor
             return box;
         }
 
+        private static GameObject CreateMatchManagerPrefab()
+        {
+            const string path = Generated + "/NetworkMatchManager.prefab";
+
+            var root = new GameObject("NetworkMatchManager");
+            root.AddComponent<NetworkObject>();
+            var match = root.AddComponent<NetworkMatchManager>();
+            match.chairPosition = Vector3.zero;
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
+            UnityEngine.Object.DestroyImmediate(root);
+
+            if (prefab == null)
+                throw new InvalidOperationException("Failed to create match manager prefab at " + path);
+
+            return prefab;
+        }
+
         private static GameObject CreateNetworkPlayerPrefab()
         {
             const string path = Generated + "/NetworkPlayer.prefab";
@@ -215,7 +233,7 @@ namespace Konoha.Editor
             healthObject.transform.localPosition = new Vector3(0f, 1.85f, 0f);
             var healthLabel = healthObject.AddComponent<TextMesh>();
             healthLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            healthLabel.text = "HP 100/100";
+            healthLabel.text = "WIBAWA 100/100";
             healthLabel.fontSize = 38;
             healthLabel.characterSize = 0.05f;
             healthLabel.anchor = TextAnchor.MiddleCenter;
