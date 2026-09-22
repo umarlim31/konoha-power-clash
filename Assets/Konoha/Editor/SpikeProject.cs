@@ -520,12 +520,43 @@ namespace Konoha.Editor
                 "START MATCH", 17);
             startLabel.alignment = TextAnchor.MiddleCenter;
 
+            Button MakeTestButton(string name, string caption, Vector2 position, Vector2 size)
+            {
+                var rect = Rect(name, safe, new Vector2(0f, 1f), new Vector2(0f, 1f), position, size);
+                var image = rect.gameObject.AddComponent<Image>();
+                image.color = new Color(0.16f, 0.22f, 0.27f, 0.94f);
+                image.raycastTarget = true;
+                var testButton = rect.gameObject.AddComponent<Button>();
+                testButton.targetGraphic = image;
+                testButton.interactable = false;
+                var label = Label(
+                    Rect("Label", rect, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, size),
+                    caption,
+                    14);
+                label.alignment = TextAnchor.MiddleCenter;
+                return testButton;
+            }
+
+            var debugTimerButton = MakeTestButton(
+                "DebugTimerButton",
+                "TEST TIMER 10s",
+                new Vector2(205f, -175f),
+                new Vector2(150f, 52f));
+
+            var debugPowerButton = MakeTestButton(
+                "DebugPowerButton",
+                "TEST POWER 95",
+                new Vector2(365f, -175f),
+                new Vector2(150f, 52f));
+
             var matchHud = safe.gameObject.AddComponent<NetworkMatchHud>();
             matchHud.matchText = matchText;
             matchHud.scoreText = scoreText;
             matchHud.objectiveText = objectiveText;
             matchHud.startButton = startButton;
             matchHud.chairButton = chairButton;
+            matchHud.debugTimerButton = debugTimerButton;
+            matchHud.debugPowerButton = debugPowerButton;
 
             panel.transform.SetAsFirstSibling();
         }
