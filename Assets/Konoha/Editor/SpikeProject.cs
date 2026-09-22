@@ -37,6 +37,14 @@ namespace Konoha.Editor
             AssetDatabase.SaveAssets();
         }
 
+        // Unity Build Automation resolves the configured Pre-Export method by exact name.
+        // Keep this compatibility entry point while the build target is configured with
+        // Konoha.Editor.SpikeProject.prepare.
+        public static void prepare()
+        {
+            Prepare();
+        }
+
         private static void ConfigureAndroid()
         {
             PlayerSettings.companyName = "KonohaPrototype";
