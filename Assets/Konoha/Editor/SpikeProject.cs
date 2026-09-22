@@ -371,6 +371,7 @@ namespace Konoha.Editor
 
                 var actionButton = rect.gameObject.AddComponent<Button>();
                 actionButton.targetGraphic = image;
+                actionButton.interactable = false;
 
                 var actionText = Label(Rect("Label", rect, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, size), caption, 18);
                 actionText.alignment = TextAnchor.MiddleCenter;
