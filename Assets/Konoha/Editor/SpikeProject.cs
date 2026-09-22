@@ -58,7 +58,7 @@ namespace Konoha.Editor
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
-            PlayerSettings.Android.bundleVersionCode = 3;
+            PlayerSettings.Android.bundleVersionCode = 4;
             PlayerSettings.Android.useCustomKeystore = false;
             // Activity avoids the documented GameActivity dev-build issue on this pinned editor.
             PlayerSettings.Android.applicationEntry = AndroidApplicationEntry.Activity;
@@ -148,6 +148,8 @@ namespace Konoha.Editor
 
             var root = new GameObject("NetworkPlayer");
             root.AddComponent<NetworkObject>();
+            var networkTransform = root.AddComponent<OwnerNetworkTransform>();
+            networkTransform.Interpolate = true;
 
             var controller = root.AddComponent<CharacterController>();
             controller.height = 2f;
@@ -164,6 +166,7 @@ namespace Konoha.Editor
             movement.motor = motor;
 
             var identity = root.AddComponent<NetworkPlayerIdentity>();
+            var combat = root.AddComponent<NetworkPlayerCombat>();
 
             var neutralMaterial = Material("NetworkPlayerNeutral", new Color(0.72f, 0.78f, 0.84f));
             var facingMaterial = Material("NetworkPlayerFacing", new Color(0.95f, 0.75f, 0.25f));
@@ -207,10 +210,26 @@ namespace Konoha.Editor
             if (label.font != null && labelRenderer != null)
                 labelRenderer.sharedMaterial = label.font.material;
 
+            var healthObject = new GameObject("HealthLabel");
+            healthObject.transform.SetParent(root.transform, false);
+            healthObject.transform.localPosition = new Vector3(0f, 1.85f, 0f);
+            var healthLabel = healthObject.AddComponent<TextMesh>();
+            healthLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            healthLabel.text = "HP 100/100";
+            healthLabel.fontSize = 38;
+            healthLabel.characterSize = 0.05f;
+            healthLabel.anchor = TextAnchor.MiddleCenter;
+            healthLabel.alignment = TextAlignment.Center;
+            healthLabel.color = new Color(0.55f, 1f, 0.55f);
+            var healthRenderer = healthObject.GetComponent<MeshRenderer>();
+            if (healthLabel.font != null && healthRenderer != null)
+                healthRenderer.sharedMaterial = healthLabel.font.material;
+
             identity.bodyRenderer = body.GetComponent<Renderer>();
             identity.facingRenderer = facing.GetComponent<Renderer>();
             identity.localOwnerMarker = ownerMarker;
             identity.ownershipLabel = label;
+            combat.healthLabel = healthLabel;
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
             UnityEngine.Object.DestroyImmediate(root);
@@ -341,7 +360,21 @@ namespace Konoha.Editor
             layout.safeRoot = safe;
             layout.joystick = pad;
             Label(Rect("Instruction", safe, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 15f), new Vector2(560f, 32f)),
-                "0.0.2D | Network Movement Synchronization", 21).alignment = TextAnchor.MiddleCenter;
+                "0.0.3A | Smooth Movement + Multiplayer Combat Foundation", 21).alignment = TextAnchor.MiddleCenter;
+
+            Button MakeActionButton(string name, string caption, Vector2 position, Vector2 size)
+            {
+                var rect = Rect(name, safe, Vector2.one, Vector2.one, position, size);
+                rect.gameObject.AddComponent<Image>().color = new Color(0.12f, 0.34f, 0.40f, 0.96f);
+                var actionButton = rect.gameObject.AddComponent<Button>();
+                var actionText = Label(Rect("Label", rect, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, size), caption, 18);
+                actionText.alignment = TextAnchor.MiddleCenter;
+                return actionButton;
+            }
+
+            MakeActionButton("AttackButton", "ATTACK", new Vector2(-94f, -105f), new Vector2(150f, 66f));
+            MakeActionButton("DodgeButton", "DODGE", new Vector2(-260f, -105f), new Vector2(150f, 66f));
+
             CreateNetworkingProof(safe, networkPlayerPrefab, offlineHero, offlineDriver);
             var diagnostics = Label(Rect("Diagnostics", safe, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -18f), new Vector2(690f, 230f)), "Loading diagnostics...", 18);
             var buttonRect = Rect("DebugToggle", safe, Vector2.one, Vector2.one, new Vector2(-20f, -18f), new Vector2(112f, 58f));
@@ -397,7 +430,7 @@ namespace Konoha.Editor
 
             var legend = Label(
                 Rect("NetworkLegend", safe, Vector2.one, Vector2.one, new Vector2(-20f, -292f), new Vector2(470f, 54f)),
-                "CYAN = P0 HOST   |   ORANGE = P1 CLIENT   |   GREEN MARKER = YOU",
+                "P0 = CYAN | CLIENTS = ORANGE/PURPLE | GREEN = YOU | ATTACK + DODGE ACTIVE",
                 16);
             legend.alignment = TextAnchor.MiddleCenter;
 
