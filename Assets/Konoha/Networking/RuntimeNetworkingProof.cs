@@ -35,7 +35,7 @@ namespace Konoha.Networking
         {
             if (!Application.isPlaying)
             {
-                SetStatus("NETWORK READY | 0.0.2C");
+                SetStatus("NETWORK READY | 0.0.2D");
                 return;
             }
 
@@ -81,7 +81,7 @@ namespace Konoha.Networking
             manager.OnClientDisconnectCallback += OnClientDisconnected;
 
             initialized = true;
-            SetStatus("NETWORK READY | SPAWN + OWNERSHIP");
+            SetStatus("NETWORK READY | MOVEMENT SYNC");
         }
 
         private void OnDestroy()
@@ -178,7 +178,7 @@ namespace Konoha.Networking
                 EnsurePlayerObject(clientId);
 
             string role = manager != null && manager.IsHost ? "HOST" : "CLIENT";
-            SetStatus("CONNECTED | CLIENT " + clientId + " | " + role + " | OWNERSHIP READY");
+            SetStatus("CONNECTED | CLIENT " + clientId + " | " + role + " | MOVE READY");
         }
 
         private void OnClientDisconnected(ulong clientId)
@@ -256,6 +256,14 @@ namespace Konoha.Networking
 
             if (offlineDriver != null)
                 offlineDriver.SetActive(true);
+
+            Camera mainCamera = Camera.main;
+            if (mainCamera != null)
+            {
+                MobileCombatCamera follow = mainCamera.GetComponent<MobileCombatCamera>();
+                if (follow != null && offlineHero != null)
+                    follow.target = offlineHero.transform;
+            }
         }
 
         private void SetStatus(string value)
