@@ -31,7 +31,7 @@ namespace Konoha.Networking
 
             if (ownershipLabel != null)
             {
-                string role = OwnerClientId == NetworkManager.ServerClientId ? "HOST" : "CLIENT";
+                string role = OwnerClientId == Unity.Netcode.NetworkManager.ServerClientId ? "HOST" : "CLIENT";
                 ownershipLabel.text = "P" + OwnerClientId + " " + role + (IsOwner ? "\nYOU / OWNER" : "");
                 ownershipLabel.color = IsOwner ? new Color(0.45f, 1f, 0.50f) : Color.white;
             }
