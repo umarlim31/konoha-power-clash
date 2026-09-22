@@ -5,6 +5,7 @@ using Konoha.Core;
 using Konoha.Data;
 using Konoha.Diagnostics;
 using Konoha.Input;
+using Konoha.Networking;
 using Konoha.UI;
 using UnityEditor;
 using UnityEditor.Build;
@@ -14,6 +15,8 @@ using UnityEngine.EventSystems;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
+using Unity.Netcode;
+using Unity.Netcode.Transports.UTP;
 
 namespace Konoha.Editor
 {
@@ -256,8 +259,9 @@ namespace Konoha.Editor
             var layout = canvasObject.AddComponent<SafeAreaLayout>();
             layout.safeRoot = safe;
             layout.joystick = pad;
-            Label(Rect("Instruction", safe, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 15f), new Vector2(460f, 32f)),
-                "0.0.1 | Geser joystick untuk bergerak", 21).alignment = TextAnchor.MiddleCenter;
+            Label(Rect("Instruction", safe, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 15f), new Vector2(560f, 32f)),
+                "0.0.2B | Runtime Networking Proof", 21).alignment = TextAnchor.MiddleCenter;
+            CreateNetworkingProof(safe);
             var diagnostics = Label(Rect("Diagnostics", safe, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -18f), new Vector2(690f, 230f)), "Loading diagnostics...", 18);
             var buttonRect = Rect("DebugToggle", safe, Vector2.one, Vector2.one, new Vector2(-20f, -18f), new Vector2(112f, 58f));
             buttonRect.gameObject.AddComponent<Image>().color = new Color(0.1f, 0.3f, 0.35f, 0.95f);
@@ -269,6 +273,44 @@ namespace Konoha.Editor
             hud.toggle = button;
             hud.motor = motor;
             return joystick;
+        }
+
+        private static void CreateNetworkingProof(RectTransform safe)
+        {
+            var networkObject = new GameObject("RuntimeNetworkingProof", typeof(NetworkManager), typeof(UnityTransport), typeof(RuntimeNetworkingProof));
+            var proof = networkObject.GetComponent<RuntimeNetworkingProof>();
+
+            var panel = Rect("NetworkPanel", safe, new Vector2(1f, 1f), Vector2.one, new Vector2(-20f, -92f), new Vector2(470f, 185f));
+            panel.gameObject.AddComponent<Image>().color = new Color(0.04f, 0.09f, 0.13f, 0.9f);
+
+            var statusRect = Rect("NetworkStatus", panel, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -12f), new Vector2(440f, 34f));
+            var status = Label(statusRect, "NETWORK BOOTING...", 18);
+            status.alignment = TextAnchor.MiddleCenter;
+
+            var addressRect = Rect("Address", panel, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -54f), new Vector2(440f, 40f));
+            addressRect.gameObject.AddComponent<Image>().color = new Color(0.12f, 0.18f, 0.22f, 1f);
+            var input = addressRect.gameObject.AddComponent<InputField>();
+            var inputText = Label(Rect("Text", addressRect, Vector2.zero, Vector2.zero, new Vector2(10f, 5f), new Vector2(420f, 30f)), "127.0.0.1", 18);
+            inputText.alignment = TextAnchor.MiddleLeft;
+            input.textComponent = inputText;
+            input.text = "127.0.0.1";
+
+            Button MakeButton(string name, string caption, float x)
+            {
+                var rect = Rect(name, panel, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(x, 12f), new Vector2(135f, 52f));
+                rect.gameObject.AddComponent<Image>().color = new Color(0.1f, 0.3f, 0.35f, 0.95f);
+                var button = rect.gameObject.AddComponent<Button>();
+                var text = Label(Rect("Label", rect, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, rect.sizeDelta), caption, 18);
+                text.alignment = TextAnchor.MiddleCenter;
+                return button;
+            }
+
+            proof.status = status;
+            proof.addressInput = input;
+            proof.hostButton = MakeButton("Host", "HOST", -145f);
+            proof.clientButton = MakeButton("Client", "CLIENT", 0f);
+            proof.shutdownButton = MakeButton("Shutdown", "STOP", 145f);
+            proof.Initialize();
         }
     }
 }
