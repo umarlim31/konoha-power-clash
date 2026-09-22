@@ -93,7 +93,7 @@ namespace Konoha.Networking
 
             initialized = true;
             SetNetworkButtons(false);
-            SetStatus("NETWORK READY | COMBAT LOOP")
+            SetStatus("NETWORK READY | COMBAT LOOP");
         }
 
         private void OnDestroy()
@@ -187,7 +187,7 @@ namespace Konoha.Networking
             serverSpawnedPlayers.Clear();
             RestoreOfflinePrototype();
             SetNetworkButtons(false);
-            SetStatus("NETWORK READY | SMOOTH MOVE + COMBAT");
+            SetStatus("NETWORK READY | COMBAT LOOP");
         }
 
         private void OnClientConnected(ulong clientId)
