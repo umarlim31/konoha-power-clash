@@ -21,6 +21,8 @@ namespace Konoha.Networking
         public GameObject offlineDriver;
 
         private readonly HashSet<ulong> serverSpawnedPlayers = new HashSet<ulong>();
+        private const string LastHostAddressKey = "Konoha.LastHostAddress";
+
         private NetworkManager manager;
         private UnityTransport transport;
         private bool initialized;
@@ -61,6 +63,14 @@ namespace Konoha.Networking
             }
 
             manager.NetworkConfig.NetworkTransport = transport;
+            manager.NetworkConfig.TickRate = 60;
+
+            if (addressInput != null)
+            {
+                string savedAddress = PlayerPrefs.GetString(LastHostAddressKey, addressInput.text);
+                if (!string.IsNullOrWhiteSpace(savedAddress))
+                    addressInput.text = savedAddress;
+            }
 
             try
             {
@@ -82,7 +92,8 @@ namespace Konoha.Networking
             manager.OnClientDisconnectCallback += OnClientDisconnected;
 
             initialized = true;
-            SetStatus("NETWORK READY | MOVEMENT SYNC");
+            SetNetworkButtons(false);
+            SetStatus("NETWORK READY | SMOOTH MOVE + COMBAT");
         }
 
         private void OnDestroy()
@@ -116,6 +127,7 @@ namespace Konoha.Networking
             }
 
             DisableOfflinePrototype();
+            SetNetworkButtons(true);
 
             // OnClientConnected normally creates P0 during StartHost. This explicit call
             // is intentionally idempotent and guarantees the host PlayerObject exists.
@@ -133,6 +145,9 @@ namespace Konoha.Networking
                 ? "127.0.0.1"
                 : addressInput.text.Trim();
 
+            PlayerPrefs.SetString(LastHostAddressKey, address);
+            PlayerPrefs.Save();
+
             transport.SetConnectionData(address, 7777);
             bool started = manager.StartClient();
 
@@ -143,6 +158,7 @@ namespace Konoha.Networking
             }
 
             DisableOfflinePrototype();
+            SetNetworkButtons(true);
             SetStatus("CLIENT STARTING | " + address + ":7777");
         }
 
@@ -170,7 +186,8 @@ namespace Konoha.Networking
 
             serverSpawnedPlayers.Clear();
             RestoreOfflinePrototype();
-            SetStatus("NETWORK READY | MOVEMENT SYNC");
+            SetNetworkButtons(false);
+            SetStatus("NETWORK READY | SMOOTH MOVE + COMBAT");
         }
 
         private void OnClientConnected(ulong clientId)
@@ -265,6 +282,13 @@ namespace Konoha.Networking
                 if (follow != null && offlineHero != null)
                     follow.target = offlineHero.transform;
             }
+        }
+
+        private void SetNetworkButtons(bool networkActive)
+        {
+            if (hostButton != null) hostButton.interactable = !networkActive;
+            if (clientButton != null) clientButton.interactable = !networkActive;
+            if (shutdownButton != null) shutdownButton.interactable = networkActive;
         }
 
         private void SetStatus(string value)
