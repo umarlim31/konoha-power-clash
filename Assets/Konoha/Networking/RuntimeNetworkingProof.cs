@@ -38,7 +38,7 @@ namespace Konoha.Networking
         {
             if (!Application.isPlaying)
             {
-                SetStatus("NETWORK READY | 0.0.2D");
+                SetStatus("NETWORK READY | 0.0.3A");
                 return;
             }
 
@@ -196,7 +196,7 @@ namespace Konoha.Networking
                 EnsurePlayerObject(clientId);
 
             string role = manager != null && manager.IsHost ? "HOST" : "CLIENT";
-            SetStatus("CONNECTED | CLIENT " + clientId + " | " + role + " | MOVE READY");
+            SetStatus("CONNECTED | CLIENT " + clientId + " | " + role + " | CORE READY");
         }
 
         private void OnClientDisconnected(ulong clientId)
