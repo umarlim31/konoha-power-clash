@@ -11,9 +11,13 @@ namespace Konoha.Networking
         public Text objectiveText;
         public Button startButton;
         public Button chairButton;
+        public Button debugTimerButton;
+        public Button debugPowerButton;
 
         private Text startLabel;
         private Text chairLabel;
+        private Text debugTimerLabel;
+        private Text debugPowerLabel;
         private NetworkMatchManager manager;
 
         private void Awake()
@@ -29,6 +33,18 @@ namespace Konoha.Networking
                 chairLabel = chairButton.GetComponentInChildren<Text>();
                 chairButton.onClick.AddListener(OnChairPressed);
             }
+
+            if (debugTimerButton != null)
+            {
+                debugTimerLabel = debugTimerButton.GetComponentInChildren<Text>();
+                debugTimerButton.onClick.AddListener(OnDebugTimerPressed);
+            }
+
+            if (debugPowerButton != null)
+            {
+                debugPowerLabel = debugPowerButton.GetComponentInChildren<Text>();
+                debugPowerButton.onClick.AddListener(OnDebugPowerPressed);
+            }
         }
 
         private void OnDestroy()
@@ -38,6 +54,12 @@ namespace Konoha.Networking
 
             if (chairButton != null)
                 chairButton.onClick.RemoveListener(OnChairPressed);
+
+            if (debugTimerButton != null)
+                debugTimerButton.onClick.RemoveListener(OnDebugTimerPressed);
+
+            if (debugPowerButton != null)
+                debugPowerButton.onClick.RemoveListener(OnDebugPowerPressed);
         }
 
         private void Update()
@@ -52,6 +74,8 @@ namespace Konoha.Networking
                 SetText(objectiveText, "KURSI: OFFLINE");
                 SetButton(startButton, startLabel, false, "START MATCH");
                 SetButton(chairButton, chairLabel, false, "DUDUK");
+                SetButton(debugTimerButton, debugTimerLabel, false, "TEST TIMER 10s");
+                SetButton(debugPowerButton, debugPowerLabel, false, "TEST POWER 95");
                 return;
             }
 
@@ -141,6 +165,9 @@ namespace Konoha.Networking
                 chairLabel,
                 chairInteractable,
                 localIsRuler ? "TURUN" : "DUDUK");
+
+            SetButton(debugTimerButton, debugTimerLabel, manager.CanUseDebugTest, "TEST TIMER 10s");
+            SetButton(debugPowerButton, debugPowerLabel, manager.CanUseDebugTest, "TEST POWER 95");
         }
 
         private void OnStartPressed()
@@ -151,6 +178,16 @@ namespace Konoha.Networking
         private void OnChairPressed()
         {
             manager?.RequestChairActionFromLocal();
+        }
+
+        private void OnDebugTimerPressed()
+        {
+            manager?.RequestDebugTimerFromLocal();
+        }
+
+        private void OnDebugPowerPressed()
+        {
+            manager?.RequestDebugPowerFromLocal();
         }
 
         private static string GetStateText(GreyboxMatchState state)
