@@ -52,13 +52,13 @@ namespace Konoha.Editor
         {
             PlayerSettings.companyName = "KonohaPrototype";
             PlayerSettings.productName = "KONOHA Spike";
-            PlayerSettings.bundleVersion = "0.0.1";
+            PlayerSettings.bundleVersion = "0.0.2";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.spike");
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
-            PlayerSettings.Android.bundleVersionCode = 1;
+            PlayerSettings.Android.bundleVersionCode = 2;
             PlayerSettings.Android.useCustomKeystore = false;
             // Activity avoids the documented GameActivity dev-build issue on this pinned editor.
             PlayerSettings.Android.applicationEntry = AndroidApplicationEntry.Activity;
@@ -142,6 +142,70 @@ namespace Konoha.Editor
             return box;
         }
 
+        private static GameObject CreateNetworkPlayerPrefab()
+        {
+            const string path = Generated + "/NetworkPlayer.prefab";
+
+            var root = new GameObject("NetworkPlayer");
+            root.AddComponent<NetworkObject>();
+            var identity = root.AddComponent<NetworkPlayerIdentity>();
+
+            var neutralMaterial = Material("NetworkPlayerNeutral", new Color(0.72f, 0.78f, 0.84f));
+            var facingMaterial = Material("NetworkPlayerFacing", new Color(0.95f, 0.75f, 0.25f));
+            var ownerMaterial = Material("NetworkPlayerOwner", new Color(0.35f, 1.00f, 0.45f));
+
+            var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            body.name = "Body";
+            body.transform.SetParent(root.transform, false);
+            body.transform.localPosition = Vector3.up;
+            body.GetComponent<Renderer>().sharedMaterial = neutralMaterial;
+            UnityEngine.Object.DestroyImmediate(body.GetComponent<Collider>());
+
+            var facing = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            facing.name = "FacingMarker";
+            facing.transform.SetParent(root.transform, false);
+            facing.transform.localPosition = new Vector3(0f, 1.35f, 0.55f);
+            facing.transform.localScale = new Vector3(0.22f, 0.25f, 0.6f);
+            facing.GetComponent<Renderer>().sharedMaterial = facingMaterial;
+            UnityEngine.Object.DestroyImmediate(facing.GetComponent<Collider>());
+
+            var ownerMarker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            ownerMarker.name = "LocalOwnerMarker";
+            ownerMarker.transform.SetParent(root.transform, false);
+            ownerMarker.transform.localPosition = new Vector3(0f, 2.65f, 0f);
+            ownerMarker.transform.localScale = Vector3.one * 0.32f;
+            ownerMarker.GetComponent<Renderer>().sharedMaterial = ownerMaterial;
+            UnityEngine.Object.DestroyImmediate(ownerMarker.GetComponent<Collider>());
+
+            var labelObject = new GameObject("OwnershipLabel");
+            labelObject.transform.SetParent(root.transform, false);
+            labelObject.transform.localPosition = new Vector3(0f, 2.25f, 0f);
+            var label = labelObject.AddComponent<TextMesh>();
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.text = "PLAYER";
+            label.fontSize = 42;
+            label.characterSize = 0.055f;
+            label.anchor = TextAnchor.MiddleCenter;
+            label.alignment = TextAlignment.Center;
+            label.color = Color.white;
+            var labelRenderer = labelObject.GetComponent<MeshRenderer>();
+            if (label.font != null && labelRenderer != null)
+                labelRenderer.sharedMaterial = label.font.material;
+
+            identity.bodyRenderer = body.GetComponent<Renderer>();
+            identity.facingRenderer = facing.GetComponent<Renderer>();
+            identity.localOwnerMarker = ownerMarker;
+            identity.ownershipLabel = label;
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
+            UnityEngine.Object.DestroyImmediate(root);
+
+            if (prefab == null)
+                throw new InvalidOperationException("Failed to create network player prefab at " + path);
+
+            return prefab;
+        }
+
         private static void CreateArena()
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -149,6 +213,7 @@ namespace Konoha.Editor
             var wall = Material("Wall", new Color(0.35f, 0.43f, 0.50f));
             var accent = Material("Marker", new Color(0.95f, 0.57f, 0.15f));
             var heroMaterial = Material("TemporaryHero", new Color(0.15f, 0.9f, 0.8f));
+            var networkPlayerPrefab = CreateNetworkPlayerPrefab();
             Box("Floor", new Vector3(0f, -0.5f, 0f), new Vector3(32f, 1f, 24f), ground);
             Box("NorthBoundary", new Vector3(0f, 0.6f, 12f), new Vector3(33f, 1.2f, 1f), wall);
             Box("SouthBoundary", new Vector3(0f, 0.6f, -12f), new Vector3(33f, 1.2f, 1f), wall);
@@ -203,10 +268,11 @@ namespace Konoha.Editor
             RenderSettings.ambientMode = AmbientMode.Flat;
             RenderSettings.ambientLight = new Color(0.55f, 0.6f, 0.7f);
 
-            var joystick = CreateHud(motor);
-            var driver = new GameObject("OfflineSpikeDriver").AddComponent<OfflineSpikeDriver>();
-            driver.joystick = joystick;
+            var driverObject = new GameObject("OfflineSpikeDriver");
+            var driver = driverObject.AddComponent<OfflineSpikeDriver>();
             driver.motor = motor;
+            var joystick = CreateHud(motor, hero, driverObject, networkPlayerPrefab);
+            driver.joystick = joystick;
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
         }
@@ -235,7 +301,7 @@ namespace Konoha.Editor
             return label;
         }
 
-        private static TouchJoystick CreateHud(CharacterMotor motor)
+        private static TouchJoystick CreateHud(CharacterMotor motor, GameObject offlineHero, GameObject offlineDriver, GameObject networkPlayerPrefab)
         {
             new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
             var canvasObject = new GameObject("TouchCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -260,8 +326,8 @@ namespace Konoha.Editor
             layout.safeRoot = safe;
             layout.joystick = pad;
             Label(Rect("Instruction", safe, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 15f), new Vector2(560f, 32f)),
-                "0.0.2B | Runtime Networking Proof", 21).alignment = TextAnchor.MiddleCenter;
-            CreateNetworkingProof(safe);
+                "0.0.2C | Network Player Spawn & Ownership", 21).alignment = TextAnchor.MiddleCenter;
+            CreateNetworkingProof(safe, networkPlayerPrefab, offlineHero, offlineDriver);
             var diagnostics = Label(Rect("Diagnostics", safe, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -18f), new Vector2(690f, 230f)), "Loading diagnostics...", 18);
             var buttonRect = Rect("DebugToggle", safe, Vector2.one, Vector2.one, new Vector2(-20f, -18f), new Vector2(112f, 58f));
             buttonRect.gameObject.AddComponent<Image>().color = new Color(0.1f, 0.3f, 0.35f, 0.95f);
@@ -275,10 +341,13 @@ namespace Konoha.Editor
             return joystick;
         }
 
-        private static void CreateNetworkingProof(RectTransform safe)
+        private static void CreateNetworkingProof(RectTransform safe, GameObject playerPrefab, GameObject offlineHero, GameObject offlineDriver)
         {
             var networkObject = new GameObject("RuntimeNetworkingProof", typeof(NetworkManager), typeof(UnityTransport), typeof(RuntimeNetworkingProof));
             var proof = networkObject.GetComponent<RuntimeNetworkingProof>();
+            proof.playerPrefab = playerPrefab;
+            proof.offlineHero = offlineHero;
+            proof.offlineDriver = offlineDriver;
 
             var panel = Rect("NetworkPanel", safe, new Vector2(1f, 1f), Vector2.one, new Vector2(-20f, -92f), new Vector2(470f, 185f));
             panel.gameObject.AddComponent<Image>().color = new Color(0.04f, 0.09f, 0.13f, 0.9f);
@@ -310,6 +379,13 @@ namespace Konoha.Editor
             proof.hostButton = MakeButton("Host", "HOST", -145f);
             proof.clientButton = MakeButton("Client", "CLIENT", 0f);
             proof.shutdownButton = MakeButton("Shutdown", "STOP", 145f);
+
+            var legend = Label(
+                Rect("NetworkLegend", safe, Vector2.one, Vector2.one, new Vector2(-20f, -292f), new Vector2(470f, 54f)),
+                "CYAN = P0 HOST   |   ORANGE = P1 CLIENT   |   GREEN MARKER = YOU",
+                16);
+            legend.alignment = TextAnchor.MiddleCenter;
+
             proof.Initialize();
         }
     }
