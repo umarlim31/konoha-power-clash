@@ -17,6 +17,7 @@ namespace Konoha.Networking
         public InputField addressInput;
 
         public GameObject playerPrefab;
+        public GameObject matchPrefab;
         public GameObject offlineHero;
         public GameObject offlineDriver;
 
@@ -29,8 +30,6 @@ namespace Konoha.Networking
 
         private void Start()
         {
-            // Start runs after all Awake calls on the NetworkManager/Transport have completed.
-            // This makes runtime prefab registration deterministic on Android.
             Initialize();
         }
 
@@ -38,7 +37,7 @@ namespace Konoha.Networking
         {
             if (!Application.isPlaying)
             {
-                SetStatus("NETWORK READY | 0.0.3B");
+                SetStatus("NETWORK READY | 0.0.4A");
                 return;
             }
 
@@ -55,10 +54,10 @@ namespace Konoha.Networking
                 return;
             }
 
-            if (playerPrefab == null || playerPrefab.GetComponent<NetworkObject>() == null)
+            if (!IsValidNetworkPrefab(playerPrefab) || !IsValidNetworkPrefab(matchPrefab))
             {
-                Debug.LogError("[KONOHA NET] Network player prefab is missing or invalid.");
-                SetStatus("NETWORK ERROR | PLAYER PREFAB");
+                Debug.LogError("[KONOHA NET] Player or match prefab is missing/invalid.");
+                SetStatus("NETWORK ERROR | PREFAB");
                 return;
             }
 
@@ -74,12 +73,12 @@ namespace Konoha.Networking
 
             try
             {
-                // Every peer registers the exact same prefab before Host/Client startup.
                 manager.AddNetworkPrefab(playerPrefab);
+                manager.AddNetworkPrefab(matchPrefab);
             }
             catch (Exception exception)
             {
-                Debug.LogError("[KONOHA NET] Player prefab registration failed: " + exception);
+                Debug.LogError("[KONOHA NET] Prefab registration failed: " + exception);
                 SetStatus("NETWORK ERROR | PREFAB REGISTER");
                 return;
             }
@@ -93,7 +92,7 @@ namespace Konoha.Networking
 
             initialized = true;
             SetNetworkButtons(false);
-            SetStatus("NETWORK READY | COMBAT LOOP");
+            SetStatus("NETWORK READY | GREYBOX MATCH LOOP");
         }
 
         private void OnDestroy()
@@ -129,11 +128,10 @@ namespace Konoha.Networking
             DisableOfflinePrototype();
             SetNetworkButtons(true);
 
-            // OnClientConnected normally creates P0 during StartHost. This explicit call
-            // is intentionally idempotent and guarantees the host PlayerObject exists.
+            EnsureMatchManager();
             EnsurePlayerObject(manager.LocalClientId);
 
-            SetStatus("HOST STARTED | P" + manager.LocalClientId + " OWNER | 7777");
+            SetStatus("HOST STARTED | WAIT FOR PLAYERS | START MATCH");
         }
 
         private void StartClient()
@@ -187,16 +185,19 @@ namespace Konoha.Networking
             serverSpawnedPlayers.Clear();
             RestoreOfflinePrototype();
             SetNetworkButtons(false);
-            SetStatus("NETWORK READY | COMBAT LOOP");
+            SetStatus("NETWORK READY | GREYBOX MATCH LOOP");
         }
 
         private void OnClientConnected(ulong clientId)
         {
             if (manager != null && manager.IsServer)
+            {
+                EnsureMatchManager();
                 EnsurePlayerObject(clientId);
+            }
 
             string role = manager != null && manager.IsHost ? "HOST" : "CLIENT";
-            SetStatus("CONNECTED | CLIENT " + clientId + " | " + role + " | COMBAT READY");
+            SetStatus("CONNECTED | CLIENT " + clientId + " | " + role + " | MATCH READY");
         }
 
         private void OnClientDisconnected(ulong clientId)
@@ -205,6 +206,36 @@ namespace Konoha.Networking
                 serverSpawnedPlayers.Remove(clientId);
 
             SetStatus("DISCONNECTED | CLIENT " + clientId);
+        }
+
+        private void EnsureMatchManager()
+        {
+            if (manager == null || !manager.IsServer || matchPrefab == null)
+                return;
+
+            if (NetworkMatchManager.Instance != null && NetworkMatchManager.Instance.IsSpawned)
+                return;
+
+            GameObject instance = null;
+
+            try
+            {
+                instance = Instantiate(matchPrefab, Vector3.zero, Quaternion.identity);
+                NetworkObject networkObject = instance.GetComponent<NetworkObject>();
+                if (networkObject == null)
+                    throw new InvalidOperationException("Match prefab has no NetworkObject.");
+
+                networkObject.Spawn(true);
+                Debug.Log("[KONOHA MATCH] Match state NetworkObject spawned.");
+            }
+            catch (Exception exception)
+            {
+                if (instance != null)
+                    Destroy(instance);
+
+                Debug.LogError("[KONOHA MATCH] Match manager spawn failed: " + exception);
+                SetStatus("MATCH STATE SPAWN FAILED");
+            }
         }
 
         private void EnsurePlayerObject(ulong clientId)
@@ -219,7 +250,7 @@ namespace Konoha.Networking
 
             try
             {
-                Vector3 spawnPosition = GetSpawnPosition(clientId);
+                Vector3 spawnPosition = NetworkTeamUtility.GetSpawnPosition(clientId);
                 instance = Instantiate(playerPrefab, spawnPosition, Quaternion.identity);
 
                 NetworkObject networkObject = instance.GetComponent<NetworkObject>();
@@ -230,6 +261,7 @@ namespace Konoha.Networking
 
                 Debug.Log(
                     "[KONOHA SPAWN] SpawnAsPlayerObject | client=" + clientId +
+                    " | team=" + NetworkTeamUtility.GetTeamName(NetworkTeamUtility.GetTeam(clientId)) +
                     " | position=" + spawnPosition);
             }
             catch (Exception exception)
@@ -242,20 +274,6 @@ namespace Konoha.Networking
                 Debug.LogError("[KONOHA SPAWN] Player spawn failed for client " + clientId + ": " + exception);
                 SetStatus("SPAWN FAILED | CLIENT " + clientId);
             }
-        }
-
-        private static Vector3 GetSpawnPosition(ulong clientId)
-        {
-            if (clientId == 0)
-                return new Vector3(-3f, 0.1f, -3f);
-
-            if (clientId == 1)
-                return new Vector3(3f, 0.1f, -3f);
-
-            int slot = (int)(clientId % 6);
-            float x = -6f + slot * 2.4f;
-            float z = clientId % 2 == 0 ? 1f : 4f;
-            return new Vector3(x, 0.1f, z);
         }
 
         private void DisableOfflinePrototype()
@@ -297,6 +315,11 @@ namespace Konoha.Networking
                 status.text = value;
 
             Debug.Log("[KONOHA NET] " + value);
+        }
+
+        private static bool IsValidNetworkPrefab(GameObject prefab)
+        {
+            return prefab != null && prefab.GetComponent<NetworkObject>() != null;
         }
     }
 }
