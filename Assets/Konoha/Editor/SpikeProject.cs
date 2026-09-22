@@ -58,7 +58,7 @@ namespace Konoha.Editor
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
-            PlayerSettings.Android.bundleVersionCode = 2;
+            PlayerSettings.Android.bundleVersionCode = 3;
             PlayerSettings.Android.useCustomKeystore = false;
             // Activity avoids the documented GameActivity dev-build issue on this pinned editor.
             PlayerSettings.Android.applicationEntry = AndroidApplicationEntry.Activity;
@@ -148,6 +148,21 @@ namespace Konoha.Editor
 
             var root = new GameObject("NetworkPlayer");
             root.AddComponent<NetworkObject>();
+
+            var controller = root.AddComponent<CharacterController>();
+            controller.height = 2f;
+            controller.center = Vector3.up;
+            controller.radius = 0.45f;
+            controller.stepOffset = 0.2f;
+            controller.slopeLimit = 45f;
+            controller.minMoveDistance = 0f;
+
+            var motor = root.AddComponent<CharacterMotor>();
+            motor.definition = LoadOrCreate<LocomotionDefinition>(Generated + "/Locomotion.asset");
+
+            var movement = root.AddComponent<NetworkPlayerMovement>();
+            movement.motor = motor;
+
             var identity = root.AddComponent<NetworkPlayerIdentity>();
 
             var neutralMaterial = Material("NetworkPlayerNeutral", new Color(0.72f, 0.78f, 0.84f));
@@ -326,7 +341,7 @@ namespace Konoha.Editor
             layout.safeRoot = safe;
             layout.joystick = pad;
             Label(Rect("Instruction", safe, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 15f), new Vector2(560f, 32f)),
-                "0.0.2C | Network Player Spawn & Ownership", 21).alignment = TextAnchor.MiddleCenter;
+                "0.0.2D | Network Movement Synchronization", 21).alignment = TextAnchor.MiddleCenter;
             CreateNetworkingProof(safe, networkPlayerPrefab, offlineHero, offlineDriver);
             var diagnostics = Label(Rect("Diagnostics", safe, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -18f), new Vector2(690f, 230f)), "Loading diagnostics...", 18);
             var buttonRect = Rect("DebugToggle", safe, Vector2.one, Vector2.one, new Vector2(-20f, -18f), new Vector2(112f, 58f));
