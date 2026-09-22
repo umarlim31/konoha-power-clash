@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Konoha.Character;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEngine;
@@ -169,7 +170,7 @@ namespace Konoha.Networking
 
             serverSpawnedPlayers.Clear();
             RestoreOfflinePrototype();
-            SetStatus("NETWORK READY | SPAWN + OWNERSHIP");
+            SetStatus("NETWORK READY | MOVEMENT SYNC");
         }
 
         private void OnClientConnected(ulong clientId)
