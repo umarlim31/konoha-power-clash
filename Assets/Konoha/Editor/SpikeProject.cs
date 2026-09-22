@@ -52,7 +52,7 @@ namespace Konoha.Editor
         {
             PlayerSettings.companyName = "KonohaPrototype";
             PlayerSettings.productName = "KONOHA Spike";
-            PlayerSettings.bundleVersion = "0.0.2";
+            PlayerSettings.bundleVersion = "0.0.3";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.spike");
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
