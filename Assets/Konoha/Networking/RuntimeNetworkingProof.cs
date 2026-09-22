@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEngine;
@@ -13,21 +15,32 @@ namespace Konoha.Networking
         public Button shutdownButton;
         public InputField addressInput;
 
+        public GameObject playerPrefab;
+        public GameObject offlineHero;
+        public GameObject offlineDriver;
+
+        private readonly HashSet<ulong> serverSpawnedPlayers = new HashSet<ulong>();
         private NetworkManager manager;
         private UnityTransport transport;
         private bool initialized;
 
-        private void Awake()
+        private void Start()
         {
-            // The spike scene is generated in the Editor, but Button.onClick listeners
-            // added there are not persisted as runtime listeners. Always wire the proof
-            // again when the player actually starts on Android.
+            // Start runs after all Awake calls on the NetworkManager/Transport have completed.
+            // This makes runtime prefab registration deterministic on Android.
             Initialize();
         }
 
         public void Initialize()
         {
-            if (initialized) return;
+            if (!Application.isPlaying)
+            {
+                SetStatus("NETWORK READY | 0.0.2C");
+                return;
+            }
+
+            if (initialized)
+                return;
 
             manager = GetComponent<NetworkManager>();
             transport = GetComponent<UnityTransport>();
@@ -39,9 +52,26 @@ namespace Konoha.Networking
                 return;
             }
 
-            // Explicitly wire NGO to UTP. This keeps the generated scene deterministic
-            // instead of relying on inspector/default transport discovery.
+            if (playerPrefab == null || playerPrefab.GetComponent<NetworkObject>() == null)
+            {
+                Debug.LogError("[KONOHA NET] Network player prefab is missing or invalid.");
+                SetStatus("NETWORK ERROR | PLAYER PREFAB");
+                return;
+            }
+
             manager.NetworkConfig.NetworkTransport = transport;
+
+            try
+            {
+                // Every peer registers the exact same prefab before Host/Client startup.
+                manager.AddNetworkPrefab(playerPrefab);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError("[KONOHA NET] Player prefab registration failed: " + exception);
+                SetStatus("NETWORK ERROR | PREFAB REGISTER");
+                return;
+            }
 
             if (hostButton != null) hostButton.onClick.AddListener(StartHost);
             if (clientButton != null) clientButton.onClick.AddListener(StartClient);
@@ -51,12 +81,13 @@ namespace Konoha.Networking
             manager.OnClientDisconnectCallback += OnClientDisconnected;
 
             initialized = true;
-            SetStatus("NETWORK READY | NGO + UTP");
+            SetStatus("NETWORK READY | SPAWN + OWNERSHIP");
         }
 
         private void OnDestroy()
         {
-            if (!initialized) return;
+            if (!initialized)
+                return;
 
             if (hostButton != null) hostButton.onClick.RemoveListener(StartHost);
             if (clientButton != null) clientButton.onClick.RemoveListener(StartClient);
@@ -71,28 +102,31 @@ namespace Konoha.Networking
 
         private void StartHost()
         {
-            if (manager == null || transport == null)
-            {
-                SetStatus("HOST ERROR | NETWORK NOT INITIALIZED");
+            if (!CanStartNetwork("HOST"))
                 return;
-            }
-
-            if (manager.IsListening) return;
 
             transport.SetConnectionData("0.0.0.0", 7777, "0.0.0.0");
             bool started = manager.StartHost();
-            SetStatus(started ? "HOST STARTED | PORT 7777" : "HOST START FAILED");
+
+            if (!started)
+            {
+                SetStatus("HOST START FAILED");
+                return;
+            }
+
+            DisableOfflinePrototype();
+
+            // OnClientConnected normally creates P0 during StartHost. This explicit call
+            // is intentionally idempotent and guarantees the host PlayerObject exists.
+            EnsurePlayerObject(manager.LocalClientId);
+
+            SetStatus("HOST STARTED | P" + manager.LocalClientId + " OWNER | 7777");
         }
 
         private void StartClient()
         {
-            if (manager == null || transport == null)
-            {
-                SetStatus("CLIENT ERROR | NETWORK NOT INITIALIZED");
+            if (!CanStartNetwork("CLIENT"))
                 return;
-            }
-
-            if (manager.IsListening) return;
 
             string address = addressInput == null || string.IsNullOrWhiteSpace(addressInput.text)
                 ? "127.0.0.1"
@@ -100,28 +134,135 @@ namespace Konoha.Networking
 
             transport.SetConnectionData(address, 7777);
             bool started = manager.StartClient();
-            SetStatus(started ? "CLIENT STARTING | " + address + ":7777" : "CLIENT START FAILED");
+
+            if (!started)
+            {
+                SetStatus("CLIENT START FAILED");
+                return;
+            }
+
+            DisableOfflinePrototype();
+            SetStatus("CLIENT STARTING | " + address + ":7777");
+        }
+
+        private bool CanStartNetwork(string mode)
+        {
+            if (!initialized || manager == null || transport == null)
+            {
+                SetStatus(mode + " ERROR | NETWORK NOT INITIALIZED");
+                return false;
+            }
+
+            if (manager.IsListening)
+            {
+                SetStatus("NETWORK ACTIVE | PRESS STOP FIRST");
+                return false;
+            }
+
+            return true;
         }
 
         private void Shutdown()
         {
-            if (manager != null && manager.IsListening) manager.Shutdown();
-            SetStatus("NETWORK READY | NGO + UTP");
+            if (manager != null && manager.IsListening)
+                manager.Shutdown();
+
+            serverSpawnedPlayers.Clear();
+            RestoreOfflinePrototype();
+            SetStatus("NETWORK READY | SPAWN + OWNERSHIP");
         }
 
         private void OnClientConnected(ulong clientId)
         {
-            SetStatus("CONNECTED | CLIENT " + clientId + " | " + (manager != null && manager.IsHost ? "HOST" : "CLIENT"));
+            if (manager != null && manager.IsServer)
+                EnsurePlayerObject(clientId);
+
+            string role = manager != null && manager.IsHost ? "HOST" : "CLIENT";
+            SetStatus("CONNECTED | CLIENT " + clientId + " | " + role + " | OWNERSHIP READY");
         }
 
         private void OnClientDisconnected(ulong clientId)
         {
+            if (manager != null && manager.IsServer)
+                serverSpawnedPlayers.Remove(clientId);
+
             SetStatus("DISCONNECTED | CLIENT " + clientId);
+        }
+
+        private void EnsurePlayerObject(ulong clientId)
+        {
+            if (manager == null || !manager.IsServer || playerPrefab == null)
+                return;
+
+            if (!serverSpawnedPlayers.Add(clientId))
+                return;
+
+            GameObject instance = null;
+
+            try
+            {
+                Vector3 spawnPosition = GetSpawnPosition(clientId);
+                instance = Instantiate(playerPrefab, spawnPosition, Quaternion.identity);
+
+                NetworkObject networkObject = instance.GetComponent<NetworkObject>();
+                if (networkObject == null)
+                    throw new InvalidOperationException("Spawned player prefab has no NetworkObject.");
+
+                networkObject.SpawnAsPlayerObject(clientId, true);
+
+                Debug.Log(
+                    "[KONOHA SPAWN] SpawnAsPlayerObject | client=" + clientId +
+                    " | position=" + spawnPosition);
+            }
+            catch (Exception exception)
+            {
+                serverSpawnedPlayers.Remove(clientId);
+
+                if (instance != null)
+                    Destroy(instance);
+
+                Debug.LogError("[KONOHA SPAWN] Player spawn failed for client " + clientId + ": " + exception);
+                SetStatus("SPAWN FAILED | CLIENT " + clientId);
+            }
+        }
+
+        private static Vector3 GetSpawnPosition(ulong clientId)
+        {
+            if (clientId == 0)
+                return new Vector3(-3f, 0.1f, -3f);
+
+            if (clientId == 1)
+                return new Vector3(3f, 0.1f, -3f);
+
+            int slot = (int)(clientId % 6);
+            float x = -6f + slot * 2.4f;
+            float z = clientId % 2 == 0 ? 1f : 4f;
+            return new Vector3(x, 0.1f, z);
+        }
+
+        private void DisableOfflinePrototype()
+        {
+            if (offlineDriver != null)
+                offlineDriver.SetActive(false);
+
+            if (offlineHero != null)
+                offlineHero.SetActive(false);
+        }
+
+        private void RestoreOfflinePrototype()
+        {
+            if (offlineHero != null)
+                offlineHero.SetActive(true);
+
+            if (offlineDriver != null)
+                offlineDriver.SetActive(true);
         }
 
         private void SetStatus(string value)
         {
-            if (status != null) status.text = value;
+            if (status != null)
+                status.text = value;
+
             Debug.Log("[KONOHA NET] " + value);
         }
     }
