@@ -265,7 +265,12 @@ namespace Konoha.Editor
             var wall = Material("Wall", new Color(0.35f, 0.43f, 0.50f));
             var accent = Material("Marker", new Color(0.95f, 0.57f, 0.15f));
             var heroMaterial = Material("TemporaryHero", new Color(0.15f, 0.9f, 0.8f));
+            var cyanMaterial = Material("TeamCyan", NetworkTeamUtility.GetTeamColor(NetworkTeamUtility.CyanTeam));
+            var orangeMaterial = Material("TeamOrange", NetworkTeamUtility.GetTeamColor(NetworkTeamUtility.OrangeTeam));
+            var chairMaterial = Material("ChairGold", new Color(0.95f, 0.72f, 0.18f));
+            var zoneMaterial = Material("ChairZone", new Color(0.22f, 0.42f, 0.48f));
             var networkPlayerPrefab = CreateNetworkPlayerPrefab();
+            var matchManagerPrefab = CreateMatchManagerPrefab();
             Box("Floor", new Vector3(0f, -0.5f, 0f), new Vector3(32f, 1f, 24f), ground);
             Box("NorthBoundary", new Vector3(0f, 0.6f, 12f), new Vector3(33f, 1.2f, 1f), wall);
             Box("SouthBoundary", new Vector3(0f, 0.6f, -12f), new Vector3(33f, 1.2f, 1f), wall);
@@ -273,6 +278,33 @@ namespace Konoha.Editor
             Box("WestBoundary", new Vector3(-16f, 0.6f, 0f), new Vector3(1f, 1.2f, 24f), wall);
             Box("ObstacleA", new Vector3(-5f, 0.6f, 2f), new Vector3(3f, 1.2f, 3f), wall);
             Box("ObstacleB", new Vector3(5f, 0.6f, -2f), new Vector3(3f, 1.2f, 3f), wall);
+
+            var chairZone = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            chairZone.name = "KursiCaptureZone";
+            chairZone.transform.position = new Vector3(0f, 0.025f, 0f);
+            chairZone.transform.localScale = new Vector3(
+                NetworkMatchManager.CaptureRadius * 2f,
+                0.025f,
+                NetworkMatchManager.CaptureRadius * 2f);
+            chairZone.GetComponent<Renderer>().sharedMaterial = zoneMaterial;
+            UnityEngine.Object.DestroyImmediate(chairZone.GetComponent<Collider>());
+
+            Box("KursiSeat", new Vector3(0f, 0.45f, 0f), new Vector3(1.25f, 0.28f, 1.15f), chairMaterial);
+            Box("KursiBack", new Vector3(0f, 1.15f, 0.48f), new Vector3(1.25f, 1.35f, 0.22f), chairMaterial);
+            Box("KursiLeftArm", new Vector3(-0.73f, 0.75f, 0f), new Vector3(0.18f, 0.7f, 1.1f), chairMaterial);
+            Box("KursiRightArm", new Vector3(0.73f, 0.75f, 0f), new Vector3(0.18f, 0.7f, 1.1f), chairMaterial);
+
+            for (ulong clientId = 0; clientId < 8; clientId++)
+            {
+                int team = NetworkTeamUtility.GetTeam(clientId);
+                var spawnMarker = Box(
+                    "TeamSpawn_" + clientId,
+                    NetworkTeamUtility.GetSpawnPosition(clientId) + new Vector3(0f, -0.085f, 0f),
+                    new Vector3(1.4f, 0.04f, 1.4f),
+                    team == NetworkTeamUtility.CyanTeam ? cyanMaterial : orangeMaterial);
+                UnityEngine.Object.DestroyImmediate(spawnMarker.GetComponent<Collider>());
+            }
+
             for (int x = -10; x <= 10; x += 5)
             {
                 var marker = Box("NavigationMarker", new Vector3(x, 0.006f, 6f), new Vector3(1f, 0.01f, 1f), accent);
@@ -323,7 +355,7 @@ namespace Konoha.Editor
             var driverObject = new GameObject("OfflineSpikeDriver");
             var driver = driverObject.AddComponent<OfflineSpikeDriver>();
             driver.motor = motor;
-            var joystick = CreateHud(motor, hero, driverObject, networkPlayerPrefab);
+            var joystick = CreateHud(motor, hero, driverObject, networkPlayerPrefab, matchManagerPrefab);
             driver.joystick = joystick;
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -353,7 +385,12 @@ namespace Konoha.Editor
             return label;
         }
 
-        private static TouchJoystick CreateHud(CharacterMotor motor, GameObject offlineHero, GameObject offlineDriver, GameObject networkPlayerPrefab)
+        private static TouchJoystick CreateHud(
+            CharacterMotor motor,
+            GameObject offlineHero,
+            GameObject offlineDriver,
+            GameObject networkPlayerPrefab,
+            GameObject matchManagerPrefab)
         {
             new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
             var canvasObject = new GameObject("TouchCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
