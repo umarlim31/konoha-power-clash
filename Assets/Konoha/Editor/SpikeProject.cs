@@ -58,7 +58,7 @@ namespace Konoha.Editor
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
-            PlayerSettings.Android.bundleVersionCode = 4;
+            PlayerSettings.Android.bundleVersionCode = 5;
             PlayerSettings.Android.useCustomKeystore = false;
             // Activity avoids the documented GameActivity dev-build issue on this pinned editor.
             PlayerSettings.Android.applicationEntry = AndroidApplicationEntry.Activity;
@@ -360,7 +360,7 @@ namespace Konoha.Editor
             layout.safeRoot = safe;
             layout.joystick = pad;
             Label(Rect("Instruction", safe, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 15f), new Vector2(560f, 32f)),
-                "0.0.3A | Smooth Movement + Multiplayer Combat Foundation", 21).alignment = TextAnchor.MiddleCenter;
+                "0.0.3B | Combat Loop + KO + Respawn", 21).alignment = TextAnchor.MiddleCenter;
 
             Button MakeActionButton(string name, string caption, Vector2 position, Vector2 size)
             {
@@ -440,7 +440,7 @@ namespace Konoha.Editor
 
             var legend = Label(
                 Rect("NetworkLegend", safe, Vector2.one, Vector2.one, new Vector2(-20f, -292f), new Vector2(470f, 54f)),
-                "P0 = CYAN | CLIENTS = ORANGE/PURPLE | GREEN = YOU | ATTACK + DODGE ACTIVE",
+                "ATTACK = 20 DMG | DODGE HAS COOLDOWN | HP 0 = KO | AUTO RESPAWN 3s",
                 16);
             legend.alignment = TextAnchor.MiddleCenter;
 
