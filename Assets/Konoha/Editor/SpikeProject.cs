@@ -294,6 +294,11 @@ namespace Konoha.Editor
             var chairLeftArm = Box("KursiLeftArm", new Vector3(-0.73f, 0.75f, 0f), new Vector3(0.18f, 0.7f, 1.1f), chairMaterial);
             var chairRightArm = Box("KursiRightArm", new Vector3(0.73f, 0.75f, 0f), new Vector3(0.18f, 0.7f, 1.1f), chairMaterial);
 
+            UnityEngine.Object.DestroyImmediate(chairSeat.GetComponent<Collider>());
+            UnityEngine.Object.DestroyImmediate(chairBack.GetComponent<Collider>());
+            UnityEngine.Object.DestroyImmediate(chairLeftArm.GetComponent<Collider>());
+            UnityEngine.Object.DestroyImmediate(chairRightArm.GetComponent<Collider>());
+
             var chairVisualObject = new GameObject("NetworkChairVisual");
             var chairVisual = chairVisualObject.AddComponent<NetworkChairVisual>();
             chairVisual.zoneRenderer = chairZone.GetComponent<Renderer>();
