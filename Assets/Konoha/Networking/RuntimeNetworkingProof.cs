@@ -38,7 +38,7 @@ namespace Konoha.Networking
         {
             if (!Application.isPlaying)
             {
-                SetStatus("NETWORK READY | 0.0.3A");
+                SetStatus("NETWORK READY | 0.0.3B");
                 return;
             }
 
@@ -93,7 +93,7 @@ namespace Konoha.Networking
 
             initialized = true;
             SetNetworkButtons(false);
-            SetStatus("NETWORK READY | SMOOTH MOVE + COMBAT");
+            SetStatus("NETWORK READY | COMBAT LOOP")
         }
 
         private void OnDestroy()
@@ -196,7 +196,7 @@ namespace Konoha.Networking
                 EnsurePlayerObject(clientId);
 
             string role = manager != null && manager.IsHost ? "HOST" : "CLIENT";
-            SetStatus("CONNECTED | CLIENT " + clientId + " | " + role + " | CORE READY");
+            SetStatus("CONNECTED | CLIENT " + clientId + " | " + role + " | COMBAT READY");
         }
 
         private void OnClientDisconnected(ulong clientId)
