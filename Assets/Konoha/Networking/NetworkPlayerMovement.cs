@@ -10,12 +10,12 @@ namespace Konoha.Networking
     {
         public CharacterMotor motor;
 
-        private readonly NetworkVariable<Vector3> syncedPosition = new NetworkVariable<Vector3>(
+        private NetworkVariable<Vector3> syncedPosition = new NetworkVariable<Vector3>(
             default,
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Owner);
 
-        private readonly NetworkVariable<Vector3> syncedEuler = new NetworkVariable<Vector3>(
+        private NetworkVariable<Vector3> syncedEuler = new NetworkVariable<Vector3>(
             default,
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Owner);
