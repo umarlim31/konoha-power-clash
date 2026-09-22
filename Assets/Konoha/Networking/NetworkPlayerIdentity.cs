@@ -21,12 +21,8 @@ namespace Konoha.Networking
         {
             base.OnNetworkSpawn();
 
-            baseBodyColor = OwnerClientId switch
-            {
-                0 => new Color(0.15f, 0.90f, 0.80f),
-                1 => new Color(1.00f, 0.55f, 0.18f),
-                _ => new Color(0.65f, 0.45f, 1.00f)
-            };
+            int team = NetworkTeamUtility.GetTeam(OwnerClientId);
+            baseBodyColor = NetworkTeamUtility.GetTeamColor(team);
             baseFacingColor = Color.Lerp(baseBodyColor, Color.white, 0.35f);
 
             ApplyCurrentVisual();
@@ -37,7 +33,10 @@ namespace Konoha.Networking
             if (ownershipLabel != null)
             {
                 string role = OwnerClientId == Unity.Netcode.NetworkManager.ServerClientId ? "HOST" : "CLIENT";
-                ownershipLabel.text = "P" + OwnerClientId + " " + role + (IsOwner ? "\nYOU / OWNER" : "");
+                int team = NetworkTeamUtility.GetTeam(OwnerClientId);
+                ownershipLabel.text = "P" + OwnerClientId + " " + role +
+                                      " | " + NetworkTeamUtility.GetTeamName(team) +
+                                      (IsOwner ? "\nYOU / OWNER" : "");
                 ownershipLabel.color = IsOwner ? new Color(0.45f, 1f, 0.50f) : Color.white;
             }
 
