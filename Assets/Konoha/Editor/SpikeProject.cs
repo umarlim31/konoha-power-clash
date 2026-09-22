@@ -415,7 +415,7 @@ namespace Konoha.Editor
             layout.safeRoot = safe;
             layout.joystick = pad;
             Label(Rect("Instruction", safe, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 15f), new Vector2(560f, 32f)),
-                "0.0.3B | Combat Loop + KO + Respawn", 21).alignment = TextAnchor.MiddleCenter;
+                "0.0.4A | Rebut Kursi Greybox Match Loop", 21).alignment = TextAnchor.MiddleCenter;
 
             Button MakeActionButton(string name, string caption, Vector2 position, Vector2 size)
             {
@@ -436,12 +436,15 @@ namespace Konoha.Editor
 
             var dodgeButton = MakeActionButton("DodgeButton", "DODGE", new Vector2(-250f, 78f), new Vector2(150f, 66f));
             var attackButton = MakeActionButton("AttackButton", "ATTACK", new Vector2(-84f, 78f), new Vector2(150f, 66f));
+            var chairButton = MakeActionButton("ChairButton", "DUDUK", new Vector2(-84f, 158f), new Vector2(150f, 58f));
 
-            CreateNetworkingProof(safe, networkPlayerPrefab, offlineHero, offlineDriver);
+            CreateMatchHud(safe, chairButton);
+            CreateNetworkingProof(safe, networkPlayerPrefab, matchManagerPrefab, offlineHero, offlineDriver);
 
-            // Keep combat actions above the rest of the HUD and outside the networking panel.
+            // Keep gameplay actions above the rest of the HUD.
             dodgeButton.transform.SetAsLastSibling();
             attackButton.transform.SetAsLastSibling();
+            chairButton.transform.SetAsLastSibling();
             var diagnostics = Label(Rect("Diagnostics", safe, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -18f), new Vector2(690f, 230f)), "Loading diagnostics...", 18);
             var buttonRect = Rect("DebugToggle", safe, Vector2.one, Vector2.one, new Vector2(-20f, -18f), new Vector2(112f, 58f));
             buttonRect.gameObject.AddComponent<Image>().color = new Color(0.1f, 0.3f, 0.35f, 0.95f);
@@ -455,11 +458,73 @@ namespace Konoha.Editor
             return joystick;
         }
 
-        private static void CreateNetworkingProof(RectTransform safe, GameObject playerPrefab, GameObject offlineHero, GameObject offlineDriver)
+        private static void CreateMatchHud(RectTransform safe, Button chairButton)
+        {
+            var panel = Rect(
+                "MatchPanel",
+                safe,
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(20f, -18f),
+                new Vector2(720f, 145f));
+            var panelImage = panel.gameObject.AddComponent<Image>();
+            panelImage.color = new Color(0.035f, 0.07f, 0.10f, 0.90f);
+            panelImage.raycastTarget = false;
+
+            var matchText = Label(
+                Rect("MatchState", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -10f), new Vector2(690f, 32f)),
+                "REBUT KURSI | WAITING", 18);
+            matchText.alignment = TextAnchor.MiddleLeft;
+
+            var scoreText = Label(
+                Rect("MatchScore", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -46f), new Vector2(690f, 30f)),
+                "POWER CYAN 0/100 | ORANGE 0/100", 18);
+            scoreText.alignment = TextAnchor.MiddleLeft;
+
+            var objectiveText = Label(
+                Rect("ObjectiveState", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -80f), new Vector2(690f, 54f)),
+                "KURSI: NETRAL", 17);
+            objectiveText.alignment = TextAnchor.UpperLeft;
+
+            var startRect = Rect(
+                "StartMatchButton",
+                safe,
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(20f, -175f),
+                new Vector2(175f, 52f));
+            var startImage = startRect.gameObject.AddComponent<Image>();
+            startImage.color = new Color(0.12f, 0.34f, 0.40f, 0.96f);
+            startImage.raycastTarget = true;
+            var startButton = startRect.gameObject.AddComponent<Button>();
+            startButton.targetGraphic = startImage;
+            startButton.interactable = false;
+            var startLabel = Label(
+                Rect("Label", startRect, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, startRect.sizeDelta),
+                "START MATCH", 17);
+            startLabel.alignment = TextAnchor.MiddleCenter;
+
+            var matchHud = safe.gameObject.AddComponent<NetworkMatchHud>();
+            matchHud.matchText = matchText;
+            matchHud.scoreText = scoreText;
+            matchHud.objectiveText = objectiveText;
+            matchHud.startButton = startButton;
+            matchHud.chairButton = chairButton;
+
+            panel.transform.SetAsFirstSibling();
+        }
+
+        private static void CreateNetworkingProof(
+            RectTransform safe,
+            GameObject playerPrefab,
+            GameObject matchPrefab,
+            GameObject offlineHero,
+            GameObject offlineDriver)
         {
             var networkObject = new GameObject("RuntimeNetworkingProof", typeof(NetworkManager), typeof(UnityTransport), typeof(RuntimeNetworkingProof));
             var proof = networkObject.GetComponent<RuntimeNetworkingProof>();
             proof.playerPrefab = playerPrefab;
+            proof.matchPrefab = matchPrefab;
             proof.offlineHero = offlineHero;
             proof.offlineDriver = offlineDriver;
 
@@ -496,7 +561,7 @@ namespace Konoha.Editor
 
             var legend = Label(
                 Rect("NetworkLegend", safe, Vector2.one, Vector2.one, new Vector2(-20f, -292f), new Vector2(470f, 54f)),
-                "ATTACK = 20 DMG | DODGE HAS COOLDOWN | HP 0 = KO | AUTO RESPAWN 3s",
+                "WIBAWA 0 = RUNTUH | RESPAWN 6s | KURSI +1 POWER/DETIK | FIRST 100 POWER WINS",
                 16);
             legend.alignment = TextAnchor.MiddleCenter;
 
