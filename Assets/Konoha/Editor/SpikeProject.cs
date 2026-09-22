@@ -364,18 +364,28 @@ namespace Konoha.Editor
 
             Button MakeActionButton(string name, string caption, Vector2 position, Vector2 size)
             {
-                var rect = Rect(name, safe, Vector2.one, Vector2.one, position, size);
-                rect.gameObject.AddComponent<Image>().color = new Color(0.12f, 0.34f, 0.40f, 0.96f);
+                var rect = Rect(name, safe, new Vector2(1f, 0f), new Vector2(1f, 0f), position, size);
+                var image = rect.gameObject.AddComponent<Image>();
+                image.color = new Color(0.12f, 0.34f, 0.40f, 0.96f);
+                image.raycastTarget = true;
+
                 var actionButton = rect.gameObject.AddComponent<Button>();
+                actionButton.targetGraphic = image;
+
                 var actionText = Label(Rect("Label", rect, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, size), caption, 18);
                 actionText.alignment = TextAnchor.MiddleCenter;
+                actionText.raycastTarget = false;
                 return actionButton;
             }
 
-            MakeActionButton("AttackButton", "ATTACK", new Vector2(-94f, -105f), new Vector2(150f, 66f));
-            MakeActionButton("DodgeButton", "DODGE", new Vector2(-260f, -105f), new Vector2(150f, 66f));
+            var dodgeButton = MakeActionButton("DodgeButton", "DODGE", new Vector2(-250f, 78f), new Vector2(150f, 66f));
+            var attackButton = MakeActionButton("AttackButton", "ATTACK", new Vector2(-84f, 78f), new Vector2(150f, 66f));
 
             CreateNetworkingProof(safe, networkPlayerPrefab, offlineHero, offlineDriver);
+
+            // Keep combat actions above the rest of the HUD and outside the networking panel.
+            dodgeButton.transform.SetAsLastSibling();
+            attackButton.transform.SetAsLastSibling();
             var diagnostics = Label(Rect("Diagnostics", safe, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -18f), new Vector2(690f, 230f)), "Loading diagnostics...", 18);
             var buttonRect = Rect("DebugToggle", safe, Vector2.one, Vector2.one, new Vector2(-20f, -18f), new Vector2(112f, 58f));
             buttonRect.gameObject.AddComponent<Image>().color = new Color(0.1f, 0.3f, 0.35f, 0.95f);
