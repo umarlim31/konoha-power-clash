@@ -12,7 +12,7 @@ namespace Konoha.Networking
     {
         public CharacterMotor motor;
         public float dodgeDistance = 2.6f;
-        public float dodgeCooldown = 1.15f;
+        public float dodgeCooldown = 4f;
 
         private CharacterController controller;
         private NetworkPlayerCombat combat;
@@ -61,10 +61,22 @@ namespace Konoha.Networking
             if (joystick == null || motor == null || cameraFollow == null || dodgeButton == null)
                 BindLocalControls();
 
-            bool locked = combat != null && combat.IsKnockedOut;
-            UpdateDodgeButtonVisual(locked);
+            NetworkMatchManager match = NetworkMatchManager.Instance;
+            bool knockedOut = combat != null && combat.IsKnockedOut;
+            bool matchLocked = match == null || !match.AllowsGameplay;
+            bool ruler = match != null && match.IsRuler(OwnerClientId);
+            bool movementLocked = knockedOut || matchLocked || ruler;
 
-            if (locked)
+            UpdateDodgeButtonVisual(knockedOut, matchLocked);
+
+            if (ruler)
+            {
+                joystick?.ResetInput();
+                PinOwnerToChair(match);
+                return;
+            }
+
+            if (movementLocked)
             {
                 joystick?.ResetInput();
                 return;
@@ -115,11 +127,20 @@ namespace Konoha.Networking
             if (!IsOwner || !IsSpawned || controller == null)
                 return;
 
+            NetworkMatchManager match = NetworkMatchManager.Instance;
+
             if (combat != null && combat.IsKnockedOut)
+                return;
+
+            if (match == null || !match.AllowsGameplay)
                 return;
 
             if (Time.unscaledTime < nextDodgeTime)
                 return;
+
+            bool leavingChair = match.IsRuler(OwnerClientId);
+            if (leavingChair)
+                match.RequestChairActionFromLocal();
 
             nextDodgeTime = Time.unscaledTime + dodgeCooldown;
 
@@ -127,8 +148,11 @@ namespace Konoha.Networking
             if (joystick != null && joystick.Value.sqrMagnitude > 0.01f)
                 direction = new Vector3(joystick.Value.x, 0f, joystick.Value.y).normalized;
 
-            controller.Move(direction * dodgeDistance);
-            Debug.Log("[KONOHA MOVE] Dodge | client=" + OwnerClientId);
+            if (leavingChair && direction.sqrMagnitude < 0.01f)
+                direction = -Vector3.forward;
+
+            controller.Move(direction.normalized * dodgeDistance);
+            Debug.Log("[KONOHA MOVE] Dodge | client=" + OwnerClientId + " | leaveChair=" + leavingChair);
         }
 
         public void ResetLocalInput()
@@ -137,18 +161,34 @@ namespace Konoha.Networking
                 joystick?.ResetInput();
         }
 
-        private void UpdateDodgeButtonVisual(bool locked)
+        private void PinOwnerToChair(NetworkMatchManager match)
+        {
+            if (match == null || controller == null)
+                return;
+
+            Vector3 destination = match.ChairSeatPosition;
+            Vector3 delta = destination - transform.position;
+
+            if (delta.sqrMagnitude <= 0.0004f)
+                return;
+
+            controller.Move(delta);
+        }
+
+        private void UpdateDodgeButtonVisual(bool knockedOut, bool matchLocked)
         {
             if (dodgeButton == null)
                 return;
 
             float remaining = Mathf.Max(0f, nextDodgeTime - Time.unscaledTime);
 
-            if (locked)
+            if (knockedOut || matchLocked)
             {
                 dodgeButton.interactable = false;
+
                 if (dodgeButtonLabel != null)
-                    dodgeButtonLabel.text = "DODGE\nKO";
+                    dodgeButtonLabel.text = knockedOut ? "DODGE\nRUNTUH" : "DODGE";
+
                 return;
             }
 
