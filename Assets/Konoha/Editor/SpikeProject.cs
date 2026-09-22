@@ -289,10 +289,21 @@ namespace Konoha.Editor
             chairZone.GetComponent<Renderer>().sharedMaterial = zoneMaterial;
             UnityEngine.Object.DestroyImmediate(chairZone.GetComponent<Collider>());
 
-            Box("KursiSeat", new Vector3(0f, 0.45f, 0f), new Vector3(1.25f, 0.28f, 1.15f), chairMaterial);
-            Box("KursiBack", new Vector3(0f, 1.15f, 0.48f), new Vector3(1.25f, 1.35f, 0.22f), chairMaterial);
-            Box("KursiLeftArm", new Vector3(-0.73f, 0.75f, 0f), new Vector3(0.18f, 0.7f, 1.1f), chairMaterial);
-            Box("KursiRightArm", new Vector3(0.73f, 0.75f, 0f), new Vector3(0.18f, 0.7f, 1.1f), chairMaterial);
+            var chairSeat = Box("KursiSeat", new Vector3(0f, 0.45f, 0f), new Vector3(1.25f, 0.28f, 1.15f), chairMaterial);
+            var chairBack = Box("KursiBack", new Vector3(0f, 1.15f, 0.48f), new Vector3(1.25f, 1.35f, 0.22f), chairMaterial);
+            var chairLeftArm = Box("KursiLeftArm", new Vector3(-0.73f, 0.75f, 0f), new Vector3(0.18f, 0.7f, 1.1f), chairMaterial);
+            var chairRightArm = Box("KursiRightArm", new Vector3(0.73f, 0.75f, 0f), new Vector3(0.18f, 0.7f, 1.1f), chairMaterial);
+
+            var chairVisualObject = new GameObject("NetworkChairVisual");
+            var chairVisual = chairVisualObject.AddComponent<NetworkChairVisual>();
+            chairVisual.zoneRenderer = chairZone.GetComponent<Renderer>();
+            chairVisual.chairRenderers = new[]
+            {
+                chairSeat.GetComponent<Renderer>(),
+                chairBack.GetComponent<Renderer>(),
+                chairLeftArm.GetComponent<Renderer>(),
+                chairRightArm.GetComponent<Renderer>()
+            };
 
             for (ulong clientId = 0; clientId < 8; clientId++)
             {
