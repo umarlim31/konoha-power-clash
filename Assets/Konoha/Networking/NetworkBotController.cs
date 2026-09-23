@@ -65,6 +65,10 @@ namespace Konoha.Networking
         {
             base.OnNetworkSpawn();
 
+            botTeam.OnValueChanged += OnBotConfigChanged;
+            botSlot.OnValueChanged += OnBotConfigChanged;
+            botHero.OnValueChanged += OnBotConfigChanged;
+
             gameObject.name = "BOT_" + NetworkTeamUtility.GetTeamName(Team) + "_" + Slot + "_" + HeroName;
 
             NetworkPlayerIdentity identity = GetComponent<NetworkPlayerIdentity>();
@@ -81,6 +85,21 @@ namespace Konoha.Networking
                 "[KONOHA BOT] Spawned | team=" + NetworkTeamUtility.GetTeamName(Team) +
                 " | slot=" + Slot +
                 " | hero=" + HeroName);
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            botTeam.OnValueChanged -= OnBotConfigChanged;
+            botSlot.OnValueChanged -= OnBotConfigChanged;
+            botHero.OnValueChanged -= OnBotConfigChanged;
+            base.OnNetworkDespawn();
+        }
+
+        private void OnBotConfigChanged(int previous, int current)
+        {
+            gameObject.name = "BOT_" + NetworkTeamUtility.GetTeamName(Team) + "_" + Slot + "_" + HeroName;
+            NetworkPlayerIdentity identity = GetComponent<NetworkPlayerIdentity>();
+            identity?.RefreshOwnershipLabel();
         }
 
         private void Update()
