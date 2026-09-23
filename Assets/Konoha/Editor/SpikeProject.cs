@@ -26,7 +26,7 @@ namespace Konoha.Editor
         public const string Generated = "Assets/Konoha/Generated";
         public const string ScenePath = Generated + "/SpikeArena.unity";
 
-        [MenuItem("Konoha/Prepare Build 0.0.5C (4v4 readability + AI polish)")]
+        [MenuItem("Konoha/Prepare Build 0.0.6A (proper 4v4 match experience)")]
         public static void Prepare()
         {
             if (Application.unityVersion != UnityVersion)
@@ -52,13 +52,13 @@ namespace Konoha.Editor
         {
             PlayerSettings.companyName = "KonohaPrototype";
             PlayerSettings.productName = "KONOHA Spike";
-            PlayerSettings.bundleVersion = "0.0.5";
+            PlayerSettings.bundleVersion = "0.0.6";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.spike");
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
-            PlayerSettings.Android.bundleVersionCode = 9;
+            PlayerSettings.Android.bundleVersionCode = 10;
             PlayerSettings.Android.useCustomKeystore = false;
             // Activity avoids the documented GameActivity dev-build issue on this pinned editor.
             PlayerSettings.Android.applicationEntry = AndroidApplicationEntry.Activity;
@@ -729,7 +729,7 @@ namespace Konoha.Editor
             layout.safeRoot = safe;
             layout.joystick = pad;
             Label(Rect("Instruction", safe, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 15f), new Vector2(560f, 32f)),
-                "0.0.5C | 4v4 Readability + Bot AI Polish", 20).alignment = TextAnchor.MiddleCenter;
+                "0.0.6A | Proper 4v4 Match Experience", 20).alignment = TextAnchor.MiddleCenter;
 
             Button MakeActionButton(string name, string caption, Vector2 position, Vector2 size)
             {
@@ -764,6 +764,30 @@ namespace Konoha.Editor
 
             CreateMatchHud(safe, chairButton);
             CreateNetworkingProof(safe, networkPlayerPrefab, networkBotPrefab, matchManagerPrefab, offlineHero, offlineDriver);
+
+            var feedPanel = Rect(
+                "CombatFeedPanel",
+                safe,
+                Vector2.one,
+                Vector2.one,
+                new Vector2(-20f, -176f),
+                new Vector2(390f, 112f));
+            var feedBackground = feedPanel.gameObject.AddComponent<Image>();
+            feedBackground.color = new Color(0.02f, 0.035f, 0.055f, 0.68f);
+            feedBackground.raycastTarget = false;
+            var feedText = Label(
+                Rect(
+                    "CombatFeedText",
+                    feedPanel,
+                    new Vector2(0f, 1f),
+                    new Vector2(0f, 1f),
+                    new Vector2(10f, -8f),
+                    new Vector2(370f, 96f)),
+                string.Empty,
+                14);
+            feedText.alignment = TextAnchor.UpperRight;
+            var combatFeed = canvasObject.AddComponent<CombatFeedHud>();
+            combatFeed.display = feedText;
 
             // Keep gameplay actions above the rest of the HUD.
             dodgeButton.transform.SetAsLastSibling();
