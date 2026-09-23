@@ -224,8 +224,6 @@ namespace Konoha.Networking
             if (!IsServer)
                 return;
 
-            ServerGainPengaruh(Mathf.Clamp(damage / 2, 4, 14));
-
             if (Hero == PrototypeHero.Mega)
             {
                 rage.Value = Mathf.Clamp(rage.Value + damage * 2, 0, 100);
