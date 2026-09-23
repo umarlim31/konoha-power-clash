@@ -736,7 +736,7 @@ namespace Konoha.Editor
 
             var legend = Label(
                 Rect("NetworkLegend", safe, Vector2.one, Vector2.one, new Vector2(-20f, -292f), new Vector2(470f, 54f)),
-                "AUTO-FILL 4V4 | OBJECTIVE BOTS | ABAH DAMAGE POLISH | HUMANS REPLACE BOTS WHILE WAITING",
+                "LIVE AUTO-FILL 4V4 | OBJECTIVE BOTS | ABAH DAMAGE POLISH | HUMANS REPLACE BOTS",
                 16);
             legend.alignment = TextAnchor.MiddleCenter;
 
