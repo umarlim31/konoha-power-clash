@@ -10,14 +10,17 @@ namespace Konoha.Networking
         public GameObject[] heroVisuals;
 
         private NetworkHeroKit heroKit;
+        private NetworkPlayerCombat combat;
         private int appliedHero = -1;
         private int appliedTeam = -99;
+        private bool appliedKnockedOut;
         private float nextRefresh;
 
         public override void OnNetworkSpawn()
         {
             base.OnNetworkSpawn();
             heroKit = GetComponent<NetworkHeroKit>();
+            combat = GetComponent<NetworkPlayerCombat>();
             ApplyPresentation(true);
         }
 
@@ -26,18 +29,24 @@ namespace Konoha.Networking
             if (!IsSpawned || Time.unscaledTime < nextRefresh)
                 return;
 
-            nextRefresh = Time.unscaledTime + 0.20f;
+            nextRefresh = Time.unscaledTime + 0.12f;
             ApplyPresentation(false);
         }
 
         private void ApplyPresentation(bool force)
         {
             heroKit ??= GetComponent<NetworkHeroKit>();
+            combat ??= GetComponent<NetworkPlayerCombat>();
 
             int hero = heroKit != null ? (int)heroKit.Hero : 0;
             int team = NetworkTeamUtility.GetTeam(NetworkObject);
+            bool knockedOut = combat != null && combat.IsKnockedOut;
 
-            if (force || hero != appliedHero)
+            bool heroChanged = hero != appliedHero;
+            bool teamChanged = team != appliedTeam;
+            bool knockoutChanged = knockedOut != appliedKnockedOut;
+
+            if (force || heroChanged)
             {
                 appliedHero = hero;
 
@@ -53,11 +62,15 @@ namespace Konoha.Networking
                 ApplyBodySilhouette((PrototypeHero)Mathf.Clamp(hero, 0, 3));
             }
 
-            if (force || team != appliedTeam)
+            if (force || teamChanged || knockoutChanged)
             {
                 appliedTeam = team;
-                ApplyTeamRing(team);
+                appliedKnockedOut = knockedOut;
+                ApplyTeamRing(team, knockedOut);
             }
+
+            if (force || heroChanged || knockoutChanged)
+                ApplyHeroAccessoryColor((PrototypeHero)Mathf.Clamp(hero, 0, 3), knockedOut);
         }
 
         private void ApplyBodySilhouette(PrototypeHero hero)
@@ -68,27 +81,60 @@ namespace Konoha.Networking
             switch (hero)
             {
                 case PrototypeHero.Mega:
-                    bodyTransform.localScale = new Vector3(1.08f, 1.00f, 1.08f);
+                    bodyTransform.localScale = new Vector3(1.05f, 1.00f, 1.05f);
                     break;
                 case PrototypeHero.Prabowo:
-                    bodyTransform.localScale = new Vector3(1.18f, 1.03f, 1.18f);
+                    bodyTransform.localScale = new Vector3(1.12f, 1.02f, 1.12f);
                     break;
                 case PrototypeHero.Abah:
-                    bodyTransform.localScale = new Vector3(0.92f, 1.03f, 0.92f);
+                    bodyTransform.localScale = new Vector3(0.94f, 1.02f, 0.94f);
                     break;
                 case PrototypeHero.Jokowi:
-                    bodyTransform.localScale = new Vector3(0.97f, 1.00f, 0.97f);
+                    bodyTransform.localScale = new Vector3(0.98f, 1.00f, 0.98f);
                     break;
             }
         }
 
-        private void ApplyTeamRing(int team)
+        private void ApplyHeroAccessoryColor(PrototypeHero hero, bool knockedOut)
+        {
+            if (heroVisuals == null)
+                return;
+
+            int index = Mathf.Clamp((int)hero, 0, heroVisuals.Length - 1);
+            GameObject root = heroVisuals[index];
+
+            if (root == null)
+                return;
+
+            Color accent = NetworkHeroKit.GetHeroAccentColor(hero);
+            Color target = knockedOut
+                ? Color.Lerp(accent, Color.black, 0.72f)
+                : accent;
+
+            foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
+                SetRendererColor(renderer, target);
+        }
+
+        private void ApplyTeamRing(int team, bool knockedOut)
         {
             if (teamRingRenderer == null)
                 return;
 
             Color color = NetworkTeamUtility.GetTeamColor(team);
-            Material material = teamRingRenderer.material;
+            if (knockedOut)
+                color = Color.Lerp(color, Color.black, 0.78f);
+            else
+                color = Color.Lerp(color, Color.black, 0.18f);
+
+            SetRendererColor(teamRingRenderer, color);
+        }
+
+        private static void SetRendererColor(Renderer renderer, Color color)
+        {
+            if (renderer == null)
+                return;
+
+            Material material = renderer.material;
 
             if (material.HasProperty("_BaseColor"))
                 material.SetColor("_BaseColor", color);
