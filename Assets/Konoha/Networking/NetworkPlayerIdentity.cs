@@ -21,18 +21,22 @@ namespace Konoha.Networking
         {
             base.OnNetworkSpawn();
 
-            int team = NetworkTeamUtility.GetTeam(OwnerClientId);
+            int team = NetworkTeamUtility.GetTeam(NetworkObject);
             baseBodyColor = NetworkTeamUtility.GetTeamColor(team);
             baseFacingColor = Color.Lerp(baseBodyColor, Color.white, 0.35f);
 
             ApplyCurrentVisual();
 
+            NetworkBotController bot = GetComponent<NetworkBotController>();
+
             if (localOwnerMarker != null)
-                localOwnerMarker.SetActive(IsOwner);
+                localOwnerMarker.SetActive(IsOwner && bot == null);
 
             RefreshOwnershipLabel();
 
-            gameObject.name = "NetworkPlayer_" + OwnerClientId + (IsOwner ? "_LOCAL" : "_REMOTE");
+            gameObject.name = bot != null
+                ? "NetworkBot_" + NetworkTeamUtility.GetTeamName(team) + "_" + bot.Slot
+                : "NetworkPlayer_" + OwnerClientId + (IsOwner ? "_LOCAL" : "_REMOTE");
             cachedCamera = Camera.main;
 
             Debug.Log(
@@ -46,20 +50,31 @@ namespace Konoha.Networking
             if (ownershipLabel == null || !IsSpawned)
                 return;
 
-            string role = OwnerClientId == Unity.Netcode.NetworkManager.ServerClientId ? "HOST" : "CLIENT";
-            int team = NetworkTeamUtility.GetTeam(OwnerClientId);
+            NetworkBotController bot = GetComponent<NetworkBotController>();
+            int team = NetworkTeamUtility.GetTeam(NetworkObject);
             NetworkHeroKit kit = GetComponent<NetworkHeroKit>();
             string heroName = kit != null
                 ? NetworkHeroKit.GetHeroName(kit.Hero)
-                : "HERO";
+                : bot != null ? bot.HeroName : "HERO";
 
-            ownershipLabel.text = "P" + OwnerClientId + " " + role +
-                                  " | " + NetworkTeamUtility.GetTeamName(team) +
-                                  " | " + heroName +
-                                  (IsOwner ? "\nYOU / OWNER" : "");
+            if (bot != null)
+            {
+                ownershipLabel.text = "BOT " + bot.Slot +
+                                      " | " + NetworkTeamUtility.GetTeamName(team) +
+                                      " | " + heroName;
+            }
+            else
+            {
+                string role = OwnerClientId == Unity.Netcode.NetworkManager.ServerClientId ? "HOST" : "CLIENT";
+                ownershipLabel.text = "P" + OwnerClientId + " " + role +
+                                      " | " + NetworkTeamUtility.GetTeamName(team) +
+                                      " | " + heroName +
+                                      (IsOwner ? "\nYOU / OWNER" : "");
+            }
+
             ownershipLabel.color = knockedOut
                 ? new Color(1f, 0.32f, 0.28f)
-                : IsOwner ? new Color(0.45f, 1f, 0.50f) : Color.white;
+                : bot == null && IsOwner ? new Color(0.45f, 1f, 0.50f) : Color.white;
         }
 
         private void LateUpdate()
