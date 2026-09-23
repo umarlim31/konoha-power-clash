@@ -98,6 +98,9 @@ namespace Konoha.Networking
                 ? NetworkMatchManager.NoClient
                 : OwnerClientId;
 
+        private ulong DamageSourceActorNetworkObjectId =>
+            IsSpawned ? NetworkObjectId : NetworkMatchManager.NoClient;
+
         public bool IsSilenced => IsSpawned && ServerClock < silencedUntil.Value;
         public bool IsStunned => IsSpawned && ServerClock < stunnedUntil.Value;
         public bool IsGarudaActive => IsSpawned && ServerClock < garudaUntil.Value;
@@ -284,7 +287,7 @@ namespace Konoha.Networking
                         continue;
 
                     NetworkPlayerCombat enemyCombat = enemy.GetComponent<NetworkPlayerCombat>();
-                    enemyCombat?.ServerReceiveDamage(4, DamageSourceClientId);
+                    enemyCombat?.ServerReceiveDamage(4, DamageSourceClientId, DamageSourceActorNetworkObjectId);
                 }
             }
 
@@ -653,7 +656,7 @@ namespace Konoha.Networking
 
                 NetworkPlayerCombat combat = enemy.GetComponent<NetworkPlayerCombat>();
                 if (combat != null)
-                    combat.ServerReceiveDamage(20, DamageSourceClientId);
+                    combat.ServerReceiveDamage(20, DamageSourceClientId, DamageSourceActorNetworkObjectId);
 
                 enemy.ServerApplyKnockback(direction * 3.0f * forceMultiplier);
                 enemy.ServerApplyStun(0.65f);
@@ -682,7 +685,7 @@ namespace Konoha.Networking
 
                 NetworkPlayerCombat combat = enemy.GetComponent<NetworkPlayerCombat>();
                 if (combat != null)
-                    combat.ServerReceiveDamage(30, DamageSourceClientId);
+                    combat.ServerReceiveDamage(30, DamageSourceClientId, DamageSourceActorNetworkObjectId);
 
                 enemy.ServerApplyKnockback(direction * 5.2f);
             }
@@ -703,7 +706,7 @@ namespace Konoha.Networking
 
                 NetworkPlayerCombat combat = enemy.GetComponent<NetworkPlayerCombat>();
                 if (combat != null)
-                    combat.ServerReceiveDamage(22, DamageSourceClientId);
+                    combat.ServerReceiveDamage(22, DamageSourceClientId, DamageSourceActorNetworkObjectId);
 
                 Vector3 away = FlattenDirection(projected - landing);
                 enemy.ServerApplyKnockback(away * 2.2f);
@@ -739,7 +742,7 @@ namespace Konoha.Networking
                 }
                 else if (facingDot >= 0.25f)
                 {
-                    combat?.ServerReceiveDamage(10, DamageSourceClientId);
+                    combat?.ServerReceiveDamage(10, DamageSourceClientId, DamageSourceActorNetworkObjectId);
                     kit?.ServerApplyKnockback(toward * 3.0f);
                 }
             }
@@ -765,7 +768,7 @@ namespace Konoha.Networking
 
                 enemy.ServerApplySilence(3f);
                 NetworkPlayerCombat combat = enemy.GetComponent<NetworkPlayerCombat>();
-                combat?.ServerReceiveDamage(18, DamageSourceClientId);
+                combat?.ServerReceiveDamage(18, DamageSourceClientId, DamageSourceActorNetworkObjectId);
             }
 
             PlayAbilityFxClientRpc((int)Hero, 3, transform.position, Vector3.forward);
