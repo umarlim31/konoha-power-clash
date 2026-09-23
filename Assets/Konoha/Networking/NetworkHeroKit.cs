@@ -125,8 +125,13 @@ namespace Konoha.Networking
 
         private void Update()
         {
+            if (IsServer)
+                ServerTickPassive();
+
             if (!IsOwner)
                 return;
+
+            TickLocalPassive();
 
             if (heroButton == null || s1Button == null || s2Button == null || ultimateButton == null)
                 BindHud();
@@ -216,6 +221,13 @@ namespace Konoha.Networking
             if (!IsServer || amount <= 0)
                 return;
 
+            if (Hero == PrototypeHero.Abah)
+            {
+                int nearbyHeroes = CountNearbyHeroes(6f, false);
+                float audienceMultiplier = 1f + Mathf.Min(3, nearbyHeroes) * 0.20f;
+                amount = Mathf.Max(1, Mathf.RoundToInt(amount * audienceMultiplier));
+            }
+
             pengaruh.Value = Mathf.Clamp(pengaruh.Value + amount, 0, MaxPengaruh);
         }
 
@@ -246,6 +258,74 @@ namespace Konoha.Networking
             narasiUntil.Value = 0d;
             stunnedUntil.Value = 0d;
             silencedUntil.Value = 0d;
+        }
+
+        private void ServerTickPassive()
+        {
+            if (Hero != PrototypeHero.Jokowi ||
+                ServerClock >= roadUntil.Value ||
+                serverS1Ready <= ServerClock)
+                return;
+
+            if (HasFriendlyTeammateUsingRoad())
+                serverS1Ready = Math.Max(ServerClock, serverS1Ready - Time.deltaTime * 0.75d);
+        }
+
+        private void TickLocalPassive()
+        {
+            if (Hero != PrototypeHero.Jokowi ||
+                ServerClock >= roadUntil.Value ||
+                localS1Ready <= Time.unscaledTime)
+                return;
+
+            if (HasFriendlyTeammateUsingRoad())
+                localS1Ready = Mathf.Max(Time.unscaledTime, localS1Ready - Time.deltaTime * 0.75f);
+        }
+
+        private bool HasFriendlyTeammateUsingRoad()
+        {
+            int team = NetworkTeamUtility.GetTeam(OwnerClientId);
+            NetworkHeroKit[] kits = FindObjectsByType<NetworkHeroKit>(FindObjectsSortMode.None);
+
+            foreach (NetworkHeroKit kit in kits)
+            {
+                if (kit == null || kit == this || !kit.IsSpawned)
+                    continue;
+
+                if (NetworkTeamUtility.GetTeam(kit.OwnerClientId) != team)
+                    continue;
+
+                if (HorizontalDistanceSqr(kit.transform.position, roadCenter.Value) <= 25f)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private int CountNearbyHeroes(float radius, bool teammatesOnly)
+        {
+            if (NetworkManager == null || NetworkManager.SpawnManager == null)
+                return 0;
+
+            int count = 0;
+            int team = NetworkTeamUtility.GetTeam(OwnerClientId);
+            float radiusSqr = radius * radius;
+
+            foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
+            {
+                if (networkObject == null ||
+                    !networkObject.IsPlayerObject ||
+                    networkObject == NetworkObject)
+                    continue;
+
+                if (teammatesOnly && NetworkTeamUtility.GetTeam(networkObject.OwnerClientId) != team)
+                    continue;
+
+                if (HorizontalDistanceSqr(networkObject.transform.position, transform.position) <= radiusSqr)
+                    count++;
+            }
+
+            return count;
         }
 
         public void ServerOnBasicHit(NetworkHeroKit target, int damage)
