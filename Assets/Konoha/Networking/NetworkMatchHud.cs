@@ -9,17 +9,30 @@ namespace Konoha.Networking
         public Text matchText;
         public Text scoreText;
         public Text objectiveText;
+        public Text phaseText;
+        public Text timerText;
+        public Text rosterText;
+        public Text cyanScoreText;
+        public Text orangeScoreText;
+        public Image cyanPowerFill;
+        public Image orangePowerFill;
+        public Image captureFill;
+        public GameObject captureBarRoot;
         public Button startButton;
         public Button chairButton;
         public Button debugTimerButton;
         public Button debugPowerButton;
         public Button debugPengaruhButton;
+        public Button debugToolsToggleButton;
+        public GameObject debugToolsRoot;
 
         private Text startLabel;
         private Text chairLabel;
         private Text debugTimerLabel;
         private Text debugPowerLabel;
         private Text debugPengaruhLabel;
+        private Text debugToolsToggleLabel;
+        private bool debugToolsOpen;
         private NetworkMatchManager manager;
 
         private void Awake()
@@ -53,6 +66,16 @@ namespace Konoha.Networking
                 debugPengaruhLabel = debugPengaruhButton.GetComponentInChildren<Text>();
                 debugPengaruhButton.onClick.AddListener(OnDebugPengaruhPressed);
             }
+
+            if (debugToolsToggleButton != null)
+            {
+                debugToolsToggleLabel = debugToolsToggleButton.GetComponentInChildren<Text>();
+                debugToolsToggleButton.onClick.AddListener(OnDebugToolsTogglePressed);
+            }
+
+            debugToolsOpen = false;
+            if (debugToolsRoot != null)
+                debugToolsRoot.SetActive(false);
         }
 
         private void OnDestroy()
@@ -71,6 +94,9 @@ namespace Konoha.Networking
 
             if (debugPengaruhButton != null)
                 debugPengaruhButton.onClick.RemoveListener(OnDebugPengaruhPressed);
+
+            if (debugToolsToggleButton != null)
+                debugToolsToggleButton.onClick.RemoveListener(OnDebugToolsTogglePressed);
         }
 
         private void Update()
@@ -83,6 +109,14 @@ namespace Konoha.Networking
                 SetText(matchText, "REBUT KURSI | WAITING FOR MATCH STATE");
                 SetText(scoreText, "CYAN 0 | ORANGE 0");
                 SetText(objectiveText, "KURSI: OFFLINE");
+                SetText(phaseText, "WAITING");
+                SetText(timerText, "--:--");
+                SetText(rosterText, "4v4 --/8");
+                SetText(cyanScoreText, "CYAN 000");
+                SetText(orangeScoreText, "ORANGE 000");
+                SetFill(cyanPowerFill, 0f);
+                SetFill(orangePowerFill, 0f);
+                if (captureBarRoot != null) captureBarRoot.SetActive(false);
                 SetButton(startButton, startLabel, false, "START MATCH");
                 SetButton(chairButton, chairLabel, false, "DUDUK");
                 SetButton(debugTimerButton, debugTimerLabel, false, "TEST TIMER 10s");
@@ -110,6 +144,19 @@ namespace Konoha.Networking
                 "REBUT KURSI | " + stateText + " " + timerText +
                 " | " + manager.ActorCount + "/8" +
                 " (" + manager.PlayerCount + "H+" + manager.BotCount + "B)");
+
+            SetText(phaseText, stateText);
+            SetText(this.timerText, timerText);
+            SetText(
+                rosterText,
+                manager.ActorCount + "/8  •  " +
+                manager.PlayerCount + "H / " + manager.BotCount + "B");
+
+            SetText(cyanScoreText, "CYAN  " + manager.CyanPower.ToString("000"));
+            SetText(orangeScoreText, "ORANGE  " + manager.OrangePower.ToString("000"));
+            SetFill(cyanPowerFill, manager.CyanPower / (float)NetworkMatchManager.PowerToWin);
+            SetFill(orangePowerFill, manager.OrangePower / (float)NetworkMatchManager.PowerToWin);
+            RefreshCaptureBar();
 
             if (manager.State == GreyboxMatchState.SuddenPower)
             {
@@ -178,10 +225,21 @@ namespace Konoha.Networking
         private void RefreshButtons()
         {
             bool isHostUi = manager.IsServer;
-            SetHostOnlyVisible(startButton, isHostUi);
-            SetHostOnlyVisible(debugTimerButton, isHostUi);
-            SetHostOnlyVisible(debugPowerButton, isHostUi);
-            SetHostOnlyVisible(debugPengaruhButton, isHostUi);
+            bool showStart = isHostUi &&
+                             (manager.State == GreyboxMatchState.Waiting ||
+                              manager.State == GreyboxMatchState.Result);
+            SetHostOnlyVisible(startButton, showStart);
+            SetHostOnlyVisible(debugToolsToggleButton, isHostUi);
+
+            if (debugToolsRoot != null)
+                debugToolsRoot.SetActive(isHostUi && debugToolsOpen);
+
+            SetHostOnlyVisible(debugTimerButton, isHostUi && debugToolsOpen);
+            SetHostOnlyVisible(debugPowerButton, isHostUi && debugToolsOpen);
+            SetHostOnlyVisible(debugPengaruhButton, isHostUi && debugToolsOpen);
+
+            if (debugToolsToggleLabel != null)
+                debugToolsToggleLabel.text = debugToolsOpen ? "DEV ×" : "DEV";
 
             bool hostCanStart = manager.CanHostStart;
             string startCaption = manager.State == GreyboxMatchState.Result ? "REMATCH" : "START";
@@ -231,6 +289,38 @@ namespace Konoha.Networking
             manager?.RequestDebugPengaruhFromLocal();
         }
 
+        private void OnDebugToolsTogglePressed()
+        {
+            debugToolsOpen = !debugToolsOpen;
+
+            if (debugToolsRoot != null)
+                debugToolsRoot.SetActive(debugToolsOpen);
+        }
+
+        private void RefreshCaptureBar()
+        {
+            if (captureBarRoot == null || captureFill == null || manager == null)
+                return;
+
+            if (manager.IsContested)
+            {
+                captureBarRoot.SetActive(true);
+                captureFill.color = new Color(1f, 0.82f, 0.18f, 0.95f);
+                captureFill.fillAmount = 1f;
+                return;
+            }
+
+            if (manager.CaptureTeam >= 0)
+            {
+                captureBarRoot.SetActive(true);
+                captureFill.color = NetworkTeamUtility.GetTeamColor(manager.CaptureTeam);
+                captureFill.fillAmount = Mathf.Clamp01(manager.CaptureProgress);
+                return;
+            }
+
+            captureBarRoot.SetActive(false);
+        }
+
         private static NetworkObject FindActor(ulong networkObjectId)
         {
             if (networkObjectId == NetworkMatchManager.NoClient ||
@@ -267,6 +357,12 @@ namespace Konoha.Networking
             int minutes = value / 60;
             int remainingSeconds = value % 60;
             return minutes.ToString("00") + ":" + remainingSeconds.ToString("00");
+        }
+
+        private static void SetFill(Image image, float value)
+        {
+            if (image != null)
+                image.fillAmount = Mathf.Clamp01(value);
         }
 
         private static void SetText(Text target, string value)
