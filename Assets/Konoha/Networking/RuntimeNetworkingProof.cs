@@ -15,6 +15,8 @@ namespace Konoha.Networking
         public Button clientButton;
         public Button shutdownButton;
         public InputField addressInput;
+        public RectTransform networkPanel;
+        public Text networkLegend;
 
         public GameObject playerPrefab;
         public GameObject botPrefab;
@@ -38,7 +40,7 @@ namespace Konoha.Networking
         {
             if (!Application.isPlaying)
             {
-                SetStatus("NETWORK READY | 0.0.5B");
+                SetStatus("NETWORK READY | 0.0.5C");
                 return;
             }
 
@@ -96,7 +98,7 @@ namespace Konoha.Networking
 
             initialized = true;
             SetNetworkButtons(false);
-            SetStatus("NETWORK READY | HERO POLISH + 4V4 BOTS");
+            SetStatus("NETWORK READY | 4V4 READABILITY + AI POLISH");
         }
 
         private void OnDestroy()
@@ -131,6 +133,7 @@ namespace Konoha.Networking
 
             DisableOfflinePrototype();
             SetNetworkButtons(true);
+            SetNetworkCompact(true);
 
             EnsureMatchManager();
             EnsurePlayerObject(manager.LocalClientId);
@@ -161,6 +164,7 @@ namespace Konoha.Networking
 
             DisableOfflinePrototype();
             SetNetworkButtons(true);
+            SetNetworkCompact(true);
             SetStatus("CLIENT STARTING | " + address + ":7777");
         }
 
@@ -189,7 +193,8 @@ namespace Konoha.Networking
             serverSpawnedPlayers.Clear();
             RestoreOfflinePrototype();
             SetNetworkButtons(false);
-            SetStatus("NETWORK READY | HERO POLISH + 4V4 BOTS");
+            SetNetworkCompact(false);
+            SetStatus("NETWORK READY | 4V4 READABILITY + AI POLISH");
         }
 
         private void OnClientConnected(ulong clientId)
@@ -201,7 +206,7 @@ namespace Konoha.Networking
             }
 
             string role = manager != null && manager.IsHost ? "HOST" : "CLIENT";
-            SetStatus("CONNECTED | CLIENT " + clientId + " | " + role + " | 4V4 AUTO-FILL READY");
+            SetStatus("CONNECTED | " + role + " | 4V4 READY");
         }
 
         private void OnClientDisconnected(ulong clientId)
@@ -311,6 +316,49 @@ namespace Konoha.Networking
             if (hostButton != null) hostButton.interactable = !networkActive;
             if (clientButton != null) clientButton.interactable = !networkActive;
             if (shutdownButton != null) shutdownButton.interactable = networkActive;
+        }
+
+        private void SetNetworkCompact(bool compact)
+        {
+            if (networkPanel != null)
+                networkPanel.sizeDelta = compact
+                    ? new Vector2(390f, 70f)
+                    : new Vector2(470f, 185f);
+
+            if (addressInput != null)
+                addressInput.gameObject.SetActive(!compact);
+
+            if (hostButton != null)
+                hostButton.gameObject.SetActive(!compact);
+
+            if (clientButton != null)
+                clientButton.gameObject.SetActive(!compact);
+
+            if (shutdownButton != null)
+            {
+                shutdownButton.gameObject.SetActive(true);
+                RectTransform stopRect = shutdownButton.GetComponent<RectTransform>();
+                if (stopRect != null)
+                {
+                    stopRect.sizeDelta = compact ? new Vector2(105f, 42f) : new Vector2(135f, 52f);
+                    stopRect.anchoredPosition = compact ? new Vector2(135f, 14f) : new Vector2(145f, 12f);
+                }
+            }
+
+            if (status != null)
+            {
+                RectTransform statusRect = status.GetComponent<RectTransform>();
+                if (statusRect != null)
+                {
+                    statusRect.sizeDelta = compact ? new Vector2(250f, 38f) : new Vector2(440f, 34f);
+                    statusRect.anchoredPosition = compact ? new Vector2(-55f, -10f) : new Vector2(0f, -12f);
+                }
+
+                status.fontSize = compact ? 15 : 18;
+            }
+
+            if (networkLegend != null)
+                networkLegend.gameObject.SetActive(!compact);
         }
 
         private void SetStatus(string value)
