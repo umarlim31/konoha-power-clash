@@ -94,7 +94,7 @@ namespace Konoha.Networking
             if (IsServer)
             {
                 transform.position = NetworkTeamUtility.GetTeamSpawnPosition(Team, Slot);
-                transform.rotation = Quaternion.identity;
+                transform.rotation = NetworkTeamUtility.GetTeamSpawnRotation(Team);
                 nextThinkTime = 0f;
             }
 
