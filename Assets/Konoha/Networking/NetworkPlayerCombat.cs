@@ -227,7 +227,7 @@ namespace Konoha.Networking
                 return;
             }
 
-            bestTarget.ServerReceiveDamage(damage, OwnerClientId);
+            bestTarget.ServerReceiveDamage(damage, OwnerClientId, NetworkObjectId);
 
             NetworkHeroKit targetKit = bestTarget.GetComponent<NetworkHeroKit>();
             heroKit?.ServerOnBasicHit(targetKit, damage);
@@ -266,7 +266,10 @@ namespace Konoha.Networking
             shield.Value = Mathf.Clamp(shield.Value + amount, 0, 50);
         }
 
-        public void ServerReceiveDamage(int damage, ulong sourceClientId)
+        public void ServerReceiveDamage(
+            int damage,
+            ulong sourceClientId,
+            ulong sourceActorNetworkObjectId = NetworkMatchManager.NoClient)
         {
             if (!IsServer || knockedOut.Value || damage <= 0)
                 return;
@@ -296,8 +299,46 @@ namespace Konoha.Networking
             if (health.Value == 0 && !serverRespawnRunning)
             {
                 NetworkMatchManager.Instance?.HandleActorKnockedOut(NetworkObject);
+
+                NetworkObject attacker = FindActorByNetworkObjectId(sourceActorNetworkObjectId);
+                if (attacker == null && sourceClientId != NetworkMatchManager.NoClient)
+                    attacker = FindPlayerObjectByOwner(sourceClientId);
+
+                NetworkMatchEvents.Instance?.ServerReportKnockout(attacker, NetworkObject);
                 respawnRoutine = StartCoroutine(ServerKnockoutAndRespawn());
             }
+        }
+
+        private NetworkObject FindActorByNetworkObjectId(ulong networkObjectId)
+        {
+            if (networkObjectId == NetworkMatchManager.NoClient ||
+                NetworkManager == null ||
+                NetworkManager.SpawnManager == null)
+                return null;
+
+            foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
+            {
+                if (networkObject != null && networkObject.NetworkObjectId == networkObjectId)
+                    return networkObject;
+            }
+
+            return null;
+        }
+
+        private NetworkObject FindPlayerObjectByOwner(ulong clientId)
+        {
+            if (NetworkManager == null || NetworkManager.SpawnManager == null)
+                return null;
+
+            foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
+            {
+                if (networkObject != null &&
+                    networkObject.IsPlayerObject &&
+                    networkObject.OwnerClientId == clientId)
+                    return networkObject;
+            }
+
+            return null;
         }
 
         private NetworkHeroKit FindHeroKitByOwner(ulong clientId)
