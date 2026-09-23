@@ -317,6 +317,8 @@ namespace Konoha.Networking
 
             float cooldown = heroKit != null ? heroKit.GetBasicCooldown() : 0.80f;
             int damage = heroKit != null ? heroKit.GetBasicDamage() : 16;
+            if (heroKit != null)
+                damage = Mathf.Max(1, Mathf.RoundToInt(damage * heroKit.GetOutgoingDamageMultiplier()));
 
             nextAttackTime = Time.unscaledTime + cooldown * Random.Range(0.95f, 1.18f);
             currentTarget.ServerReceiveDamage(damage, NetworkMatchManager.NoClient);
