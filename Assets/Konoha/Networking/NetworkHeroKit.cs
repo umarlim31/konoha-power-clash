@@ -83,6 +83,7 @@ namespace Konoha.Networking
         private float localUltimateReady;
         private double serverS1Ready;
         private double serverS2Ready;
+        private double nextNarasiDamageTick;
         private int megaBasicCombo;
 
         public PrototypeHero Hero => (PrototypeHero)heroId.Value;
@@ -104,10 +105,12 @@ namespace Konoha.Networking
             pengaruh.OnValueChanged += OnResourceChanged;
             rage.OnValueChanged += OnResourceChanged;
 
-            if (IsServer)
-                heroId.Value = (int)(OwnerClientId % 4UL);
+            NetworkBotController bot = GetComponent<NetworkBotController>();
 
-            if (IsOwner)
+            if (IsServer)
+                heroId.Value = bot != null ? (int)bot.Hero : (int)(OwnerClientId % 4UL);
+
+            if (IsOwner && bot == null)
                 BindHud();
 
             RefreshIdentityLabel();
@@ -128,7 +131,7 @@ namespace Konoha.Networking
             if (IsServer)
                 ServerTickPassive();
 
-            if (!IsOwner)
+            if (!IsOwner || GetComponent<NetworkBotController>() != null)
                 return;
 
             TickLocalPassive();
@@ -144,7 +147,7 @@ namespace Konoha.Networking
             switch (Hero)
             {
                 case PrototypeHero.Prabowo: return 24;
-                case PrototypeHero.Abah: return 13;
+                case PrototypeHero.Abah: return 17;
                 case PrototypeHero.Jokowi: return 15;
                 default: return 18;
             }
@@ -188,7 +191,7 @@ namespace Konoha.Networking
 
             double now = ServerClock;
             float multiplier = Hero == PrototypeHero.Prabowo && now < garudaUntil.Value ? 1.25f : 1f;
-            int team = NetworkTeamUtility.GetTeam(OwnerClientId);
+            int team = NetworkTeamUtility.GetTeam(NetworkObject);
 
             NetworkHeroKit[] kits = FindObjectsByType<NetworkHeroKit>(FindObjectsSortMode.None);
             foreach (NetworkHeroKit kit in kits)
@@ -198,7 +201,7 @@ namespace Konoha.Networking
 
                 if (kit.Hero == PrototypeHero.Jokowi &&
                     now < kit.roadUntil.Value &&
-                    NetworkTeamUtility.GetTeam(kit.OwnerClientId) == team &&
+                    NetworkTeamUtility.GetTeam(kit.NetworkObject) == team &&
                     HorizontalDistanceSqr(transform.position, kit.roadCenter.Value) <= 25f)
                 {
                     multiplier = Mathf.Max(multiplier, 1.35f);
@@ -208,7 +211,7 @@ namespace Konoha.Networking
                     now < kit.narasiUntil.Value &&
                     HorizontalDistanceSqr(transform.position, kit.narasiCenter.Value) <= 25f)
                 {
-                    bool sameTeam = NetworkTeamUtility.GetTeam(kit.OwnerClientId) == team;
+                    bool sameTeam = NetworkTeamUtility.GetTeam(kit.NetworkObject) == team;
                     multiplier *= sameTeam ? 1.20f : 0.75f;
                 }
             }
@@ -262,13 +265,31 @@ namespace Konoha.Networking
 
         private void ServerTickPassive()
         {
-            if (Hero != PrototypeHero.Jokowi ||
-                ServerClock >= roadUntil.Value ||
-                serverS1Ready <= ServerClock)
-                return;
+            double now = ServerClock;
 
-            if (HasFriendlyTeammateUsingRoad())
-                serverS1Ready = Math.Max(ServerClock, serverS1Ready - Time.deltaTime * 0.75d);
+            if (Hero == PrototypeHero.Abah &&
+                now < narasiUntil.Value &&
+                now >= nextNarasiDamageTick)
+            {
+                nextNarasiDamageTick = now + 1d;
+
+                foreach (NetworkHeroKit enemy in ServerEnemies())
+                {
+                    if (HorizontalDistanceSqr(enemy.transform.position, narasiCenter.Value) > 25f)
+                        continue;
+
+                    NetworkPlayerCombat enemyCombat = enemy.GetComponent<NetworkPlayerCombat>();
+                    enemyCombat?.ServerReceiveDamage(4, OwnerClientId);
+                }
+            }
+
+            if (Hero == PrototypeHero.Jokowi &&
+                now < roadUntil.Value &&
+                serverS1Ready > now &&
+                HasFriendlyTeammateUsingRoad())
+            {
+                serverS1Ready = Math.Max(now, serverS1Ready - Time.deltaTime * 0.75d);
+            }
         }
 
         private void TickLocalPassive()
@@ -284,7 +305,7 @@ namespace Konoha.Networking
 
         private bool HasFriendlyTeammateUsingRoad()
         {
-            int team = NetworkTeamUtility.GetTeam(OwnerClientId);
+            int team = NetworkTeamUtility.GetTeam(NetworkObject);
             NetworkHeroKit[] kits = FindObjectsByType<NetworkHeroKit>(FindObjectsSortMode.None);
 
             foreach (NetworkHeroKit kit in kits)
@@ -292,7 +313,7 @@ namespace Konoha.Networking
                 if (kit == null || kit == this || !kit.IsSpawned)
                     continue;
 
-                if (NetworkTeamUtility.GetTeam(kit.OwnerClientId) != team)
+                if (NetworkTeamUtility.GetTeam(kit.NetworkObject) != team)
                     continue;
 
                 if (HorizontalDistanceSqr(kit.transform.position, roadCenter.Value) <= 25f)
@@ -313,12 +334,11 @@ namespace Konoha.Networking
 
             foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
             {
-                if (networkObject == null ||
-                    !networkObject.IsPlayerObject ||
+                if (!NetworkTeamUtility.IsCombatActor(networkObject) ||
                     networkObject == NetworkObject)
                     continue;
 
-                if (teammatesOnly && NetworkTeamUtility.GetTeam(networkObject.OwnerClientId) != team)
+                if (teammatesOnly && NetworkTeamUtility.GetTeam(networkObject) != team)
                     continue;
 
                 if (HorizontalDistanceSqr(networkObject.transform.position, transform.position) <= radiusSqr)
@@ -332,6 +352,16 @@ namespace Konoha.Networking
         {
             if (!IsServer)
                 return;
+
+            if (Hero == PrototypeHero.Abah && target != null)
+            {
+                Vector3 direction = target.transform.position - transform.position;
+                PlayAbilityFxClientRpc(
+                    (int)Hero,
+                    0,
+                    target.transform.position,
+                    direction.sqrMagnitude > 0.01f ? direction.normalized : transform.forward);
+            }
 
             if (Hero == PrototypeHero.Mega)
             {
@@ -371,14 +401,14 @@ namespace Konoha.Networking
         private float GetServerKnockbackResistance()
         {
             float resistance = IsGarudaActive ? 0.30f : 0f;
-            int team = NetworkTeamUtility.GetTeam(OwnerClientId);
+            int team = NetworkTeamUtility.GetTeam(NetworkObject);
 
             foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
             {
-                if (networkObject == null || !networkObject.IsPlayerObject)
+                if (!NetworkTeamUtility.IsCombatActor(networkObject))
                     continue;
 
-                if (NetworkTeamUtility.GetTeam(networkObject.OwnerClientId) != team)
+                if (NetworkTeamUtility.GetTeam(networkObject) != team)
                     continue;
 
                 NetworkHeroKit allyKit = networkObject.GetComponent<NetworkHeroKit>();
@@ -639,7 +669,7 @@ namespace Konoha.Networking
         {
             foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
             {
-                if (networkObject == null || !networkObject.IsPlayerObject || networkObject == NetworkObject)
+                if (!NetworkTeamUtility.IsCombatActor(networkObject) || networkObject == NetworkObject)
                     continue;
 
                 Vector3 delta = networkObject.transform.position - transform.position;
@@ -649,8 +679,8 @@ namespace Konoha.Networking
 
                 Vector3 toward = delta.sqrMagnitude > 0.001f ? delta.normalized : direction;
                 float facingDot = Vector3.Dot(direction, toward);
-                bool sameTeam = NetworkTeamUtility.GetTeam(networkObject.OwnerClientId) ==
-                                NetworkTeamUtility.GetTeam(OwnerClientId);
+                bool sameTeam = NetworkTeamUtility.GetTeam(networkObject) ==
+                                NetworkTeamUtility.GetTeam(NetworkObject);
 
                 NetworkPlayerCombat combat = networkObject.GetComponent<NetworkPlayerCombat>();
                 NetworkHeroKit kit = networkObject.GetComponent<NetworkHeroKit>();
@@ -674,6 +704,7 @@ namespace Konoha.Networking
         {
             narasiCenter.Value = transform.position;
             narasiUntil.Value = ServerClock + 6d;
+            nextNarasiDamageTick = ServerClock + 1d;
             ServerGainPengaruh(5);
             PlayAbilityFxClientRpc((int)Hero, 1, narasiCenter.Value, Vector3.forward);
         }
@@ -687,7 +718,7 @@ namespace Konoha.Networking
 
                 enemy.ServerApplySilence(3f);
                 NetworkPlayerCombat combat = enemy.GetComponent<NetworkPlayerCombat>();
-                combat?.ServerReceiveDamage(12, OwnerClientId);
+                combat?.ServerReceiveDamage(18, OwnerClientId);
             }
 
             PlayAbilityFxClientRpc((int)Hero, 3, transform.position, Vector3.forward);
@@ -711,15 +742,15 @@ namespace Konoha.Networking
             if (!IsServer || NetworkManager == null || NetworkManager.SpawnManager == null)
                 return Array.Empty<NetworkHeroKit>();
 
-            int team = NetworkTeamUtility.GetTeam(OwnerClientId);
+            int team = NetworkTeamUtility.GetTeam(NetworkObject);
             var result = new System.Collections.Generic.List<NetworkHeroKit>();
 
             foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
             {
-                if (networkObject == null || !networkObject.IsPlayerObject || networkObject == NetworkObject)
+                if (!NetworkTeamUtility.IsCombatActor(networkObject) || networkObject == NetworkObject)
                     continue;
 
-                if (NetworkTeamUtility.GetTeam(networkObject.OwnerClientId) == team)
+                if (NetworkTeamUtility.GetTeam(networkObject) == team)
                     continue;
 
                 NetworkHeroKit kit = networkObject.GetComponent<NetworkHeroKit>();
