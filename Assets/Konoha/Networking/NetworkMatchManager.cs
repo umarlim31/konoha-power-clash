@@ -98,6 +98,11 @@ namespace Konoha.Networking
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Server);
 
+        private NetworkVariable<int> botCount = new NetworkVariable<int>(
+            0,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server);
+
         private float powerAccumulator;
 
         public GreyboxMatchState State => (GreyboxMatchState)state.Value;
@@ -114,6 +119,8 @@ namespace Konoha.Networking
         public ulong RulerClientId => rulerClientId.Value;
         public int WinnerTeam => winnerTeam.Value;
         public int PlayerCount => playerCount.Value;
+        public int BotCount => botCount.Value;
+        public int ActorCount => PlayerCount + BotCount;
         public Vector3 ChairPosition => chairPosition;
         public Vector3 ChairSeatPosition => chairPosition + new Vector3(0f, 0.1f, 0f);
 
@@ -125,7 +132,8 @@ namespace Konoha.Networking
         public bool CanHostStart =>
             IsServer &&
             (State == GreyboxMatchState.Waiting || State == GreyboxMatchState.Result) &&
-            PlayerCount >= 2;
+            PlayerCount >= 1 &&
+            ActorCount >= 2;
 
         public bool CanUseDebugTest =>
             IsServer && State == GreyboxMatchState.Playing;
@@ -155,6 +163,7 @@ namespace Konoha.Networking
                 return;
 
             playerCount.Value = CountPlayerObjects();
+            botCount.Value = CountBotObjects();
 
             float deltaTime = Mathf.Min(Time.deltaTime, 0.05f);
 
@@ -236,7 +245,7 @@ namespace Konoha.Networking
 
             foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
             {
-                if (networkObject == null || !networkObject.IsPlayerObject)
+                if (!NetworkTeamUtility.IsCombatActor(networkObject))
                     continue;
 
                 NetworkHeroKit kit = networkObject.GetComponent<NetworkHeroKit>();
@@ -341,11 +350,14 @@ namespace Konoha.Networking
             matchTimeRemaining.Value = MatchDurationSeconds;
             countdownRemaining.Value = CountdownSeconds;
 
-            ResetAllPlayersForMatch();
+            ResetAllActorsForMatch();
 
             state.Value = (int)GreyboxMatchState.Countdown;
 
-            Debug.Log("[KONOHA MATCH] Countdown started | players=" + PlayerCount);
+            Debug.Log(
+                "[KONOHA MATCH] Countdown started | humans=" + PlayerCount +
+                " | bots=" + BotCount +
+                " | actors=" + ActorCount);
         }
 
         private void BeginPlaying()
@@ -421,7 +433,7 @@ namespace Konoha.Networking
 
             foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
             {
-                if (networkObject == null || !networkObject.IsPlayerObject)
+                if (!NetworkTeamUtility.IsCombatActor(networkObject))
                     continue;
 
                 NetworkPlayerCombat combat = networkObject.GetComponent<NetworkPlayerCombat>();
@@ -431,7 +443,7 @@ namespace Konoha.Networking
                 if (HorizontalDistanceSqr(combat.transform.position, ChairPosition) > CaptureRadius * CaptureRadius)
                     continue;
 
-                int team = NetworkTeamUtility.GetTeam(networkObject.OwnerClientId);
+                int team = NetworkTeamUtility.GetTeam(networkObject);
                 if (team == NetworkTeamUtility.CyanTeam)
                     cyanInside++;
                 else
@@ -568,11 +580,11 @@ namespace Konoha.Networking
             powerAccumulator = 0f;
         }
 
-        private void ResetAllPlayersForMatch()
+        private void ResetAllActorsForMatch()
         {
             foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
             {
-                if (networkObject == null || !networkObject.IsPlayerObject)
+                if (!NetworkTeamUtility.IsCombatActor(networkObject))
                     continue;
 
                 NetworkPlayerCombat combat = networkObject.GetComponent<NetworkPlayerCombat>();
@@ -588,6 +600,20 @@ namespace Konoha.Networking
             foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
             {
                 if (networkObject != null && networkObject.IsPlayerObject)
+                    count++;
+            }
+
+            return count;
+        }
+
+        private int CountBotObjects()
+        {
+            int count = 0;
+
+            foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
+            {
+                if (networkObject != null &&
+                    networkObject.GetComponent<NetworkBotController>() != null)
                     count++;
             }
 
