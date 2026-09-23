@@ -481,7 +481,7 @@ namespace Konoha.Editor
 
             var neutralMaterial = Material("NetworkPlayerNeutral", new Color(0.72f, 0.78f, 0.84f));
             var facingMaterial = Material("NetworkPlayerFacing", new Color(0.95f, 0.75f, 0.25f));
-            var ownerMaterial = Material("NetworkPlayerOwner", new Color(1.00f, 0.88f, 0.28f));
+            var ownerMaterial = Material("NetworkPlayerOwner", new Color(0.92f, 0.97f, 1.00f));
 
             var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             body.name = "Body";
