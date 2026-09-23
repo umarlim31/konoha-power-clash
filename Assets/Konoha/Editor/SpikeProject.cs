@@ -26,7 +26,7 @@ namespace Konoha.Editor
         public const string Generated = "Assets/Konoha/Generated";
         public const string ScenePath = Generated + "/SpikeArena.unity";
 
-        [MenuItem("Konoha/Prepare Build 0.0.5B (hero polish + bots 4v4)")]
+        [MenuItem("Konoha/Prepare Build 0.0.5C (4v4 readability + AI polish)")]
         public static void Prepare()
         {
             if (Application.unityVersion != UnityVersion)
@@ -58,7 +58,7 @@ namespace Konoha.Editor
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
-            PlayerSettings.Android.bundleVersionCode = 8;
+            PlayerSettings.Android.bundleVersionCode = 9;
             PlayerSettings.Android.useCustomKeystore = false;
             // Activity avoids the documented GameActivity dev-build issue on this pinned editor.
             PlayerSettings.Android.applicationEntry = AndroidApplicationEntry.Activity;
@@ -223,8 +223,8 @@ namespace Konoha.Editor
             var label = labelObject.AddComponent<TextMesh>();
             label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             label.text = "BOT";
-            label.fontSize = 38;
-            label.characterSize = 0.05f;
+            label.fontSize = 32;
+            label.characterSize = 0.044f;
             label.anchor = TextAnchor.MiddleCenter;
             label.alignment = TextAlignment.Center;
             label.color = Color.white;
@@ -234,12 +234,12 @@ namespace Konoha.Editor
 
             var healthObject = new GameObject("HealthLabel");
             healthObject.transform.SetParent(root.transform, false);
-            healthObject.transform.localPosition = new Vector3(0f, 1.85f, 0f);
+            healthObject.transform.localPosition = new Vector3(0f, 1.92f, 0f);
             var healthLabel = healthObject.AddComponent<TextMesh>();
             healthLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            healthLabel.text = "WIBAWA 100/100";
-            healthLabel.fontSize = 34;
-            healthLabel.characterSize = 0.048f;
+            healthLabel.text = "100";
+            healthLabel.fontSize = 30;
+            healthLabel.characterSize = 0.043f;
             healthLabel.anchor = TextAnchor.MiddleCenter;
             healthLabel.alignment = TextAlignment.Center;
             healthLabel.color = new Color(0.55f, 1f, 0.55f);
@@ -318,12 +318,12 @@ namespace Konoha.Editor
 
             var labelObject = new GameObject("OwnershipLabel");
             labelObject.transform.SetParent(root.transform, false);
-            labelObject.transform.localPosition = new Vector3(0f, 2.25f, 0f);
+            labelObject.transform.localPosition = new Vector3(0f, 2.30f, 0f);
             var label = labelObject.AddComponent<TextMesh>();
             label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             label.text = "PLAYER";
-            label.fontSize = 42;
-            label.characterSize = 0.055f;
+            label.fontSize = 34;
+            label.characterSize = 0.047f;
             label.anchor = TextAnchor.MiddleCenter;
             label.alignment = TextAlignment.Center;
             label.color = Color.white;
@@ -333,12 +333,12 @@ namespace Konoha.Editor
 
             var healthObject = new GameObject("HealthLabel");
             healthObject.transform.SetParent(root.transform, false);
-            healthObject.transform.localPosition = new Vector3(0f, 1.85f, 0f);
+            healthObject.transform.localPosition = new Vector3(0f, 1.96f, 0f);
             var healthLabel = healthObject.AddComponent<TextMesh>();
             healthLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            healthLabel.text = "WIBAWA 100/100";
-            healthLabel.fontSize = 38;
-            healthLabel.characterSize = 0.05f;
+            healthLabel.text = "100/100";
+            healthLabel.fontSize = 32;
+            healthLabel.characterSize = 0.045f;
             healthLabel.anchor = TextAnchor.MiddleCenter;
             healthLabel.alignment = TextAlignment.Center;
             healthLabel.color = new Color(0.55f, 1f, 0.55f);
@@ -536,7 +536,7 @@ namespace Konoha.Editor
             layout.safeRoot = safe;
             layout.joystick = pad;
             Label(Rect("Instruction", safe, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 15f), new Vector2(560f, 32f)),
-                "0.0.5B | Hero Polish + Objective Bots + 4v4", 21).alignment = TextAnchor.MiddleCenter;
+                "0.0.5C | 4v4 Readability + Bot AI Polish", 20).alignment = TextAnchor.MiddleCenter;
 
             Button MakeActionButton(string name, string caption, Vector2 position, Vector2 size)
             {
@@ -601,24 +601,24 @@ namespace Konoha.Editor
                 new Vector2(0f, 1f),
                 new Vector2(0f, 1f),
                 new Vector2(20f, -18f),
-                new Vector2(720f, 145f));
+                new Vector2(650f, 116f));
             var panelImage = panel.gameObject.AddComponent<Image>();
             panelImage.color = new Color(0.035f, 0.07f, 0.10f, 0.90f);
             panelImage.raycastTarget = false;
 
             var matchText = Label(
-                Rect("MatchState", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -10f), new Vector2(690f, 32f)),
-                "REBUT KURSI | WAITING", 18);
+                Rect("MatchState", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(12f, -8f), new Vector2(625f, 28f)),
+                "REBUT KURSI | WAITING", 16);
             matchText.alignment = TextAnchor.MiddleLeft;
 
             var scoreText = Label(
-                Rect("MatchScore", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -46f), new Vector2(690f, 30f)),
-                "POWER CYAN 0/100 | ORANGE 0/100", 18);
+                Rect("MatchScore", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(12f, -38f), new Vector2(625f, 28f)),
+                "POWER | CYAN 0/100 • ORANGE 0/100", 16);
             scoreText.alignment = TextAnchor.MiddleLeft;
 
             var objectiveText = Label(
-                Rect("ObjectiveState", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -80f), new Vector2(690f, 54f)),
-                "KURSI: NETRAL", 17);
+                Rect("ObjectiveState", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(12f, -68f), new Vector2(625f, 38f)),
+                "KURSI: NETRAL", 15);
             objectiveText.alignment = TextAnchor.UpperLeft;
 
             var startRect = Rect(
@@ -626,8 +626,8 @@ namespace Konoha.Editor
                 safe,
                 new Vector2(0f, 1f),
                 new Vector2(0f, 1f),
-                new Vector2(20f, -175f),
-                new Vector2(175f, 52f));
+                new Vector2(20f, -142f),
+                new Vector2(135f, 44f));
             var startImage = startRect.gameObject.AddComponent<Image>();
             startImage.color = new Color(0.12f, 0.34f, 0.40f, 0.96f);
             startImage.raycastTarget = true;
@@ -636,7 +636,7 @@ namespace Konoha.Editor
             startButton.interactable = false;
             var startLabel = Label(
                 Rect("Label", startRect, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, startRect.sizeDelta),
-                "START MATCH", 17);
+                "START", 15);
             startLabel.alignment = TextAnchor.MiddleCenter;
 
             Button MakeTestButton(string name, string caption, Vector2 position, Vector2 size)
@@ -659,20 +659,20 @@ namespace Konoha.Editor
             var debugTimerButton = MakeTestButton(
                 "DebugTimerButton",
                 "TEST TIMER 10s",
-                new Vector2(205f, -175f),
-                new Vector2(150f, 52f));
+                new Vector2(165f, -142f),
+                new Vector2(125f, 44f));
 
             var debugPowerButton = MakeTestButton(
                 "DebugPowerButton",
                 "TEST POWER 95",
-                new Vector2(365f, -175f),
-                new Vector2(150f, 52f));
+                new Vector2(300f, -142f),
+                new Vector2(125f, 44f));
 
             var debugPengaruhButton = MakeTestButton(
                 "DebugPengaruhButton",
                 "TEST ULT 100",
-                new Vector2(525f, -175f),
-                new Vector2(150f, 52f));
+                new Vector2(435f, -142f),
+                new Vector2(125f, 44f));
 
             var matchHud = safe.gameObject.AddComponent<NetworkMatchHud>();
             matchHud.matchText = matchText;
@@ -740,6 +740,8 @@ namespace Konoha.Editor
                 16);
             legend.alignment = TextAnchor.MiddleCenter;
 
+            proof.networkPanel = panel;
+            proof.networkLegend = legend;
             proof.Initialize();
         }
     }
