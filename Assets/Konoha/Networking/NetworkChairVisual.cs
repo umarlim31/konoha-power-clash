@@ -21,13 +21,13 @@ namespace Konoha.Networking
                 return;
 
             currentColor = target;
-            Apply(zoneRenderer, Color.Lerp(target, Color.black, 0.35f));
+            Apply(zoneRenderer, Color.Lerp(target, Color.black, 0.64f));
 
             if (chairRenderers == null)
                 return;
 
             foreach (Renderer renderer in chairRenderers)
-                Apply(renderer, target);
+                Apply(renderer, Color.Lerp(target, Color.white, 0.08f));
         }
 
         private Color GetTargetColor()
