@@ -596,6 +596,18 @@ namespace Konoha.Editor
             Box("SouthPillarL", new Vector3(-11.5f, 0.9f, -8.7f), new Vector3(1.2f, 1.8f, 1.2f), wall);
             Box("SouthPillarR", new Vector3(11.5f, 0.9f, -8.7f), new Vector3(1.2f, 1.8f, 1.2f), wall);
 
+            var cyanBanner = Box("CyanTeamWall", new Vector3(-15.35f, 1.55f, 0f), new Vector3(0.18f, 2.6f, 7.8f), cyanBaseMaterial);
+            var orangeBanner = Box("OrangeTeamWall", new Vector3(15.35f, 1.55f, 0f), new Vector3(0.18f, 2.6f, 7.8f), orangeBaseMaterial);
+            UnityEngine.Object.DestroyImmediate(cyanBanner.GetComponent<Collider>());
+            UnityEngine.Object.DestroyImmediate(orangeBanner.GetComponent<Collider>());
+
+            var chairPedestal = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            chairPedestal.name = "KursiPedestal";
+            chairPedestal.transform.position = new Vector3(0f, 0.08f, 0f);
+            chairPedestal.transform.localScale = new Vector3(1.65f, 0.08f, 1.65f);
+            chairPedestal.GetComponent<Renderer>().sharedMaterial = chairMaterial;
+            UnityEngine.Object.DestroyImmediate(chairPedestal.GetComponent<Collider>());
+
             var chairZone = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             chairZone.name = "KursiCaptureZone";
             chairZone.transform.position = new Vector3(0f, 0.025f, 0f);
