@@ -329,7 +329,7 @@ namespace Konoha.Networking
                 return 0;
 
             int count = 0;
-            int team = NetworkTeamUtility.GetTeam(OwnerClientId);
+            int team = NetworkTeamUtility.GetTeam(NetworkObject);
             float radiusSqr = radius * radius;
 
             foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
