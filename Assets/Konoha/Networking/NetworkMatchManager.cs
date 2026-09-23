@@ -88,6 +88,11 @@ namespace Konoha.Networking
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Server);
 
+        private NetworkVariable<ulong> rulerNetworkObjectId = new NetworkVariable<ulong>(
+            NoClient,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server);
+
         private NetworkVariable<int> winnerTeam = new NetworkVariable<int>(
             -1,
             NetworkVariableReadPermission.Everyone,
@@ -117,6 +122,8 @@ namespace Konoha.Networking
         public float CaptureProgress => captureProgress.Value;
         public bool IsContested => contested.Value;
         public ulong RulerClientId => rulerClientId.Value;
+        public ulong RulerNetworkObjectId => rulerNetworkObjectId.Value;
+        public bool HasRuler => rulerNetworkObjectId.Value != NoClient;
         public int WinnerTeam => winnerTeam.Value;
         public int PlayerCount => playerCount.Value;
         public int BotCount => botCount.Value;
@@ -261,6 +268,45 @@ namespace Konoha.Networking
             return rulerClientId.Value == clientId;
         }
 
+        public bool IsRuler(NetworkObject actor)
+        {
+            return actor != null &&
+                   rulerNetworkObjectId.Value != NoClient &&
+                   rulerNetworkObjectId.Value == actor.NetworkObjectId;
+        }
+
+        public void ServerTrySeatBot(NetworkBotController bot)
+        {
+            if (!IsServer ||
+                bot == null ||
+                !bot.IsSpawned ||
+                !AllowsGameplay ||
+                HasRuler)
+                return;
+
+            NetworkPlayerCombat combat = bot.GetComponent<NetworkPlayerCombat>();
+            if (combat == null || combat.IsKnockedOut)
+                return;
+
+            if (chairOwnerTeam.Value != bot.Team)
+                return;
+
+            if (HorizontalDistanceSqr(bot.transform.position, ChairSeatPosition) > SitRadius * SitRadius)
+                return;
+
+            rulerClientId.Value = NoClient;
+            rulerNetworkObjectId.Value = bot.NetworkObjectId;
+            powerAccumulator = 0f;
+            captureTeam.Value = -1;
+            captureProgress.Value = 0f;
+            contested.Value = false;
+
+            Debug.Log(
+                "[KONOHA MATCH] BOT PENGUASA seated | team=" +
+                NetworkTeamUtility.GetTeamName(bot.Team) +
+                " | slot=" + bot.Slot);
+        }
+
         public bool CanLocalPlayerSit()
         {
             if (!AllowsGameplay || NetworkManager == null)
@@ -271,7 +317,7 @@ namespace Konoha.Networking
             if (rulerClientId.Value == localClientId)
                 return true;
 
-            if (rulerClientId.Value != NoClient)
+            if (HasRuler)
                 return false;
 
             int team = NetworkTeamUtility.GetTeam(localClientId);
@@ -294,6 +340,15 @@ namespace Konoha.Networking
                 ClearRuler();
         }
 
+        public void HandleActorKnockedOut(NetworkObject actor)
+        {
+            if (!IsServer || actor == null)
+                return;
+
+            if (rulerNetworkObjectId.Value == actor.NetworkObjectId)
+                ClearRuler();
+        }
+
         [ServerRpc(RequireOwnership = false)]
         private void ChairActionServerRpc(ServerRpcParams rpcParams = default)
         {
@@ -309,7 +364,7 @@ namespace Konoha.Networking
                 return;
             }
 
-            if (rulerClientId.Value != NoClient)
+            if (HasRuler)
                 return;
 
             NetworkPlayerCombat combat = FindPlayerCombat(senderClientId);
@@ -324,6 +379,7 @@ namespace Konoha.Networking
                 return;
 
             rulerClientId.Value = senderClientId;
+            rulerNetworkObjectId.Value = combat.NetworkObjectId;
             powerAccumulator = 0f;
             captureTeam.Value = -1;
             captureProgress.Value = 0f;
@@ -346,6 +402,7 @@ namespace Konoha.Networking
             captureProgress.Value = 0f;
             contested.Value = false;
             rulerClientId.Value = NoClient;
+            rulerNetworkObjectId.Value = NoClient;
             powerAccumulator = 0f;
             matchTimeRemaining.Value = MatchDurationSeconds;
             countdownRemaining.Value = CountdownSeconds;
@@ -393,12 +450,18 @@ namespace Konoha.Networking
 
         private void ProcessObjective(float deltaTime)
         {
-            if (rulerClientId.Value != NoClient)
+            if (HasRuler)
             {
-                NetworkPlayerCombat ruler = FindPlayerCombat(rulerClientId.Value);
-                int rulerTeam = NetworkTeamUtility.GetTeam(rulerClientId.Value);
+                NetworkObject rulerObject = FindActorNetworkObject(rulerNetworkObjectId.Value);
+                NetworkPlayerCombat ruler = rulerObject != null
+                    ? rulerObject.GetComponent<NetworkPlayerCombat>()
+                    : null;
+                int rulerTeam = rulerObject != null
+                    ? NetworkTeamUtility.GetTeam(rulerObject)
+                    : -1;
 
                 bool invalidRuler =
+                    rulerObject == null ||
                     ruler == null ||
                     ruler.IsKnockedOut ||
                     rulerTeam != chairOwnerTeam.Value ||
@@ -500,10 +563,12 @@ namespace Konoha.Networking
 
         private void AwardPower(int team)
         {
-            if (rulerClientId.Value != NoClient)
+            if (HasRuler)
             {
-                NetworkPlayerCombat rulerCombat = FindPlayerCombat(rulerClientId.Value);
-                NetworkHeroKit rulerKit = rulerCombat != null ? rulerCombat.GetComponent<NetworkHeroKit>() : null;
+                NetworkObject rulerObject = FindActorNetworkObject(rulerNetworkObjectId.Value);
+                NetworkHeroKit rulerKit = rulerObject != null
+                    ? rulerObject.GetComponent<NetworkHeroKit>()
+                    : null;
                 rulerKit?.ServerGainPengaruh(2);
             }
 
@@ -559,6 +624,7 @@ namespace Konoha.Networking
         private void ClearRuler()
         {
             rulerClientId.Value = NoClient;
+            rulerNetworkObjectId.Value = NoClient;
             powerAccumulator = 0f;
         }
 
@@ -576,6 +642,7 @@ namespace Konoha.Networking
             captureProgress.Value = 0f;
             contested.Value = false;
             rulerClientId.Value = NoClient;
+            rulerNetworkObjectId.Value = NoClient;
             winnerTeam.Value = -1;
             powerAccumulator = 0f;
         }
@@ -618,6 +685,22 @@ namespace Konoha.Networking
             }
 
             return count;
+        }
+
+        private NetworkObject FindActorNetworkObject(ulong networkObjectId)
+        {
+            if (networkObjectId == NoClient ||
+                NetworkManager == null ||
+                NetworkManager.SpawnManager == null)
+                return null;
+
+            foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
+            {
+                if (networkObject != null && networkObject.NetworkObjectId == networkObjectId)
+                    return networkObject;
+            }
+
+            return null;
         }
 
         private NetworkPlayerCombat FindPlayerCombat(ulong clientId)
