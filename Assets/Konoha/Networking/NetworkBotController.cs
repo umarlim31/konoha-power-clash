@@ -32,6 +32,7 @@ namespace Konoha.Networking
         private float nextThinkTime;
         private float nextAttackTime;
         private float nextDodgeTime;
+        private float nextAbilityDecision;
         private Vector3 desiredDirection;
         private NetworkPlayerCombat currentTarget;
 
@@ -125,6 +126,7 @@ namespace Konoha.Networking
             }
 
             Move(match);
+            TryHeroAbility(match);
             TryAttack();
             TryDefensiveDodge();
         }
@@ -250,6 +252,50 @@ namespace Konoha.Networking
 
             Vector2 input = new Vector2(desiredDirection.x, desiredDirection.z);
             motor.Step(new MoveIntent(input), Mathf.Min(Time.deltaTime, 0.05f));
+        }
+
+        private void TryHeroAbility(NetworkMatchManager match)
+        {
+            if (heroKit == null ||
+                match == null ||
+                match.IsRuler(NetworkObject) ||
+                heroKit.IsStunned ||
+                heroKit.IsSilenced ||
+                Time.unscaledTime < nextAbilityDecision)
+                return;
+
+            Vector3 direction = currentTarget != null
+                ? currentTarget.transform.position - transform.position
+                : match.ChairPosition - transform.position;
+
+            direction.y = 0f;
+            if (direction.sqrMagnitude < 0.01f)
+                direction = transform.forward;
+            else
+                direction.Normalize();
+
+            bool used = false;
+
+            if (heroKit.Pengaruh >= NetworkHeroKit.MaxPengaruh)
+            {
+                used = heroKit.ServerBotTryUltimate(direction);
+            }
+            else
+            {
+                int phase = (Slot + Mathf.FloorToInt(Time.unscaledTime / 3f)) & 1;
+                used = phase == 0
+                    ? heroKit.ServerBotTryS1(direction)
+                    : heroKit.ServerBotTryS2(direction);
+
+                if (!used)
+                    used = phase == 0
+                        ? heroKit.ServerBotTryS2(direction)
+                        : heroKit.ServerBotTryS1(direction);
+            }
+
+            nextAbilityDecision = Time.unscaledTime + (used
+                ? Random.Range(1.8f, 3.0f)
+                : 0.55f);
         }
 
         private void TryAttack()
