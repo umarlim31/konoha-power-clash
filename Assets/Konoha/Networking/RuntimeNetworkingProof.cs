@@ -40,7 +40,7 @@ namespace Konoha.Networking
         {
             if (!Application.isPlaying)
             {
-                SetStatus("NETWORK READY | 0.0.5C");
+                SetStatus("NETWORK READY | 0.0.6A");
                 return;
             }
 
@@ -98,7 +98,7 @@ namespace Konoha.Networking
 
             initialized = true;
             SetNetworkButtons(false);
-            SetStatus("NETWORK READY | 4V4 READABILITY + AI POLISH");
+            SetStatus("NETWORK READY | PROPER 4V4 MATCH");
         }
 
         private void OnDestroy()
@@ -194,7 +194,7 @@ namespace Konoha.Networking
             RestoreOfflinePrototype();
             SetNetworkButtons(false);
             SetNetworkCompact(false);
-            SetStatus("NETWORK READY | 4V4 READABILITY + AI POLISH");
+            SetStatus("NETWORK READY | PROPER 4V4 MATCH");
         }
 
         private void OnClientConnected(ulong clientId)
@@ -206,7 +206,7 @@ namespace Konoha.Networking
             }
 
             string role = manager != null && manager.IsHost ? "HOST" : "CLIENT";
-            SetStatus("CONNECTED | " + role + " | 4V4 READY");
+            SetStatus("CONNECTED | " + role + " | MATCH READY");
         }
 
         private void OnClientDisconnected(ulong clientId)
@@ -323,8 +323,8 @@ namespace Konoha.Networking
         {
             if (networkPanel != null)
                 networkPanel.sizeDelta = compact
-                    ? new Vector2(390f, 70f)
-                    : new Vector2(470f, 185f);
+                    ? new Vector2(330f, 62f)
+                    : new Vector2(450f, 172f);
 
             if (addressInput != null)
                 addressInput.gameObject.SetActive(!compact);
@@ -341,8 +341,8 @@ namespace Konoha.Networking
                 RectTransform stopRect = shutdownButton.GetComponent<RectTransform>();
                 if (stopRect != null)
                 {
-                    stopRect.sizeDelta = compact ? new Vector2(105f, 42f) : new Vector2(135f, 52f);
-                    stopRect.anchoredPosition = compact ? new Vector2(135f, 14f) : new Vector2(145f, 12f);
+                    stopRect.sizeDelta = compact ? new Vector2(88f, 36f) : new Vector2(126f, 48f);
+                    stopRect.anchoredPosition = compact ? new Vector2(112f, 12f) : new Vector2(135f, 10f);
                 }
             }
 
@@ -351,11 +351,11 @@ namespace Konoha.Networking
                 RectTransform statusRect = status.GetComponent<RectTransform>();
                 if (statusRect != null)
                 {
-                    statusRect.sizeDelta = compact ? new Vector2(250f, 38f) : new Vector2(440f, 34f);
-                    statusRect.anchoredPosition = compact ? new Vector2(-55f, -10f) : new Vector2(0f, -12f);
+                    statusRect.sizeDelta = compact ? new Vector2(220f, 34f) : new Vector2(420f, 32f);
+                    statusRect.anchoredPosition = compact ? new Vector2(-46f, -8f) : new Vector2(0f, -10f);
                 }
 
-                status.fontSize = compact ? 15 : 18;
+                status.fontSize = compact ? 13 : 17;
             }
 
             if (networkLegend != null)
