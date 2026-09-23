@@ -107,25 +107,24 @@ namespace Konoha.Networking
 
             SetText(
                 matchText,
-                "REBUT KURSI | " + stateText + " | " + timerText +
-                " | 4v4 " + manager.ActorCount + "/8" +
-                " | HUMANS " + manager.PlayerCount +
-                " | BOTS " + manager.BotCount);
+                "REBUT KURSI | " + stateText + " " + timerText +
+                " | " + manager.ActorCount + "/8" +
+                " (" + manager.PlayerCount + "H+" + manager.BotCount + "B)");
 
             if (manager.State == GreyboxMatchState.SuddenPower)
             {
                 SetText(
                     scoreText,
-                    "POWER CYAN " + manager.CyanPower + " | ORANGE " + manager.OrangePower +
-                    "   ||   SUDDEN " + manager.SuddenCyanPower + "-" + manager.SuddenOrangePower +
-                    " / " + NetworkMatchManager.SuddenPowerToWin);
+                    "POWER | CYAN " + manager.CyanPower + " • ORANGE " + manager.OrangePower +
+                    " | SUDDEN " + manager.SuddenCyanPower + "-" + manager.SuddenOrangePower +
+                    "/" + NetworkMatchManager.SuddenPowerToWin);
             }
             else
             {
                 SetText(
                     scoreText,
-                    "POWER   CYAN " + manager.CyanPower + "/" + NetworkMatchManager.PowerToWin +
-                    "   |   ORANGE " + manager.OrangePower + "/" + NetworkMatchManager.PowerToWin);
+                    "POWER | CYAN " + manager.CyanPower + "/" + NetworkMatchManager.PowerToWin +
+                    " • ORANGE " + manager.OrangePower + "/" + NetworkMatchManager.PowerToWin);
             }
 
             SetText(objectiveText, GetObjectiveText());
@@ -151,35 +150,41 @@ namespace Konoha.Networking
                             ? "P" + manager.RulerClientId
                             : "ACTOR";
 
-                    return "PENGUASA: " + rulerName + " TEAM " +
-                           NetworkTeamUtility.GetTeamName(team) + " | +1 POWER/DETIK";
+                    return "PENGUASA | " + rulerName + " " +
+                           NetworkTeamUtility.GetTeamName(team) + " | +1/s";
                 }
 
                 return "PENGUASA AKTIF | +1 POWER/DETIK";
             }
 
             if (manager.IsContested)
-                return "KURSI: DIPEREBUTKAN | CAPTURE BERHENTI";
+                return "KURSI DIPEREBUTKAN | CAPTURE PAUSE";
 
             if (manager.CaptureTeam >= 0)
             {
                 int percent = Mathf.RoundToInt(manager.CaptureProgress * 100f);
-                return "CAPTURE TEAM " + NetworkTeamUtility.GetTeamName(manager.CaptureTeam) +
+                return "CAPTURE " + NetworkTeamUtility.GetTeamName(manager.CaptureTeam) +
                        " | " + percent + "%";
             }
 
             if (manager.ChairOwnerTeam >= 0)
-                return "KURSI DIKUASAI TEAM " +
+                return "KURSI " +
                        NetworkTeamUtility.GetTeamName(manager.ChairOwnerTeam) +
-                       " | DEKATI KURSI LALU DUDUK";
+                       " | DEKATI + DUDUK";
 
             return "KURSI: NETRAL | MASUK ZONA UNTUK CAPTURE";
         }
 
         private void RefreshButtons()
         {
+            bool isHostUi = manager.IsServer;
+            SetHostOnlyVisible(startButton, isHostUi);
+            SetHostOnlyVisible(debugTimerButton, isHostUi);
+            SetHostOnlyVisible(debugPowerButton, isHostUi);
+            SetHostOnlyVisible(debugPengaruhButton, isHostUi);
+
             bool hostCanStart = manager.CanHostStart;
-            string startCaption = manager.State == GreyboxMatchState.Result ? "REMATCH" : "START MATCH";
+            string startCaption = manager.State == GreyboxMatchState.Result ? "REMATCH" : "START";
             SetButton(startButton, startLabel, hostCanStart, startCaption);
 
             ulong localClientId = NetworkManager.Singleton != null
@@ -268,6 +273,12 @@ namespace Konoha.Networking
         {
             if (target != null)
                 target.text = value;
+        }
+
+        private static void SetHostOnlyVisible(Button button, bool visible)
+        {
+            if (button != null && button.gameObject.activeSelf != visible)
+                button.gameObject.SetActive(visible);
         }
 
         private static void SetButton(Button button, Text label, bool interactable, string caption)
