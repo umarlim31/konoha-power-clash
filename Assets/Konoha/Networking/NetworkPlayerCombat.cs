@@ -247,6 +247,8 @@ namespace Konoha.Networking
             health.Value = MaxWibawa;
             shield.Value = 0;
             knockedOut.Value = false;
+            heroKit ??= GetComponent<NetworkHeroKit>();
+            heroKit?.ServerResetForMatch();
             respawnTicket.Value += 1;
         }
 
@@ -313,6 +315,8 @@ namespace Konoha.Networking
         {
             serverRespawnRunning = true;
             knockedOut.Value = true;
+            heroKit ??= GetComponent<NetworkHeroKit>();
+            heroKit?.ServerOnKnockedOut();
 
             Debug.Log("[KONOHA COMBAT] WIBAWA RUNTUH | player=" + OwnerClientId);
 
