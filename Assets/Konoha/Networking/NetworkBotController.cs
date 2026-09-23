@@ -446,7 +446,30 @@ namespace Konoha.Networking
             if (NetworkManager == null || NetworkManager.SpawnManager == null)
                 return true;
 
-            int bestSlot = int.MaxValue;
+            NetworkMatchManager match = NetworkMatchManager.Instance;
+            if (match == null)
+                return true;
+
+            float humanDeferRadiusSqr = 6.25f;
+
+            foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
+            {
+                if (networkObject == null ||
+                    !networkObject.IsPlayerObject ||
+                    NetworkTeamUtility.GetTeam(networkObject) != Team)
+                    continue;
+
+                NetworkPlayerCombat humanCombat = networkObject.GetComponent<NetworkPlayerCombat>();
+                if (humanCombat == null || humanCombat.IsKnockedOut)
+                    continue;
+
+                if (HorizontalDistanceSqr(networkObject.transform.position, match.ChairSeatPosition) <= humanDeferRadiusSqr)
+                    return false;
+            }
+
+            float myDistance = HorizontalDistanceSqr(transform.position, match.ChairSeatPosition);
+            float bestDistance = myDistance;
+            int bestSlot = Slot;
 
             foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
             {
@@ -460,7 +483,14 @@ namespace Konoha.Networking
                     bot.combat.IsKnockedOut)
                     continue;
 
-                bestSlot = Mathf.Min(bestSlot, bot.Slot);
+                float distance = HorizontalDistanceSqr(bot.transform.position, match.ChairSeatPosition);
+
+                if (distance < bestDistance - 0.05f ||
+                    (Mathf.Abs(distance - bestDistance) <= 0.05f && bot.Slot < bestSlot))
+                {
+                    bestDistance = distance;
+                    bestSlot = bot.Slot;
+                }
             }
 
             return Slot == bestSlot;
