@@ -125,7 +125,7 @@ namespace Konoha.Networking
             GameObject instance = Instantiate(
                 botPrefab,
                 NetworkTeamUtility.GetTeamSpawnPosition(team, slot),
-                Quaternion.identity);
+                NetworkTeamUtility.GetTeamSpawnRotation(team));
 
             NetworkBotController bot = instance.GetComponent<NetworkBotController>();
             NetworkObject networkObject = instance.GetComponent<NetworkObject>();
