@@ -260,7 +260,8 @@ namespace Konoha.Networking
             try
             {
                 Vector3 spawnPosition = NetworkTeamUtility.GetSpawnPosition(clientId);
-                instance = Instantiate(playerPrefab, spawnPosition, Quaternion.identity);
+                Quaternion spawnRotation = NetworkTeamUtility.GetSpawnRotation(clientId);
+                instance = Instantiate(playerPrefab, spawnPosition, spawnRotation);
 
                 NetworkObject networkObject = instance.GetComponent<NetworkObject>();
                 if (networkObject == null)
