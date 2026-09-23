@@ -26,7 +26,7 @@ namespace Konoha.Editor
         public const string Generated = "Assets/Konoha/Generated";
         public const string ScenePath = Generated + "/SpikeArena.unity";
 
-        [MenuItem("Konoha/Prepare Build 0.0.4A (regenerates greybox)")]
+        [MenuItem("Konoha/Prepare Build 0.0.5A (four hero combat)")]
         public static void Prepare()
         {
             if (Application.unityVersion != UnityVersion)
@@ -52,13 +52,13 @@ namespace Konoha.Editor
         {
             PlayerSettings.companyName = "KonohaPrototype";
             PlayerSettings.productName = "KONOHA Spike";
-            PlayerSettings.bundleVersion = "0.0.4";
+            PlayerSettings.bundleVersion = "0.0.5";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.spike");
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
-            PlayerSettings.Android.bundleVersionCode = 6;
+            PlayerSettings.Android.bundleVersionCode = 7;
             PlayerSettings.Android.useCustomKeystore = false;
             // Activity avoids the documented GameActivity dev-build issue on this pinned editor.
             PlayerSettings.Android.applicationEntry = AndroidApplicationEntry.Activity;
@@ -184,6 +184,7 @@ namespace Konoha.Editor
             movement.motor = motor;
 
             var identity = root.AddComponent<NetworkPlayerIdentity>();
+            root.AddComponent<NetworkHeroKit>();
             var combat = root.AddComponent<NetworkPlayerCombat>();
 
             var neutralMaterial = Material("NetworkPlayerNeutral", new Color(0.72f, 0.78f, 0.84f));
@@ -431,7 +432,7 @@ namespace Konoha.Editor
             layout.safeRoot = safe;
             layout.joystick = pad;
             Label(Rect("Instruction", safe, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 15f), new Vector2(560f, 32f)),
-                "0.0.4A | Rebut Kursi Greybox Match Loop", 21).alignment = TextAnchor.MiddleCenter;
+                "0.0.5A | Four Hero Combat Foundation", 21).alignment = TextAnchor.MiddleCenter;
 
             Button MakeActionButton(string name, string caption, Vector2 position, Vector2 size)
             {
@@ -451,8 +452,18 @@ namespace Konoha.Editor
             }
 
             var dodgeButton = MakeActionButton("DodgeButton", "DODGE", new Vector2(-250f, 78f), new Vector2(150f, 66f));
-            var attackButton = MakeActionButton("AttackButton", "ATTACK", new Vector2(-84f, 78f), new Vector2(150f, 66f));
-            var chairButton = MakeActionButton("ChairButton", "DUDUK", new Vector2(-84f, 158f), new Vector2(150f, 58f));
+            var attackButton = MakeActionButton("AttackButton", "BASIC", new Vector2(-84f, 78f), new Vector2(150f, 66f));
+            var s1Button = MakeActionButton("S1Button", "S1", new Vector2(-250f, 158f), new Vector2(150f, 58f));
+            var s2Button = MakeActionButton("S2Button", "S2", new Vector2(-84f, 158f), new Vector2(150f, 58f));
+            var chairButton = MakeActionButton("ChairButton", "DUDUK", new Vector2(-250f, 226f), new Vector2(150f, 54f));
+            var ultimateButton = MakeActionButton("UltimateButton", "ULT 0%", new Vector2(-84f, 226f), new Vector2(150f, 54f));
+            var heroButton = MakeActionButton("HeroButton", "HERO", new Vector2(-250f, 290f), new Vector2(150f, 50f));
+
+            var heroStatus = Label(
+                Rect("HeroStatusText", safe, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 54f), new Vector2(580f, 28f)),
+                "HERO | PENGARUH 0/100 | READY",
+                16);
+            heroStatus.alignment = TextAnchor.MiddleCenter;
 
             CreateMatchHud(safe, chairButton);
             CreateNetworkingProof(safe, networkPlayerPrefab, matchManagerPrefab, offlineHero, offlineDriver);
@@ -460,7 +471,11 @@ namespace Konoha.Editor
             // Keep gameplay actions above the rest of the HUD.
             dodgeButton.transform.SetAsLastSibling();
             attackButton.transform.SetAsLastSibling();
+            s1Button.transform.SetAsLastSibling();
+            s2Button.transform.SetAsLastSibling();
             chairButton.transform.SetAsLastSibling();
+            ultimateButton.transform.SetAsLastSibling();
+            heroButton.transform.SetAsLastSibling();
             var diagnostics = Label(Rect("Diagnostics", safe, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -18f), new Vector2(690f, 230f)), "Loading diagnostics...", 18);
             var buttonRect = Rect("DebugToggle", safe, Vector2.one, Vector2.one, new Vector2(-20f, -18f), new Vector2(112f, 58f));
             buttonRect.gameObject.AddComponent<Image>().color = new Color(0.1f, 0.3f, 0.35f, 0.95f);
@@ -549,6 +564,12 @@ namespace Konoha.Editor
                 new Vector2(365f, -175f),
                 new Vector2(150f, 52f));
 
+            var debugPengaruhButton = MakeTestButton(
+                "DebugPengaruhButton",
+                "TEST ULT 100",
+                new Vector2(525f, -175f),
+                new Vector2(150f, 52f));
+
             var matchHud = safe.gameObject.AddComponent<NetworkMatchHud>();
             matchHud.matchText = matchText;
             matchHud.scoreText = scoreText;
@@ -557,6 +578,7 @@ namespace Konoha.Editor
             matchHud.chairButton = chairButton;
             matchHud.debugTimerButton = debugTimerButton;
             matchHud.debugPowerButton = debugPowerButton;
+            matchHud.debugPengaruhButton = debugPengaruhButton;
 
             panel.transform.SetAsFirstSibling();
         }
@@ -608,7 +630,7 @@ namespace Konoha.Editor
 
             var legend = Label(
                 Rect("NetworkLegend", safe, Vector2.one, Vector2.one, new Vector2(-20f, -292f), new Vector2(470f, 54f)),
-                "WIBAWA 0 = RUNTUH | RESPAWN 6s | KURSI +1 POWER/DETIK | FIRST 100 POWER WINS",
+                "4 HERO: MEGA / PRABOWO / ABAH / JOKOWI | BASIC + S1 + S2 + ULT | PENGARUH 100 = ULT",
                 16);
             legend.alignment = TextAnchor.MiddleCenter;
 
