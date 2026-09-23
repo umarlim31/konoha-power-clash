@@ -107,7 +107,10 @@ namespace Konoha.Networking
 
             SetText(
                 matchText,
-                "REBUT KURSI | " + stateText + " | " + timerText + " | PLAYERS " + manager.PlayerCount);
+                "REBUT KURSI | " + stateText + " | " + timerText +
+                " | 4v4 " + manager.ActorCount + "/8" +
+                " | HUMANS " + manager.PlayerCount +
+                " | BOTS " + manager.BotCount);
 
             if (manager.State == GreyboxMatchState.SuddenPower)
             {
