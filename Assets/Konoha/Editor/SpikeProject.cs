@@ -26,7 +26,7 @@ namespace Konoha.Editor
         public const string Generated = "Assets/Konoha/Generated";
         public const string ScenePath = Generated + "/SpikeArena.unity";
 
-        [MenuItem("Konoha/Prepare Build 0.0.6A (proper 4v4 match experience)")]
+        [MenuItem("Konoha/Prepare Build 0.0.6A.1 (visual readability fix)")]
         public static void Prepare()
         {
             if (Application.unityVersion != UnityVersion)
@@ -52,13 +52,13 @@ namespace Konoha.Editor
         {
             PlayerSettings.companyName = "KonohaPrototype";
             PlayerSettings.productName = "KONOHA Spike";
-            PlayerSettings.bundleVersion = "0.0.6";
+            PlayerSettings.bundleVersion = "0.0.6.1";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.spike");
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
-            PlayerSettings.Android.bundleVersionCode = 10;
+            PlayerSettings.Android.bundleVersionCode = 11;
             PlayerSettings.Android.useCustomKeystore = false;
             // Activity avoids the documented GameActivity dev-build issue on this pinned editor.
             PlayerSettings.Android.applicationEntry = AndroidApplicationEntry.Activity;
@@ -767,7 +767,7 @@ namespace Konoha.Editor
             layout.joystick = pad;
             var buildLabel = Label(
                 Rect("Instruction", safe, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 10f), new Vector2(480f, 24f)),
-                "0.0.6A • Proper 4v4 Match Experience",
+                "0.0.6A.1 • Visual Readability Fix",
                 12);
             buildLabel.alignment = TextAnchor.MiddleCenter;
             buildLabel.color = new Color(0.58f, 0.64f, 0.70f, 0.90f);
