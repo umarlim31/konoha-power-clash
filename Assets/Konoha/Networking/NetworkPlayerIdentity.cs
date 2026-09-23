@@ -30,14 +30,7 @@ namespace Konoha.Networking
             if (localOwnerMarker != null)
                 localOwnerMarker.SetActive(IsOwner);
 
-            if (ownershipLabel != null)
-            {
-                string role = OwnerClientId == Unity.Netcode.NetworkManager.ServerClientId ? "HOST" : "CLIENT";
-                ownershipLabel.text = "P" + OwnerClientId + " " + role +
-                                      " | " + NetworkTeamUtility.GetTeamName(team) +
-                                      (IsOwner ? "\nYOU / OWNER" : "");
-                ownershipLabel.color = IsOwner ? new Color(0.45f, 1f, 0.50f) : Color.white;
-            }
+            RefreshOwnershipLabel();
 
             gameObject.name = "NetworkPlayer_" + OwnerClientId + (IsOwner ? "_LOCAL" : "_REMOTE");
             cachedCamera = Camera.main;
@@ -46,6 +39,27 @@ namespace Konoha.Networking
                 "[KONOHA SPAWN] PlayerObject ready | owner=" + OwnerClientId +
                 " | localClient=" + NetworkManager.LocalClientId +
                 " | isOwner=" + IsOwner);
+        }
+
+        public void RefreshOwnershipLabel()
+        {
+            if (ownershipLabel == null || !IsSpawned)
+                return;
+
+            string role = OwnerClientId == Unity.Netcode.NetworkManager.ServerClientId ? "HOST" : "CLIENT";
+            int team = NetworkTeamUtility.GetTeam(OwnerClientId);
+            NetworkHeroKit kit = GetComponent<NetworkHeroKit>();
+            string heroName = kit != null
+                ? NetworkHeroKit.GetHeroName(kit.Hero)
+                : "HERO";
+
+            ownershipLabel.text = "P" + OwnerClientId + " " + role +
+                                  " | " + NetworkTeamUtility.GetTeamName(team) +
+                                  " | " + heroName +
+                                  (IsOwner ? "\nYOU / OWNER" : "");
+            ownershipLabel.color = knockedOut
+                ? new Color(1f, 0.32f, 0.28f)
+                : IsOwner ? new Color(0.45f, 1f, 0.50f) : Color.white;
         }
 
         private void LateUpdate()
