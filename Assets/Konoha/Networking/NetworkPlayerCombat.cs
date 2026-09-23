@@ -382,7 +382,7 @@ namespace Konoha.Networking
                 controller.enabled = false;
 
             transform.position = NetworkTeamUtility.GetSpawnPosition(NetworkObject);
-            transform.rotation = Quaternion.identity;
+            transform.rotation = NetworkTeamUtility.GetSpawnRotation(NetworkObject);
 
             if (controllerWasEnabled)
                 controller.enabled = true;
