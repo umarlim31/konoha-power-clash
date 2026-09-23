@@ -16,6 +16,7 @@ namespace Konoha.Networking
 
         private CharacterController controller;
         private NetworkPlayerCombat combat;
+        private NetworkHeroKit heroKit;
         private TouchJoystick joystick;
         private MobileCombatCamera cameraFollow;
         private Button dodgeButton;
@@ -30,6 +31,7 @@ namespace Konoha.Networking
 
             controller = GetComponent<CharacterController>();
             combat = GetComponent<NetworkPlayerCombat>();
+            heroKit = GetComponent<NetworkHeroKit>();
         }
 
         public override void OnNetworkSpawn()
@@ -63,14 +65,21 @@ namespace Konoha.Networking
                 BindLocalControls();
 
             NetworkMatchManager match = NetworkMatchManager.Instance;
+            if (heroKit == null)
+                heroKit = GetComponent<NetworkHeroKit>();
+
             bool knockedOut = combat != null && combat.IsKnockedOut;
+            bool stunned = heroKit != null && heroKit.IsStunned;
             bool matchLocked = match == null || !match.AllowsGameplay;
             bool ruler = match != null &&
                          match.IsRuler(OwnerClientId) &&
                          Time.unscaledTime >= ignoreChairPinUntil;
-            bool movementLocked = knockedOut || matchLocked || ruler;
+            bool movementLocked = knockedOut || stunned || matchLocked || ruler;
 
-            UpdateDodgeButtonVisual(knockedOut, matchLocked);
+            UpdateDodgeButtonVisual(knockedOut, stunned, matchLocked);
+
+            if (motor != null)
+                motor.speedMultiplier = heroKit != null ? heroKit.GetMovementSpeedMultiplier() : 1f;
 
             if (ruler)
             {
@@ -96,6 +105,9 @@ namespace Konoha.Networking
 
             if (combat == null)
                 combat = GetComponent<NetworkPlayerCombat>();
+
+            if (heroKit == null)
+                heroKit = GetComponent<NetworkHeroKit>();
 
             if (joystick == null)
                 joystick = Object.FindFirstObjectByType<TouchJoystick>();
@@ -133,6 +145,9 @@ namespace Konoha.Networking
             NetworkMatchManager match = NetworkMatchManager.Instance;
 
             if (combat != null && combat.IsKnockedOut)
+                return;
+
+            if (heroKit != null && heroKit.IsStunned)
                 return;
 
             if (match == null || !match.AllowsGameplay)
@@ -181,19 +196,23 @@ namespace Konoha.Networking
             controller.Move(delta);
         }
 
-        private void UpdateDodgeButtonVisual(bool knockedOut, bool matchLocked)
+        private void UpdateDodgeButtonVisual(bool knockedOut, bool stunned, bool matchLocked)
         {
             if (dodgeButton == null)
                 return;
 
             float remaining = Mathf.Max(0f, nextDodgeTime - Time.unscaledTime);
 
-            if (knockedOut || matchLocked)
+            if (knockedOut || stunned || matchLocked)
             {
                 dodgeButton.interactable = false;
 
                 if (dodgeButtonLabel != null)
-                    dodgeButtonLabel.text = knockedOut ? "DODGE\nRUNTUH" : "DODGE";
+                    dodgeButtonLabel.text = knockedOut
+                        ? "DODGE\nRUNTUH"
+                        : stunned
+                            ? "DODGE\nSTUN"
+                            : "DODGE";
 
                 return;
             }
