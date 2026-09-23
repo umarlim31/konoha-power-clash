@@ -157,9 +157,7 @@ namespace Konoha.Networking
             NetworkMatchManager match = NetworkMatchManager.Instance;
             bool ruler = match != null && match.IsRuler(NetworkObject);
 
-            float distance = cachedCamera != null
-                ? Vector3.Distance(cachedCamera.transform.position, transform.position)
-                : 0f;
+            float distance = GetViewerDistance();
 
             bool visible = localHuman ||
                            knockedOut ||
@@ -176,6 +174,27 @@ namespace Konoha.Networking
             float t = Mathf.InverseLerp(7f, nameplateVisibleDistance, distance);
             float scale = Mathf.Lerp(nameplateScaleNear, nameplateScaleFar, t);
             ownershipLabel.transform.localScale = Vector3.one * scale;
+        }
+
+        private float GetViewerDistance()
+        {
+            if (NetworkManager != null &&
+                NetworkManager.LocalClient != null &&
+                NetworkManager.LocalClient.PlayerObject != null)
+            {
+                Vector3 a = NetworkManager.LocalClient.PlayerObject.transform.position;
+                Vector3 b = transform.position;
+                a.y = 0f;
+                b.y = 0f;
+                return Vector3.Distance(a, b);
+            }
+
+            if (cachedCamera == null)
+                cachedCamera = Camera.main;
+
+            return cachedCamera != null
+                ? Vector3.Distance(cachedCamera.transform.position, transform.position)
+                : 0f;
         }
 
         private IEnumerator DamageFlash()
