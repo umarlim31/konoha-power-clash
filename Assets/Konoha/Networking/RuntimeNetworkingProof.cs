@@ -37,7 +37,7 @@ namespace Konoha.Networking
         {
             if (!Application.isPlaying)
             {
-                SetStatus("NETWORK READY | 0.0.4A");
+                SetStatus("NETWORK READY | 0.0.5A");
                 return;
             }
 
@@ -92,7 +92,7 @@ namespace Konoha.Networking
 
             initialized = true;
             SetNetworkButtons(false);
-            SetStatus("NETWORK READY | GREYBOX MATCH LOOP");
+            SetStatus("NETWORK READY | FOUR HERO COMBAT");
         }
 
         private void OnDestroy()
@@ -197,7 +197,7 @@ namespace Konoha.Networking
             }
 
             string role = manager != null && manager.IsHost ? "HOST" : "CLIENT";
-            SetStatus("CONNECTED | CLIENT " + clientId + " | " + role + " | MATCH READY");
+            SetStatus("CONNECTED | CLIENT " + clientId + " | " + role + " | HERO COMBAT READY");
         }
 
         private void OnClientDisconnected(ulong clientId)
