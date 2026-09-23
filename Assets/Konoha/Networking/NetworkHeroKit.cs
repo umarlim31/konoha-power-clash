@@ -93,6 +93,11 @@ namespace Konoha.Networking
         private double ServerClock =>
             NetworkManager != null ? NetworkManager.ServerTime.Time : Time.realtimeSinceStartupAsDouble;
 
+        private ulong DamageSourceClientId =>
+            GetComponent<NetworkBotController>() != null
+                ? NetworkMatchManager.NoClient
+                : OwnerClientId;
+
         public bool IsSilenced => IsSpawned && ServerClock < silencedUntil.Value;
         public bool IsStunned => IsSpawned && ServerClock < stunnedUntil.Value;
         public bool IsGarudaActive => IsSpawned && ServerClock < garudaUntil.Value;
@@ -279,7 +284,7 @@ namespace Konoha.Networking
                         continue;
 
                     NetworkPlayerCombat enemyCombat = enemy.GetComponent<NetworkPlayerCombat>();
-                    enemyCombat?.ServerReceiveDamage(4, OwnerClientId);
+                    enemyCombat?.ServerReceiveDamage(4, DamageSourceClientId);
                 }
             }
 
@@ -497,8 +502,40 @@ namespace Konoha.Networking
         [ServerRpc]
         private void UseS1ServerRpc(Vector3 direction)
         {
+            ServerTryExecuteS1(direction);
+        }
+
+        [ServerRpc]
+        private void UseS2ServerRpc(Vector3 direction)
+        {
+            ServerTryExecuteS2(direction);
+        }
+
+        [ServerRpc]
+        private void UseUltimateServerRpc(Vector3 direction)
+        {
+            ServerTryExecuteUltimate(direction);
+        }
+
+        public bool ServerBotTryS1(Vector3 direction)
+        {
+            return GetComponent<NetworkBotController>() != null && ServerTryExecuteS1(direction);
+        }
+
+        public bool ServerBotTryS2(Vector3 direction)
+        {
+            return GetComponent<NetworkBotController>() != null && ServerTryExecuteS2(direction);
+        }
+
+        public bool ServerBotTryUltimate(Vector3 direction)
+        {
+            return GetComponent<NetworkBotController>() != null && ServerTryExecuteUltimate(direction);
+        }
+
+        private bool ServerTryExecuteS1(Vector3 direction)
+        {
             if (!ServerCanCast() || ServerClock < serverS1Ready)
-                return;
+                return false;
 
             direction = FlattenDirection(direction);
             serverS1Ready = ServerClock + GetS1Cooldown();
@@ -518,13 +555,14 @@ namespace Konoha.Networking
                     ServerInfrastruktur();
                     break;
             }
+
+            return true;
         }
 
-        [ServerRpc]
-        private void UseS2ServerRpc(Vector3 direction)
+        private bool ServerTryExecuteS2(Vector3 direction)
         {
             if (!ServerCanCast() || ServerClock < serverS2Ready)
-                return;
+                return false;
 
             direction = FlattenDirection(direction);
             serverS2Ready = ServerClock + GetS2Cooldown();
@@ -546,13 +584,14 @@ namespace Konoha.Networking
                     PlayAbilityFxClientRpc((int)Hero, 2, transform.position, direction);
                     break;
             }
+
+            return true;
         }
 
-        [ServerRpc]
-        private void UseUltimateServerRpc(Vector3 direction)
+        private bool ServerTryExecuteUltimate(Vector3 direction)
         {
             if (!ServerCanCast() || pengaruh.Value < MaxPengaruh)
-                return;
+                return false;
 
             pengaruh.Value = 0;
             direction = FlattenDirection(direction);
@@ -573,19 +612,27 @@ namespace Konoha.Networking
                     ServerProyekNasional();
                     break;
             }
+
+            return true;
         }
 
         private bool ServerCanCast()
         {
             NetworkMatchManager match = NetworkMatchManager.Instance;
             NetworkPlayerCombat combat = GetComponent<NetworkPlayerCombat>();
+            NetworkBotController bot = GetComponent<NetworkBotController>();
+
+            bool isRuler = match != null &&
+                           (bot != null
+                               ? match.IsRuler(NetworkObject)
+                               : match.IsRuler(OwnerClientId));
 
             return IsServer &&
                    combat != null &&
                    !combat.IsKnockedOut &&
                    match != null &&
                    match.AllowsGameplay &&
-                   !match.IsRuler(OwnerClientId) &&
+                   !isRuler &&
                    ServerClock >= silencedUntil.Value &&
                    ServerClock >= stunnedUntil.Value;
         }
@@ -606,7 +653,7 @@ namespace Konoha.Networking
 
                 NetworkPlayerCombat combat = enemy.GetComponent<NetworkPlayerCombat>();
                 if (combat != null)
-                    combat.ServerReceiveDamage(20, OwnerClientId);
+                    combat.ServerReceiveDamage(20, DamageSourceClientId);
 
                 enemy.ServerApplyKnockback(direction * 3.0f * forceMultiplier);
                 enemy.ServerApplyStun(0.65f);
@@ -635,7 +682,7 @@ namespace Konoha.Networking
 
                 NetworkPlayerCombat combat = enemy.GetComponent<NetworkPlayerCombat>();
                 if (combat != null)
-                    combat.ServerReceiveDamage(30, OwnerClientId);
+                    combat.ServerReceiveDamage(30, DamageSourceClientId);
 
                 enemy.ServerApplyKnockback(direction * 5.2f);
             }
@@ -656,7 +703,7 @@ namespace Konoha.Networking
 
                 NetworkPlayerCombat combat = enemy.GetComponent<NetworkPlayerCombat>();
                 if (combat != null)
-                    combat.ServerReceiveDamage(22, OwnerClientId);
+                    combat.ServerReceiveDamage(22, DamageSourceClientId);
 
                 Vector3 away = FlattenDirection(projected - landing);
                 enemy.ServerApplyKnockback(away * 2.2f);
@@ -692,7 +739,7 @@ namespace Konoha.Networking
                 }
                 else if (facingDot >= 0.25f)
                 {
-                    combat?.ServerReceiveDamage(10, OwnerClientId);
+                    combat?.ServerReceiveDamage(10, DamageSourceClientId);
                     kit?.ServerApplyKnockback(toward * 3.0f);
                 }
             }
@@ -718,7 +765,7 @@ namespace Konoha.Networking
 
                 enemy.ServerApplySilence(3f);
                 NetworkPlayerCombat combat = enemy.GetComponent<NetworkPlayerCombat>();
-                combat?.ServerReceiveDamage(18, OwnerClientId);
+                combat?.ServerReceiveDamage(18, DamageSourceClientId);
             }
 
             PlayAbilityFxClientRpc((int)Hero, 3, transform.position, Vector3.forward);
