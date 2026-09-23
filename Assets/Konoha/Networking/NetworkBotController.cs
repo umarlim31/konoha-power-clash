@@ -94,6 +94,24 @@ namespace Konoha.Networking
                 return;
             }
 
+            if (match.IsRuler(NetworkObject))
+            {
+                currentTarget = null;
+                desiredDirection = Vector3.zero;
+                PinToChair(match);
+                return;
+            }
+
+            TrySeatObjective(match);
+
+            if (match.IsRuler(NetworkObject))
+            {
+                currentTarget = null;
+                desiredDirection = Vector3.zero;
+                PinToChair(match);
+                return;
+            }
+
             if (Time.unscaledTime >= nextThinkTime)
             {
                 nextThinkTime = Time.unscaledTime + 0.20f;
@@ -136,7 +154,7 @@ namespace Konoha.Networking
             float side = Team == NetworkTeamUtility.CyanTeam ? -1f : 1f;
             float lane = (Slot - 1.5f) * 1.15f;
 
-            if (match.ChairOwnerTeam == Team && match.RulerClientId != NetworkMatchManager.NoClient)
+            if (match.ChairOwnerTeam == Team && match.HasRuler)
             {
                 float angle = Slot * Mathf.PI * 0.5f + (Team == NetworkTeamUtility.CyanTeam ? 0f : 0.7f);
                 return match.ChairPosition + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * 3.0f;
@@ -177,13 +195,8 @@ namespace Konoha.Networking
 
                 float score = distanceSqr * (nearObjective ? 0.55f : 1f);
 
-                if (match.RulerClientId != NetworkMatchManager.NoClient &&
-                    candidate.NetworkObject != null &&
-                    candidate.NetworkObject.IsPlayerObject &&
-                    candidate.OwnerClientId == match.RulerClientId)
-                {
+                if (match.IsRuler(candidate.NetworkObject))
                     score *= 0.30f;
-                }
 
                 if (score < bestScore && distanceSqr <= 64f)
                 {
@@ -193,6 +206,32 @@ namespace Konoha.Networking
             }
 
             return best;
+        }
+
+        private void TrySeatObjective(NetworkMatchManager match)
+        {
+            if (match == null ||
+                match.HasRuler ||
+                match.ChairOwnerTeam != Team ||
+                combat == null ||
+                combat.IsKnockedOut)
+                return;
+
+            Vector3 delta = match.ChairSeatPosition - transform.position;
+            delta.y = 0f;
+
+            if (delta.sqrMagnitude <= NetworkMatchManager.SitRadius * NetworkMatchManager.SitRadius)
+                match.ServerTrySeatBot(this);
+        }
+
+        private void PinToChair(NetworkMatchManager match)
+        {
+            if (controller == null || match == null)
+                return;
+
+            Vector3 delta = match.ChairSeatPosition - transform.position;
+            if (delta.sqrMagnitude > 0.0004f)
+                controller.Move(delta);
         }
 
         private void Move(NetworkMatchManager match)
