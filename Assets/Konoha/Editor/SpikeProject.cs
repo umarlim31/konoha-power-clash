@@ -1134,24 +1134,24 @@ namespace Konoha.Editor
             proof.offlineHero = offlineHero;
             proof.offlineDriver = offlineDriver;
 
-            var panel = Rect("NetworkPanel", safe, new Vector2(1f, 1f), Vector2.one, new Vector2(-20f, -92f), new Vector2(470f, 185f));
+            var panel = Rect("NetworkPanel", safe, new Vector2(1f, 1f), Vector2.one, new Vector2(-20f, -82f), new Vector2(450f, 172f));
             panel.gameObject.AddComponent<Image>().color = new Color(0.04f, 0.09f, 0.13f, 0.9f);
 
-            var statusRect = Rect("NetworkStatus", panel, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -12f), new Vector2(440f, 34f));
-            var status = Label(statusRect, "NETWORK BOOTING...", 18);
+            var statusRect = Rect("NetworkStatus", panel, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(420f, 32f));
+            var status = Label(statusRect, "NETWORK BOOTING...", 17);
             status.alignment = TextAnchor.MiddleCenter;
 
-            var addressRect = Rect("Address", panel, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -54f), new Vector2(440f, 40f));
+            var addressRect = Rect("Address", panel, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -50f), new Vector2(420f, 38f));
             addressRect.gameObject.AddComponent<Image>().color = new Color(0.12f, 0.18f, 0.22f, 1f);
             var input = addressRect.gameObject.AddComponent<InputField>();
-            var inputText = Label(Rect("Text", addressRect, Vector2.zero, Vector2.zero, new Vector2(10f, 5f), new Vector2(420f, 30f)), "127.0.0.1", 18);
+            var inputText = Label(Rect("Text", addressRect, Vector2.zero, Vector2.zero, new Vector2(10f, 4f), new Vector2(400f, 28f)), "127.0.0.1", 17);
             inputText.alignment = TextAnchor.MiddleLeft;
             input.textComponent = inputText;
             input.text = "127.0.0.1";
 
             Button MakeButton(string name, string caption, float x)
             {
-                var rect = Rect(name, panel, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(x, 12f), new Vector2(135f, 52f));
+                var rect = Rect(name, panel, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(x, 10f), new Vector2(126f, 48f));
                 rect.gameObject.AddComponent<Image>().color = new Color(0.1f, 0.3f, 0.35f, 0.95f);
                 var button = rect.gameObject.AddComponent<Button>();
                 var text = Label(Rect("Label", rect, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, rect.sizeDelta), caption, 18);
@@ -1161,14 +1161,14 @@ namespace Konoha.Editor
 
             proof.status = status;
             proof.addressInput = input;
-            proof.hostButton = MakeButton("Host", "HOST", -145f);
+            proof.hostButton = MakeButton("Host", "HOST", -135f);
             proof.clientButton = MakeButton("Client", "CLIENT", 0f);
-            proof.shutdownButton = MakeButton("Shutdown", "STOP", 145f);
+            proof.shutdownButton = MakeButton("Shutdown", "STOP", 135f);
 
             var legend = Label(
-                Rect("NetworkLegend", safe, Vector2.one, Vector2.one, new Vector2(-20f, -292f), new Vector2(470f, 54f)),
-                "LIVE AUTO-FILL 4V4 | OBJECTIVE BOTS | ABAH DAMAGE POLISH | HUMANS REPLACE BOTS",
-                16);
+                Rect("NetworkLegend", safe, Vector2.one, Vector2.one, new Vector2(-20f, -265f), new Vector2(450f, 48f)),
+                "AUTO-FILL 4V4 • OBJECTIVE BOTS • LIVE HUMAN REPLACEMENT",
+                14);
             legend.alignment = TextAnchor.MiddleCenter;
 
             proof.networkPanel = panel;
