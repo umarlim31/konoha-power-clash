@@ -820,6 +820,7 @@ namespace Konoha.Editor
             feedText.alignment = TextAnchor.UpperRight;
             var combatFeed = canvasObject.AddComponent<CombatFeedHud>();
             combatFeed.display = feedText;
+            combatFeed.panelRoot = feedPanel.gameObject;
 
             // Keep gameplay actions above the rest of the HUD.
             dodgeButton.transform.SetAsLastSibling();
