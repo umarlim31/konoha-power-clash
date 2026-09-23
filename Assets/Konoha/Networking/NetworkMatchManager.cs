@@ -229,6 +229,24 @@ namespace Konoha.Networking
             Debug.Log("[KONOHA MATCH] DEBUG both teams set to 95 POWER.");
         }
 
+        public void RequestDebugPengaruhFromLocal()
+        {
+            if (!CanUseDebugTest || NetworkManager == null || NetworkManager.SpawnManager == null)
+                return;
+
+            foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
+            {
+                if (networkObject == null || !networkObject.IsPlayerObject)
+                    continue;
+
+                NetworkHeroKit kit = networkObject.GetComponent<NetworkHeroKit>();
+                kit?.ServerGainPengaruh(NetworkHeroKit.MaxPengaruh);
+            }
+
+            Debug.Log("[KONOHA MATCH] DEBUG all heroes granted full PENGARUH.");
+        }
+
+
         public bool IsRuler(ulong clientId)
         {
             return rulerClientId.Value == clientId;
@@ -470,6 +488,13 @@ namespace Konoha.Networking
 
         private void AwardPower(int team)
         {
+            if (rulerClientId.Value != NoClient)
+            {
+                NetworkPlayerCombat rulerCombat = FindPlayerCombat(rulerClientId.Value);
+                NetworkHeroKit rulerKit = rulerCombat != null ? rulerCombat.GetComponent<NetworkHeroKit>() : null;
+                rulerKit?.ServerGainPengaruh(2);
+            }
+
             if (State == GreyboxMatchState.SuddenPower)
             {
                 if (team == NetworkTeamUtility.CyanTeam)
