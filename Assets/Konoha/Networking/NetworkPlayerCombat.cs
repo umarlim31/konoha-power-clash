@@ -287,7 +287,7 @@ namespace Konoha.Networking
 
             if (health.Value == 0 && !serverRespawnRunning)
             {
-                NetworkMatchManager.Instance?.HandlePlayerKnockedOut(OwnerClientId);
+                NetworkMatchManager.Instance?.HandleActorKnockedOut(NetworkObject);
                 respawnRoutine = StartCoroutine(ServerKnockoutAndRespawn());
             }
         }
