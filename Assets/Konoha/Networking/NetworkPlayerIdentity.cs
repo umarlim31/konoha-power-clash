@@ -33,7 +33,6 @@ namespace Konoha.Networking
             if (ownershipLabel != null)
             {
                 string role = OwnerClientId == Unity.Netcode.NetworkManager.ServerClientId ? "HOST" : "CLIENT";
-                int team = NetworkTeamUtility.GetTeam(OwnerClientId);
                 ownershipLabel.text = "P" + OwnerClientId + " " + role +
                                       " | " + NetworkTeamUtility.GetTeamName(team) +
                                       (IsOwner ? "\nYOU / OWNER" : "");
