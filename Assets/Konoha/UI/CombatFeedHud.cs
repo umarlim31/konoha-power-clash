@@ -15,6 +15,7 @@ namespace Konoha.Networking
         public static CombatFeedHud Instance { get; private set; }
 
         public Text display;
+        public GameObject panelRoot;
         public float lifetime = 5.5f;
         public int maxEntries = 4;
 
@@ -25,6 +26,9 @@ namespace Konoha.Networking
             Instance = this;
             if (display != null)
                 display.supportRichText = true;
+
+            if (panelRoot != null)
+                panelRoot.SetActive(false);
         }
 
         private void OnDestroy()
@@ -74,6 +78,9 @@ namespace Konoha.Networking
                        "</color>  <b>WIBAWA RUNTUH</b>";
             }
 
+            if (panelRoot != null)
+                panelRoot.SetActive(true);
+
             entries.Insert(0, new FeedEntry
             {
                 text = line,
@@ -94,6 +101,10 @@ namespace Konoha.Networking
             if (entries.Count == 0)
             {
                 display.text = string.Empty;
+
+                if (panelRoot != null)
+                    panelRoot.SetActive(false);
+
                 return;
             }
 
