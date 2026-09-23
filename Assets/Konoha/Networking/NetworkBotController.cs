@@ -1,4 +1,5 @@
 using Konoha.Character;
+using Konoha.Input;
 using Unity.Netcode;
 using UnityEngine;
 
