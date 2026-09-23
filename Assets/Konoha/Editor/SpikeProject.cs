@@ -26,7 +26,7 @@ namespace Konoha.Editor
         public const string Generated = "Assets/Konoha/Generated";
         public const string ScenePath = Generated + "/SpikeArena.unity";
 
-        [MenuItem("Konoha/Prepare Build 0.0.5A (four hero combat)")]
+        [MenuItem("Konoha/Prepare Build 0.0.5B (hero polish + bots 4v4)")]
         public static void Prepare()
         {
             if (Application.unityVersion != UnityVersion)
@@ -58,7 +58,7 @@ namespace Konoha.Editor
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
-            PlayerSettings.Android.bundleVersionCode = 7;
+            PlayerSettings.Android.bundleVersionCode = 8;
             PlayerSettings.Android.useCustomKeystore = false;
             // Activity avoids the documented GameActivity dev-build issue on this pinned editor.
             PlayerSettings.Android.applicationEntry = AndroidApplicationEntry.Activity;
@@ -142,7 +142,7 @@ namespace Konoha.Editor
             return box;
         }
 
-        private static GameObject CreateMatchManagerPrefab()
+        private static GameObject CreateMatchManagerPrefab(GameObject botPrefab)
         {
             const string path = Generated + "/NetworkMatchManager.prefab";
 
@@ -151,11 +151,113 @@ namespace Konoha.Editor
             var match = root.AddComponent<NetworkMatchManager>();
             match.chairPosition = Vector3.zero;
 
+            var botRoster = root.AddComponent<NetworkBotRoster>();
+            botRoster.botPrefab = botPrefab;
+
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
             UnityEngine.Object.DestroyImmediate(root);
 
             if (prefab == null)
                 throw new InvalidOperationException("Failed to create match manager prefab at " + path);
+
+            return prefab;
+        }
+
+        private static GameObject CreateNetworkBotPrefab()
+        {
+            const string path = Generated + "/NetworkBot.prefab";
+
+            var root = new GameObject("NetworkBot");
+            root.AddComponent<NetworkObject>();
+            var networkTransform = root.AddComponent<OwnerNetworkTransform>();
+            networkTransform.Interpolate = true;
+
+            var controller = root.AddComponent<CharacterController>();
+            controller.height = 2f;
+            controller.center = Vector3.up;
+            controller.radius = 0.45f;
+            controller.stepOffset = 0.2f;
+            controller.slopeLimit = 45f;
+            controller.minMoveDistance = 0f;
+
+            var motor = root.AddComponent<CharacterMotor>();
+            motor.definition = LoadOrCreate<LocomotionDefinition>(Generated + "/Locomotion.asset");
+
+            var bot = root.AddComponent<NetworkBotController>();
+            bot.motor = motor;
+
+            var identity = root.AddComponent<NetworkPlayerIdentity>();
+            root.AddComponent<NetworkHeroKit>();
+            var combat = root.AddComponent<NetworkPlayerCombat>();
+
+            var neutralMaterial = Material("NetworkBotNeutral", new Color(0.66f, 0.71f, 0.78f));
+            var facingMaterial = Material("NetworkBotFacing", new Color(0.96f, 0.82f, 0.32f));
+            var ownerMaterial = Material("NetworkBotMarker", new Color(0.45f, 0.50f, 0.55f));
+
+            var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            body.name = "Body";
+            body.transform.SetParent(root.transform, false);
+            body.transform.localPosition = Vector3.up;
+            body.GetComponent<Renderer>().sharedMaterial = neutralMaterial;
+            UnityEngine.Object.DestroyImmediate(body.GetComponent<Collider>());
+
+            var facing = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            facing.name = "FacingMarker";
+            facing.transform.SetParent(root.transform, false);
+            facing.transform.localPosition = new Vector3(0f, 1.35f, 0.55f);
+            facing.transform.localScale = new Vector3(0.22f, 0.25f, 0.6f);
+            facing.GetComponent<Renderer>().sharedMaterial = facingMaterial;
+            UnityEngine.Object.DestroyImmediate(facing.GetComponent<Collider>());
+
+            var botMarker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            botMarker.name = "BotMarker";
+            botMarker.transform.SetParent(root.transform, false);
+            botMarker.transform.localPosition = new Vector3(0f, 2.65f, 0f);
+            botMarker.transform.localScale = Vector3.one * 0.25f;
+            botMarker.GetComponent<Renderer>().sharedMaterial = ownerMaterial;
+            UnityEngine.Object.DestroyImmediate(botMarker.GetComponent<Collider>());
+
+            var labelObject = new GameObject("OwnershipLabel");
+            labelObject.transform.SetParent(root.transform, false);
+            labelObject.transform.localPosition = new Vector3(0f, 2.25f, 0f);
+            var label = labelObject.AddComponent<TextMesh>();
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.text = "BOT";
+            label.fontSize = 38;
+            label.characterSize = 0.05f;
+            label.anchor = TextAnchor.MiddleCenter;
+            label.alignment = TextAlignment.Center;
+            label.color = Color.white;
+            var labelRenderer = labelObject.GetComponent<MeshRenderer>();
+            if (label.font != null && labelRenderer != null)
+                labelRenderer.sharedMaterial = label.font.material;
+
+            var healthObject = new GameObject("HealthLabel");
+            healthObject.transform.SetParent(root.transform, false);
+            healthObject.transform.localPosition = new Vector3(0f, 1.85f, 0f);
+            var healthLabel = healthObject.AddComponent<TextMesh>();
+            healthLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            healthLabel.text = "WIBAWA 100/100";
+            healthLabel.fontSize = 34;
+            healthLabel.characterSize = 0.048f;
+            healthLabel.anchor = TextAnchor.MiddleCenter;
+            healthLabel.alignment = TextAlignment.Center;
+            healthLabel.color = new Color(0.55f, 1f, 0.55f);
+            var healthRenderer = healthObject.GetComponent<MeshRenderer>();
+            if (healthLabel.font != null && healthRenderer != null)
+                healthRenderer.sharedMaterial = healthLabel.font.material;
+
+            identity.bodyRenderer = body.GetComponent<Renderer>();
+            identity.facingRenderer = facing.GetComponent<Renderer>();
+            identity.localOwnerMarker = botMarker;
+            identity.ownershipLabel = label;
+            combat.healthLabel = healthLabel;
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
+            UnityEngine.Object.DestroyImmediate(root);
+
+            if (prefab == null)
+                throw new InvalidOperationException("Failed to create network bot prefab at " + path);
 
             return prefab;
         }
@@ -271,7 +373,8 @@ namespace Konoha.Editor
             var chairMaterial = Material("ChairGold", new Color(0.95f, 0.72f, 0.18f));
             var zoneMaterial = Material("ChairZone", new Color(0.22f, 0.42f, 0.48f));
             var networkPlayerPrefab = CreateNetworkPlayerPrefab();
-            var matchManagerPrefab = CreateMatchManagerPrefab();
+            var networkBotPrefab = CreateNetworkBotPrefab();
+            var matchManagerPrefab = CreateMatchManagerPrefab(networkBotPrefab);
             Box("Floor", new Vector3(0f, -0.5f, 0f), new Vector3(32f, 1f, 24f), ground);
             Box("NorthBoundary", new Vector3(0f, 0.6f, 12f), new Vector3(33f, 1.2f, 1f), wall);
             Box("SouthBoundary", new Vector3(0f, 0.6f, -12f), new Vector3(33f, 1.2f, 1f), wall);
@@ -372,7 +475,7 @@ namespace Konoha.Editor
             var driverObject = new GameObject("OfflineSpikeDriver");
             var driver = driverObject.AddComponent<OfflineSpikeDriver>();
             driver.motor = motor;
-            var joystick = CreateHud(motor, hero, driverObject, networkPlayerPrefab, matchManagerPrefab);
+            var joystick = CreateHud(motor, hero, driverObject, networkPlayerPrefab, networkBotPrefab, matchManagerPrefab);
             driver.joystick = joystick;
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -407,6 +510,7 @@ namespace Konoha.Editor
             GameObject offlineHero,
             GameObject offlineDriver,
             GameObject networkPlayerPrefab,
+            GameObject networkBotPrefab,
             GameObject matchManagerPrefab)
         {
             new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
@@ -432,7 +536,7 @@ namespace Konoha.Editor
             layout.safeRoot = safe;
             layout.joystick = pad;
             Label(Rect("Instruction", safe, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 15f), new Vector2(560f, 32f)),
-                "0.0.5A | Four Hero Combat Foundation", 21).alignment = TextAnchor.MiddleCenter;
+                "0.0.5B | Hero Polish + Objective Bots + 4v4", 21).alignment = TextAnchor.MiddleCenter;
 
             Button MakeActionButton(string name, string caption, Vector2 position, Vector2 size)
             {
@@ -466,7 +570,7 @@ namespace Konoha.Editor
             heroStatus.alignment = TextAnchor.MiddleCenter;
 
             CreateMatchHud(safe, chairButton);
-            CreateNetworkingProof(safe, networkPlayerPrefab, matchManagerPrefab, offlineHero, offlineDriver);
+            CreateNetworkingProof(safe, networkPlayerPrefab, networkBotPrefab, matchManagerPrefab, offlineHero, offlineDriver);
 
             // Keep gameplay actions above the rest of the HUD.
             dodgeButton.transform.SetAsLastSibling();
@@ -586,6 +690,7 @@ namespace Konoha.Editor
         private static void CreateNetworkingProof(
             RectTransform safe,
             GameObject playerPrefab,
+            GameObject botPrefab,
             GameObject matchPrefab,
             GameObject offlineHero,
             GameObject offlineDriver)
@@ -593,6 +698,7 @@ namespace Konoha.Editor
             var networkObject = new GameObject("RuntimeNetworkingProof", typeof(NetworkManager), typeof(UnityTransport), typeof(RuntimeNetworkingProof));
             var proof = networkObject.GetComponent<RuntimeNetworkingProof>();
             proof.playerPrefab = playerPrefab;
+            proof.botPrefab = botPrefab;
             proof.matchPrefab = matchPrefab;
             proof.offlineHero = offlineHero;
             proof.offlineDriver = offlineDriver;
@@ -630,7 +736,7 @@ namespace Konoha.Editor
 
             var legend = Label(
                 Rect("NetworkLegend", safe, Vector2.one, Vector2.one, new Vector2(-20f, -292f), new Vector2(470f, 54f)),
-                "4 HERO: MEGA / PRABOWO / ABAH / JOKOWI | BASIC + S1 + S2 + ULT | PENGARUH 100 = ULT",
+                "AUTO-FILL 4V4 | OBJECTIVE BOTS | ABAH DAMAGE POLISH | HUMANS REPLACE BOTS WHILE WAITING",
                 16);
             legend.alignment = TextAnchor.MiddleCenter;
 
