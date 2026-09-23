@@ -687,6 +687,34 @@ namespace Konoha.Networking
 
         private IEnumerator AbilityFxRoutine(PrototypeHero hero, int slot, Vector3 position, Vector3 direction)
         {
+            if (hero == PrototypeHero.Abah && slot == 1)
+            {
+                GameObject zone = CreateBox(
+                    "NarasiZone",
+                    position + Vector3.up * 0.035f,
+                    new Vector3(10f, 0.07f, 10f),
+                    new Color(0.20f, 0.65f, 0.95f),
+                    false);
+                yield return new WaitForSecondsRealtime(6f);
+                if (zone != null) Destroy(zone);
+                yield break;
+            }
+
+            if (hero == PrototypeHero.Jokowi && slot == 1)
+            {
+                GameObject road = CreateBox(
+                    "InfrastrukturRoad",
+                    position + Vector3.up * 0.035f,
+                    new Vector3(4f, 0.07f, 10f),
+                    new Color(0.35f, 0.85f, 0.35f),
+                    false);
+                road.transform.rotation = Quaternion.LookRotation(
+                    direction.sqrMagnitude > 0.01f ? direction : Vector3.forward);
+                yield return new WaitForSecondsRealtime(8f);
+                if (road != null) Destroy(road);
+                yield break;
+            }
+
             if (hero == PrototypeHero.Mega && slot == 2)
             {
                 yield return SpawnBlocker(position + direction * 1.1f, 6f);
