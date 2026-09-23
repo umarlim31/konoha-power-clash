@@ -67,7 +67,7 @@ namespace Konoha.Networking
             RefreshHealthLabel();
             identity?.SetKnockedOutVisual(knockedOut.Value);
 
-            if (IsOwner)
+            if (IsOwner && GetComponent<NetworkBotController>() == null)
                 BindAttackButton();
         }
 
@@ -89,7 +89,7 @@ namespace Konoha.Networking
 
         private void Update()
         {
-            if (!IsOwner)
+            if (!IsOwner || GetComponent<NetworkBotController>() != null)
                 return;
 
             if (attackButton == null)
@@ -184,12 +184,11 @@ namespace Konoha.Networking
 
             foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
             {
-                if (networkObject == null ||
-                    networkObject == NetworkObject ||
-                    !networkObject.IsPlayerObject)
+                if (!NetworkTeamUtility.IsCombatActor(networkObject) ||
+                    networkObject == NetworkObject)
                     continue;
 
-                if (NetworkTeamUtility.GetTeam(networkObject.OwnerClientId) == attackerTeam)
+                if (NetworkTeamUtility.GetTeam(networkObject) == attackerTeam)
                     continue;
 
                 NetworkPlayerCombat candidate = networkObject.GetComponent<NetworkPlayerCombat>();
@@ -295,7 +294,9 @@ namespace Konoha.Networking
 
         private NetworkHeroKit FindHeroKitByOwner(ulong clientId)
         {
-            if (NetworkManager == null || NetworkManager.SpawnManager == null)
+            if (clientId == NetworkMatchManager.NoClient ||
+                NetworkManager == null ||
+                NetworkManager.SpawnManager == null)
                 return null;
 
             foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
@@ -372,7 +373,7 @@ namespace Konoha.Networking
             if (controllerWasEnabled)
                 controller.enabled = false;
 
-            transform.position = NetworkTeamUtility.GetSpawnPosition(OwnerClientId);
+            transform.position = NetworkTeamUtility.GetSpawnPosition(NetworkObject);
             transform.rotation = Quaternion.identity;
 
             if (controllerWasEnabled)
