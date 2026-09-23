@@ -142,6 +142,192 @@ namespace Konoha.Editor
             return box;
         }
 
+        private static GameObject ActorPrimitive(
+            string name,
+            PrimitiveType primitive,
+            Transform parent,
+            Vector3 localPosition,
+            Vector3 localScale,
+            Material material,
+            Vector3 localEuler)
+        {
+            var value = GameObject.CreatePrimitive(primitive);
+            value.name = name;
+            value.transform.SetParent(parent, false);
+            value.transform.localPosition = localPosition;
+            value.transform.localScale = localScale;
+            value.transform.localEulerAngles = localEuler;
+
+            Renderer renderer = value.GetComponent<Renderer>();
+            if (renderer != null)
+                renderer.sharedMaterial = material;
+
+            Collider collider = value.GetComponent<Collider>();
+            if (collider != null)
+                UnityEngine.Object.DestroyImmediate(collider);
+
+            return value;
+        }
+
+        private static NetworkActorPresentation CreateActorPresentation(
+            GameObject root,
+            Transform bodyTransform)
+        {
+            var presentation = root.AddComponent<NetworkActorPresentation>();
+            presentation.bodyTransform = bodyTransform;
+
+            var ringMaterial = Material("ActorTeamRing", new Color(0.55f, 0.60f, 0.68f));
+            var ring = ActorPrimitive(
+                "TeamRing",
+                PrimitiveType.Cylinder,
+                root.transform,
+                new Vector3(0f, 0.035f, 0f),
+                new Vector3(1.12f, 0.018f, 1.12f),
+                ringMaterial,
+                Vector3.zero);
+            presentation.teamRingRenderer = ring.GetComponent<Renderer>();
+
+            Material mega = Material("HeroMegaAccent", new Color(0.82f, 0.16f, 0.20f));
+            Material prabowo = Material("HeroPrabowoAccent", new Color(0.95f, 0.72f, 0.20f));
+            Material abah = Material("HeroAbahAccent", new Color(0.22f, 0.66f, 0.98f));
+            Material jokowi = Material("HeroJokowiAccent", new Color(0.34f, 0.88f, 0.38f));
+
+            var megaRoot = new GameObject("HeroVisual_MEGA");
+            megaRoot.transform.SetParent(root.transform, false);
+            ActorPrimitive("MegaShoulderL", PrimitiveType.Cube, megaRoot.transform, new Vector3(-0.58f, 1.45f, 0f), new Vector3(0.44f, 0.20f, 0.55f), mega, Vector3.zero);
+            ActorPrimitive("MegaShoulderR", PrimitiveType.Cube, megaRoot.transform, new Vector3(0.58f, 1.45f, 0f), new Vector3(0.44f, 0.20f, 0.55f), mega, Vector3.zero);
+            ActorPrimitive("MegaHornL", PrimitiveType.Cube, megaRoot.transform, new Vector3(-0.34f, 2.02f, 0.02f), new Vector3(0.42f, 0.11f, 0.11f), mega, new Vector3(0f, 0f, -24f));
+            ActorPrimitive("MegaHornR", PrimitiveType.Cube, megaRoot.transform, new Vector3(0.34f, 2.02f, 0.02f), new Vector3(0.42f, 0.11f, 0.11f), mega, new Vector3(0f, 0f, 24f));
+
+            var prabowoRoot = new GameObject("HeroVisual_PRABOWO");
+            prabowoRoot.transform.SetParent(root.transform, false);
+            ActorPrimitive("PrabowoShoulderL", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(-0.64f, 1.52f, 0f), new Vector3(0.52f, 0.26f, 0.66f), prabowo, Vector3.zero);
+            ActorPrimitive("PrabowoShoulderR", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(0.64f, 1.52f, 0f), new Vector3(0.52f, 0.26f, 0.66f), prabowo, Vector3.zero);
+            ActorPrimitive("PrabowoChest", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(0f, 1.38f, 0.48f), new Vector3(0.58f, 0.30f, 0.12f), prabowo, Vector3.zero);
+
+            var abahRoot = new GameObject("HeroVisual_ABAH");
+            abahRoot.transform.SetParent(root.transform, false);
+            ActorPrimitive("AbahScarf", PrimitiveType.Cube, abahRoot.transform, new Vector3(0f, 1.52f, 0.15f), new Vector3(1.18f, 0.12f, 0.22f), abah, new Vector3(0f, 0f, -8f));
+            ActorPrimitive("AbahBook", PrimitiveType.Cube, abahRoot.transform, new Vector3(-0.48f, 1.05f, 0.42f), new Vector3(0.30f, 0.42f, 0.10f), abah, new Vector3(0f, 8f, -12f));
+            ActorPrimitive("AbahSignal", PrimitiveType.Sphere, abahRoot.transform, new Vector3(0f, 2.05f, 0f), new Vector3(0.24f, 0.24f, 0.24f), abah, Vector3.zero);
+
+            var jokowiRoot = new GameObject("HeroVisual_JOKOWI");
+            jokowiRoot.transform.SetParent(root.transform, false);
+            ActorPrimitive("JokowiBeam", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0.42f, 1.30f, -0.20f), new Vector3(0.18f, 1.20f, 0.18f), jokowi, new Vector3(0f, 0f, -24f));
+            ActorPrimitive("JokowiTool", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0.55f, 1.72f, -0.20f), new Vector3(0.62f, 0.16f, 0.18f), jokowi, new Vector3(0f, 0f, -24f));
+            ActorPrimitive("JokowiVest", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0f, 1.26f, 0.48f), new Vector3(0.52f, 0.52f, 0.10f), jokowi, Vector3.zero);
+
+            presentation.heroVisuals = new[]
+            {
+                megaRoot,
+                prabowoRoot,
+                abahRoot,
+                jokowiRoot
+            };
+
+            return presentation;
+        }
+
+        private static NetworkWibawaBar CreateWorldWibawaBar(GameObject root)
+        {
+            var canvasObject = new GameObject("WibawaWorldCanvas", typeof(RectTransform), typeof(Canvas));
+            canvasObject.transform.SetParent(root.transform, false);
+            canvasObject.transform.localPosition = new Vector3(0f, 2.38f, 0f);
+
+            var canvas = canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.sortingOrder = 20;
+
+            var canvasRect = canvasObject.GetComponent<RectTransform>();
+            canvasRect.sizeDelta = new Vector2(190f, 34f);
+            canvasRect.localScale = Vector3.one * 0.008f;
+
+            var backgroundRect = Rect(
+                "Background",
+                canvasRect,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                Vector2.zero,
+                new Vector2(190f, 30f));
+            var background = backgroundRect.gameObject.AddComponent<Image>();
+            background.color = new Color(0.025f, 0.035f, 0.05f, 0.94f);
+            background.raycastTarget = false;
+
+            var teamStripRect = Rect(
+                "TeamStrip",
+                backgroundRect,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0f),
+                new Vector2(8f, 30f));
+            var teamStrip = teamStripRect.gameObject.AddComponent<Image>();
+            teamStrip.color = Color.white;
+            teamStrip.raycastTarget = false;
+
+            var trackRect = Rect(
+                "Track",
+                backgroundRect,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(12f, 0f),
+                new Vector2(174f, 18f));
+            var track = trackRect.gameObject.AddComponent<Image>();
+            track.color = new Color(0.10f, 0.12f, 0.16f, 1f);
+            track.raycastTarget = false;
+
+            var healthFillRect = Rect(
+                "HealthFill",
+                trackRect,
+                Vector2.zero,
+                Vector2.zero,
+                Vector2.zero,
+                Vector2.zero);
+            healthFillRect.anchorMin = Vector2.zero;
+            healthFillRect.anchorMax = Vector2.one;
+            healthFillRect.offsetMin = Vector2.zero;
+            healthFillRect.offsetMax = Vector2.zero;
+            var healthImage = healthFillRect.gameObject.AddComponent<Image>();
+            healthImage.color = new Color(0.28f, 0.88f, 0.42f, 0.98f);
+            healthImage.raycastTarget = false;
+
+            var shieldFillRect = Rect(
+                "ShieldFill",
+                trackRect,
+                Vector2.zero,
+                Vector2.zero,
+                Vector2.zero,
+                Vector2.zero);
+            shieldFillRect.anchorMin = Vector2.zero;
+            shieldFillRect.anchorMax = Vector2.one;
+            shieldFillRect.offsetMin = new Vector2(0f, 12f);
+            shieldFillRect.offsetMax = Vector2.zero;
+            var shieldImage = shieldFillRect.gameObject.AddComponent<Image>();
+            shieldImage.color = new Color(0.25f, 0.72f, 1f, 0.90f);
+            shieldImage.raycastTarget = false;
+
+            var value = Label(
+                Rect(
+                    "Value",
+                    backgroundRect,
+                    Vector2.one * 0.5f,
+                    Vector2.one * 0.5f,
+                    Vector2.zero,
+                    new Vector2(180f, 28f)),
+                "100",
+                15);
+            value.alignment = TextAnchor.MiddleCenter;
+
+            var bar = root.AddComponent<NetworkWibawaBar>();
+            bar.worldCanvas = canvas;
+            bar.healthFill = healthFillRect;
+            bar.shieldFill = shieldFillRect;
+            bar.healthImage = healthImage;
+            bar.shieldImage = shieldImage;
+            bar.teamStrip = teamStrip;
+            bar.valueText = value;
+            return bar;
+        }
+
         private static GameObject CreateMatchManagerPrefab(GameObject botPrefab)
         {
             const string path = Generated + "/NetworkMatchManager.prefab";
