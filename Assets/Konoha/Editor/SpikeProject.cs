@@ -557,14 +557,18 @@ namespace Konoha.Editor
         private static void CreateArena()
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            var ground = Material("Floor", new Color(0.12f, 0.18f, 0.24f));
-            var wall = Material("Wall", new Color(0.35f, 0.43f, 0.50f));
-            var accent = Material("Marker", new Color(0.95f, 0.57f, 0.15f));
+            var ground = Material("Floor", new Color(0.075f, 0.105f, 0.145f));
+            var wall = Material("Wall", new Color(0.25f, 0.31f, 0.38f));
+            var wallCap = Material("WallCap", new Color(0.43f, 0.50f, 0.58f));
+            var accent = Material("Marker", new Color(0.92f, 0.58f, 0.18f));
+            var laneMaterial = Material("CenterLane", new Color(0.105f, 0.145f, 0.19f));
             var heroMaterial = Material("TemporaryHero", new Color(0.15f, 0.9f, 0.8f));
             var cyanMaterial = Material("TeamCyan", NetworkTeamUtility.GetTeamColor(NetworkTeamUtility.CyanTeam));
             var orangeMaterial = Material("TeamOrange", NetworkTeamUtility.GetTeamColor(NetworkTeamUtility.OrangeTeam));
+            var cyanBaseMaterial = Material("TeamCyanBase", new Color(0.07f, 0.25f, 0.27f));
+            var orangeBaseMaterial = Material("TeamOrangeBase", new Color(0.31f, 0.17f, 0.07f));
             var chairMaterial = Material("ChairGold", new Color(0.95f, 0.72f, 0.18f));
-            var zoneMaterial = Material("ChairZone", new Color(0.22f, 0.42f, 0.48f));
+            var zoneMaterial = Material("ChairZone", new Color(0.18f, 0.30f, 0.34f));
             var networkPlayerPrefab = CreateNetworkPlayerPrefab();
             var networkBotPrefab = CreateNetworkBotPrefab();
             var matchManagerPrefab = CreateMatchManagerPrefab(networkBotPrefab);
@@ -573,8 +577,24 @@ namespace Konoha.Editor
             Box("SouthBoundary", new Vector3(0f, 0.6f, -12f), new Vector3(33f, 1.2f, 1f), wall);
             Box("EastBoundary", new Vector3(16f, 0.6f, 0f), new Vector3(1f, 1.2f, 24f), wall);
             Box("WestBoundary", new Vector3(-16f, 0.6f, 0f), new Vector3(1f, 1.2f, 24f), wall);
-            Box("ObstacleA", new Vector3(-5f, 0.6f, 2f), new Vector3(3f, 1.2f, 3f), wall);
-            Box("ObstacleB", new Vector3(5f, 0.6f, -2f), new Vector3(3f, 1.2f, 3f), wall);
+
+            var centerLane = Box("CenterLane", new Vector3(0f, 0.008f, 0f), new Vector3(7.5f, 0.015f, 21f), laneMaterial);
+            UnityEngine.Object.DestroyImmediate(centerLane.GetComponent<Collider>());
+
+            var cyanBase = Box("CyanSpawnBay", new Vector3(-9.4f, 0.012f, 0f), new Vector3(7.2f, 0.02f, 9.0f), cyanBaseMaterial);
+            var orangeBase = Box("OrangeSpawnBay", new Vector3(9.4f, 0.012f, 0f), new Vector3(7.2f, 0.02f, 9.0f), orangeBaseMaterial);
+            UnityEngine.Object.DestroyImmediate(cyanBase.GetComponent<Collider>());
+            UnityEngine.Object.DestroyImmediate(orangeBase.GetComponent<Collider>());
+
+            Box("CoverLeftBase", new Vector3(-5.1f, 0.48f, 2.2f), new Vector3(2.8f, 0.96f, 3.2f), wall);
+            Box("CoverLeftCap", new Vector3(-5.1f, 1.02f, 2.2f), new Vector3(3.15f, 0.14f, 3.55f), wallCap);
+            Box("CoverRightBase", new Vector3(5.1f, 0.48f, -2.2f), new Vector3(2.8f, 0.96f, 3.2f), wall);
+            Box("CoverRightCap", new Vector3(5.1f, 1.02f, -2.2f), new Vector3(3.15f, 0.14f, 3.55f), wallCap);
+
+            Box("NorthPillarL", new Vector3(-11.5f, 0.9f, 8.7f), new Vector3(1.2f, 1.8f, 1.2f), wall);
+            Box("NorthPillarR", new Vector3(11.5f, 0.9f, 8.7f), new Vector3(1.2f, 1.8f, 1.2f), wall);
+            Box("SouthPillarL", new Vector3(-11.5f, 0.9f, -8.7f), new Vector3(1.2f, 1.8f, 1.2f), wall);
+            Box("SouthPillarR", new Vector3(11.5f, 0.9f, -8.7f), new Vector3(1.2f, 1.8f, 1.2f), wall);
 
             var chairZone = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             chairZone.name = "KursiCaptureZone";
@@ -613,14 +633,14 @@ namespace Konoha.Editor
                 var spawnMarker = Box(
                     "TeamSpawn_" + clientId,
                     NetworkTeamUtility.GetSpawnPosition(clientId) + new Vector3(0f, -0.085f, 0f),
-                    new Vector3(1.4f, 0.04f, 1.4f),
+                    new Vector3(1.25f, 0.025f, 1.25f),
                     team == NetworkTeamUtility.CyanTeam ? cyanMaterial : orangeMaterial);
                 UnityEngine.Object.DestroyImmediate(spawnMarker.GetComponent<Collider>());
             }
 
             for (int x = -10; x <= 10; x += 5)
             {
-                var marker = Box("NavigationMarker", new Vector3(x, 0.006f, 6f), new Vector3(1f, 0.01f, 1f), accent);
+                var marker = Box("NavigationMarker", new Vector3(x, 0.010f, 6.8f), new Vector3(0.70f, 0.012f, 0.70f), accent);
                 UnityEngine.Object.DestroyImmediate(marker.GetComponent<Collider>());
             }
             var hero = new GameObject("TemporaryPlayableCharacter");
