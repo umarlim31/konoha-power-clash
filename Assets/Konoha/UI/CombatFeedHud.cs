@@ -17,7 +17,7 @@ namespace Konoha.Networking
         public Text display;
         public GameObject panelRoot;
         public float lifetime = 5.5f;
-        public int maxEntries = 4;
+        public int maxEntries = 3;
 
         private readonly List<FeedEntry> entries = new List<FeedEntry>();
 
@@ -107,6 +107,17 @@ namespace Konoha.Networking
 
                 return;
             }
+
+            if (panelRoot != null)
+            {
+                RectTransform panelRect = panelRoot.GetComponent<RectTransform>();
+                if (panelRect != null)
+                    panelRect.sizeDelta = new Vector2(panelRect.sizeDelta.x, 22f + entries.Count * 24f);
+            }
+
+            RectTransform displayRect = display.GetComponent<RectTransform>();
+            if (displayRect != null)
+                displayRect.sizeDelta = new Vector2(displayRect.sizeDelta.x, 10f + entries.Count * 24f);
 
             System.Text.StringBuilder builder = new System.Text.StringBuilder();
             for (int i = 0; i < entries.Count; i++)
