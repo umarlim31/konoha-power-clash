@@ -41,9 +41,8 @@ namespace Konoha.Networking
             if (manager.IsContested)
                 return new Color(1.00f, 0.88f, 0.24f);
 
-            if (manager.RulerClientId != NetworkMatchManager.NoClient)
-                return NetworkTeamUtility.GetTeamColor(
-                    NetworkTeamUtility.GetTeam(manager.RulerClientId));
+            if (manager.HasRuler && manager.ChairOwnerTeam >= 0)
+                return NetworkTeamUtility.GetTeamColor(manager.ChairOwnerTeam);
 
             if (manager.CaptureTeam >= 0)
                 return NetworkTeamUtility.GetTeamColor(manager.CaptureTeam);
