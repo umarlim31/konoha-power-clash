@@ -17,6 +17,7 @@ namespace Konoha.Networking
         public InputField addressInput;
 
         public GameObject playerPrefab;
+        public GameObject botPrefab;
         public GameObject matchPrefab;
         public GameObject offlineHero;
         public GameObject offlineDriver;
@@ -37,7 +38,7 @@ namespace Konoha.Networking
         {
             if (!Application.isPlaying)
             {
-                SetStatus("NETWORK READY | 0.0.5A");
+                SetStatus("NETWORK READY | 0.0.5B");
                 return;
             }
 
@@ -54,9 +55,11 @@ namespace Konoha.Networking
                 return;
             }
 
-            if (!IsValidNetworkPrefab(playerPrefab) || !IsValidNetworkPrefab(matchPrefab))
+            if (!IsValidNetworkPrefab(playerPrefab) ||
+                !IsValidNetworkPrefab(botPrefab) ||
+                !IsValidNetworkPrefab(matchPrefab))
             {
-                Debug.LogError("[KONOHA NET] Player or match prefab is missing/invalid.");
+                Debug.LogError("[KONOHA NET] Player, bot, or match prefab is missing/invalid.");
                 SetStatus("NETWORK ERROR | PREFAB");
                 return;
             }
@@ -74,6 +77,7 @@ namespace Konoha.Networking
             try
             {
                 manager.AddNetworkPrefab(playerPrefab);
+                manager.AddNetworkPrefab(botPrefab);
                 manager.AddNetworkPrefab(matchPrefab);
             }
             catch (Exception exception)
@@ -92,7 +96,7 @@ namespace Konoha.Networking
 
             initialized = true;
             SetNetworkButtons(false);
-            SetStatus("NETWORK READY | FOUR HERO COMBAT");
+            SetStatus("NETWORK READY | HERO POLISH + 4V4 BOTS");
         }
 
         private void OnDestroy()
@@ -185,7 +189,7 @@ namespace Konoha.Networking
             serverSpawnedPlayers.Clear();
             RestoreOfflinePrototype();
             SetNetworkButtons(false);
-            SetStatus("NETWORK READY | GREYBOX MATCH LOOP");
+            SetStatus("NETWORK READY | HERO POLISH + 4V4 BOTS");
         }
 
         private void OnClientConnected(ulong clientId)
@@ -197,7 +201,7 @@ namespace Konoha.Networking
             }
 
             string role = manager != null && manager.IsHost ? "HOST" : "CLIENT";
-            SetStatus("CONNECTED | CLIENT " + clientId + " | " + role + " | HERO COMBAT READY");
+            SetStatus("CONNECTED | CLIENT " + clientId + " | " + role + " | 4V4 AUTO-FILL READY");
         }
 
         private void OnClientDisconnected(ulong clientId)
