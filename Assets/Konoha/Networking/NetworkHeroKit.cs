@@ -849,12 +849,7 @@ namespace Konoha.Networking
         {
             if (hero == PrototypeHero.Abah && slot == 1)
             {
-                GameObject zone = CreateBox(
-                    "NarasiZone",
-                    position + Vector3.up * 0.035f,
-                    new Vector3(10f, 0.07f, 10f),
-                    new Color(0.20f, 0.65f, 0.95f),
-                    false);
+                GameObject zone = CreateNarasiOutline(position);
                 yield return new WaitForSecondsRealtime(6f);
                 if (zone != null) Destroy(zone);
                 yield break;
@@ -862,14 +857,7 @@ namespace Konoha.Networking
 
             if (hero == PrototypeHero.Jokowi && slot == 1)
             {
-                GameObject road = CreateBox(
-                    "InfrastrukturRoad",
-                    position + Vector3.up * 0.035f,
-                    new Vector3(4f, 0.07f, 10f),
-                    new Color(0.35f, 0.85f, 0.35f),
-                    false);
-                road.transform.rotation = Quaternion.LookRotation(
-                    direction.sqrMagnitude > 0.01f ? direction : Vector3.forward);
+                GameObject road = CreateRoadGuide(position, direction);
                 yield return new WaitForSecondsRealtime(8f);
                 if (road != null) Destroy(road);
                 yield break;
@@ -898,12 +886,83 @@ namespace Konoha.Networking
                 yield break;
             }
 
-            Color color = HeroFxColor(hero);
-            Vector3 size = slot == 3 ? new Vector3(4.5f, 0.08f, 8f) : new Vector3(3.5f, 0.06f, 3.5f);
-            GameObject fx = CreateBox("HeroAbilityFX", position + Vector3.up * 0.04f, size, color, false);
+            Color color = Color.Lerp(HeroFxColor(hero), Color.black, 0.20f);
+            Vector3 size = slot == 3 ? new Vector3(3.3f, 0.045f, 6.2f) : new Vector3(2.6f, 0.04f, 2.6f);
+            GameObject fx = CreateBox("HeroAbilityFX", position + Vector3.up * 0.028f, size, color, false);
             fx.transform.rotation = Quaternion.LookRotation(direction.sqrMagnitude > 0.01f ? direction : Vector3.forward);
             yield return new WaitForSecondsRealtime(slot == 3 ? 1.0f : 0.45f);
             if (fx != null) Destroy(fx);
+        }
+
+        private static GameObject CreateNarasiOutline(Vector3 position)
+        {
+            GameObject root = new GameObject("NarasiZoneOutline");
+            root.transform.position = position + Vector3.up * 0.028f;
+
+            Color color = new Color(0.16f, 0.48f, 0.76f);
+            const float span = 9.6f;
+            const float half = 4.8f;
+            const float thickness = 0.18f;
+
+            CreateVfxLocalBox(root.transform, "North", new Vector3(0f, 0f, half), new Vector3(span, 0.035f, thickness), color);
+            CreateVfxLocalBox(root.transform, "South", new Vector3(0f, 0f, -half), new Vector3(span, 0.035f, thickness), color);
+            CreateVfxLocalBox(root.transform, "East", new Vector3(half, 0f, 0f), new Vector3(thickness, 0.035f, span), color);
+            CreateVfxLocalBox(root.transform, "West", new Vector3(-half, 0f, 0f), new Vector3(thickness, 0.035f, span), color);
+
+            for (int i = -2; i <= 2; i++)
+            {
+                CreateVfxLocalBox(
+                    root.transform,
+                    "Signal_" + i,
+                    new Vector3(i * 1.55f, 0.004f, 0f),
+                    new Vector3(0.55f, 0.04f, 0.12f),
+                    color);
+            }
+
+            return root;
+        }
+
+        private static GameObject CreateRoadGuide(Vector3 position, Vector3 direction)
+        {
+            GameObject root = new GameObject("InfrastrukturRoadGuide");
+            root.transform.position = position + Vector3.up * 0.028f;
+
+            Vector3 flatDirection = direction;
+            flatDirection.y = 0f;
+            root.transform.rotation = Quaternion.LookRotation(
+                flatDirection.sqrMagnitude > 0.01f ? flatDirection.normalized : Vector3.forward);
+
+            Color edge = new Color(0.20f, 0.62f, 0.26f);
+            Color dash = new Color(0.30f, 0.76f, 0.34f);
+
+            CreateVfxLocalBox(root.transform, "LeftEdge", new Vector3(-1.65f, 0f, 0f), new Vector3(0.14f, 0.035f, 9.2f), edge);
+            CreateVfxLocalBox(root.transform, "RightEdge", new Vector3(1.65f, 0f, 0f), new Vector3(0.14f, 0.035f, 9.2f), edge);
+
+            for (int i = -2; i <= 2; i++)
+            {
+                CreateVfxLocalBox(
+                    root.transform,
+                    "CenterDash_" + i,
+                    new Vector3(0f, 0.004f, i * 1.8f),
+                    new Vector3(0.20f, 0.04f, 0.78f),
+                    dash);
+            }
+
+            return root;
+        }
+
+        private static GameObject CreateVfxLocalBox(
+            Transform parent,
+            string name,
+            Vector3 localPosition,
+            Vector3 localScale,
+            Color color)
+        {
+            GameObject box = CreateBox(name, Vector3.zero, localScale, color, false);
+            box.transform.SetParent(parent, false);
+            box.transform.localPosition = localPosition;
+            box.transform.localRotation = Quaternion.identity;
+            return box;
         }
 
         private IEnumerator SpawnBlocker(Vector3 center, float duration)
