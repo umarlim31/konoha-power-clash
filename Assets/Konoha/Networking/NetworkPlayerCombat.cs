@@ -20,6 +20,11 @@ namespace Konoha.Networking
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Server);
 
+        private NetworkVariable<int> shield = new NetworkVariable<int>(
+            0,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server);
+
         private NetworkVariable<bool> knockedOut = new NetworkVariable<bool>(
             false,
             NetworkVariableReadPermission.Everyone,
@@ -39,8 +44,10 @@ namespace Konoha.Networking
         private Camera cachedCamera;
         private NetworkPlayerIdentity identity;
         private NetworkPlayerMovement movement;
+        private NetworkHeroKit heroKit;
 
         public int Wibawa => health.Value;
+        public int Shield => shield.Value;
         public bool IsKnockedOut => knockedOut.Value;
 
         public override void OnNetworkSpawn()
@@ -49,9 +56,11 @@ namespace Konoha.Networking
 
             identity = GetComponent<NetworkPlayerIdentity>();
             movement = GetComponent<NetworkPlayerMovement>();
+            heroKit = GetComponent<NetworkHeroKit>();
             cachedCamera = Camera.main;
 
             health.OnValueChanged += OnHealthChanged;
+            shield.OnValueChanged += OnShieldChanged;
             knockedOut.OnValueChanged += OnKnockedOutChanged;
             respawnTicket.OnValueChanged += OnRespawnTicketChanged;
 
@@ -65,6 +74,7 @@ namespace Konoha.Networking
         public override void OnNetworkDespawn()
         {
             health.OnValueChanged -= OnHealthChanged;
+            shield.OnValueChanged -= OnShieldChanged;
             knockedOut.OnValueChanged -= OnKnockedOutChanged;
             respawnTicket.OnValueChanged -= OnRespawnTicketChanged;
 
@@ -122,19 +132,23 @@ namespace Konoha.Networking
         public void TryBasicAttack()
         {
             NetworkMatchManager match = NetworkMatchManager.Instance;
+            heroKit ??= GetComponent<NetworkHeroKit>();
 
             if (!IsOwner ||
                 !IsSpawned ||
                 knockedOut.Value ||
                 match == null ||
                 !match.AllowsGameplay ||
-                match.IsRuler(OwnerClientId))
+                match.IsRuler(OwnerClientId) ||
+                (heroKit != null && heroKit.IsStunned))
                 return;
+
+            float cooldown = heroKit != null ? heroKit.GetBasicCooldown() : attackCooldown;
 
             if (Time.unscaledTime < localNextAttackTime)
                 return;
 
-            localNextAttackTime = Time.unscaledTime + attackCooldown;
+            localNextAttackTime = Time.unscaledTime + cooldown;
             BasicAttackServerRpc();
         }
 
@@ -142,24 +156,31 @@ namespace Konoha.Networking
         private void BasicAttackServerRpc()
         {
             NetworkMatchManager match = NetworkMatchManager.Instance;
+            heroKit ??= GetComponent<NetworkHeroKit>();
 
             if (knockedOut.Value ||
                 match == null ||
                 !match.AllowsGameplay ||
                 match.IsRuler(OwnerClientId) ||
+                (heroKit != null && heroKit.IsStunned) ||
                 NetworkManager == null ||
                 NetworkManager.SpawnManager == null)
                 return;
 
+            float cooldown = heroKit != null ? heroKit.GetBasicCooldown() : attackCooldown;
             double now = Time.realtimeSinceStartupAsDouble;
+
             if (now < serverNextAttackTime)
                 return;
 
-            serverNextAttackTime = now + attackCooldown;
+            serverNextAttackTime = now + cooldown;
 
             int attackerTeam = NetworkTeamUtility.GetTeam(OwnerClientId);
+            float range = heroKit != null ? heroKit.GetBasicRange() : attackRange;
+            int damage = heroKit != null ? heroKit.GetBasicDamage() : BasicAttackDamage;
+
             NetworkPlayerCombat bestTarget = null;
-            float bestDistanceSqr = attackRange * attackRange;
+            float bestDistanceSqr = range * range;
 
             foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
             {
@@ -200,7 +221,10 @@ namespace Konoha.Networking
                 return;
             }
 
-            bestTarget.ApplyServerDamage(BasicAttackDamage);
+            bestTarget.ServerReceiveDamage(damage, OwnerClientId);
+
+            NetworkHeroKit targetKit = bestTarget.GetComponent<NetworkHeroKit>();
+            heroKit?.ServerOnBasicHit(targetKit, damage);
 
             Debug.Log(
                 "[KONOHA COMBAT] Hit | attacker=" + OwnerClientId +
@@ -221,23 +245,65 @@ namespace Konoha.Networking
 
             serverRespawnRunning = false;
             health.Value = MaxWibawa;
+            shield.Value = 0;
             knockedOut.Value = false;
             respawnTicket.Value += 1;
         }
 
-        private void ApplyServerDamage(int damage)
+        public void ServerGrantShield(int amount)
         {
-            if (!IsServer || knockedOut.Value)
+            if (!IsServer || amount <= 0 || knockedOut.Value)
                 return;
 
-            int nextHealth = Mathf.Clamp(health.Value - Mathf.Max(0, damage), 0, MaxWibawa);
-            health.Value = nextHealth;
+            shield.Value = Mathf.Clamp(shield.Value + amount, 0, 50);
+        }
 
-            if (nextHealth == 0 && !serverRespawnRunning)
+        public void ServerReceiveDamage(int damage, ulong sourceClientId)
+        {
+            if (!IsServer || knockedOut.Value || damage <= 0)
+                return;
+
+            heroKit ??= GetComponent<NetworkHeroKit>();
+
+            float incomingMultiplier = heroKit != null ? heroKit.GetIncomingDamageMultiplier() : 1f;
+            int adjustedDamage = Mathf.Max(1, Mathf.RoundToInt(damage * incomingMultiplier));
+
+            int absorbed = Mathf.Min(shield.Value, adjustedDamage);
+            if (absorbed > 0)
+            {
+                shield.Value -= absorbed;
+                adjustedDamage -= absorbed;
+            }
+
+            if (adjustedDamage > 0)
+                health.Value = Mathf.Clamp(health.Value - adjustedDamage, 0, MaxWibawa);
+
+            NetworkHeroKit attackerKit = FindHeroKitByOwner(sourceClientId);
+            attackerKit?.ServerGainPengaruh(Mathf.Clamp(damage / 2, 4, 15));
+
+            if (health.Value == 0 && !serverRespawnRunning)
             {
                 NetworkMatchManager.Instance?.HandlePlayerKnockedOut(OwnerClientId);
                 respawnRoutine = StartCoroutine(ServerKnockoutAndRespawn());
             }
+        }
+
+        private NetworkHeroKit FindHeroKitByOwner(ulong clientId)
+        {
+            if (NetworkManager == null || NetworkManager.SpawnManager == null)
+                return null;
+
+            foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
+            {
+                if (networkObject == null ||
+                    !networkObject.IsPlayerObject ||
+                    networkObject.OwnerClientId != clientId)
+                    continue;
+
+                return networkObject.GetComponent<NetworkHeroKit>();
+            }
+
+            return null;
         }
 
         private IEnumerator ServerKnockoutAndRespawn()
@@ -251,6 +317,7 @@ namespace Konoha.Networking
 
             respawnTicket.Value += 1;
             health.Value = MaxWibawa;
+            shield.Value = 0;
             knockedOut.Value = false;
             serverRespawnRunning = false;
             respawnRoutine = null;
@@ -263,6 +330,11 @@ namespace Konoha.Networking
             if (current < previous)
                 identity?.PlayDamageFeedback();
 
+            RefreshHealthLabel();
+        }
+
+        private void OnShieldChanged(int previous, int current)
+        {
             RefreshHealthLabel();
         }
 
@@ -311,12 +383,15 @@ namespace Konoha.Networking
             if (!IsOwner || attackButton == null)
                 return;
 
+            heroKit ??= GetComponent<NetworkHeroKit>();
             NetworkMatchManager match = NetworkMatchManager.Instance;
+
             bool gameplayLocked =
                 knockedOut.Value ||
                 match == null ||
                 !match.AllowsGameplay ||
-                match.IsRuler(OwnerClientId);
+                match.IsRuler(OwnerClientId) ||
+                (heroKit != null && heroKit.IsStunned);
 
             if (gameplayLocked)
             {
@@ -325,11 +400,13 @@ namespace Konoha.Networking
                 if (attackButtonLabel != null)
                 {
                     if (knockedOut.Value)
-                        attackButtonLabel.text = "ATTACK\nRUNTUH";
+                        attackButtonLabel.text = "BASIC\nRUNTUH";
                     else if (match != null && match.IsRuler(OwnerClientId))
-                        attackButtonLabel.text = "ATTACK\nPENGUASA";
+                        attackButtonLabel.text = "BASIC\nPENGUASA";
+                    else if (heroKit != null && heroKit.IsStunned)
+                        attackButtonLabel.text = "BASIC\nSTUN";
                     else
-                        attackButtonLabel.text = "ATTACK";
+                        attackButtonLabel.text = "BASIC";
                 }
 
                 return;
@@ -340,8 +417,8 @@ namespace Konoha.Networking
 
             if (attackButtonLabel != null)
                 attackButtonLabel.text = remaining > 0f
-                    ? "ATTACK\n" + remaining.ToString("0.0")
-                    : "ATTACK";
+                    ? "BASIC\n" + remaining.ToString("0.0")
+                    : "BASIC";
         }
 
         private void RefreshHealthLabel()
@@ -357,7 +434,8 @@ namespace Konoha.Networking
             }
 
             int current = health.Value;
-            healthLabel.text = "WIBAWA " + current + "/" + MaxWibawa;
+            string shieldText = shield.Value > 0 ? " +" + shield.Value + " SHIELD" : "";
+            healthLabel.text = "WIBAWA " + current + "/" + MaxWibawa + shieldText;
             healthLabel.color = current > 50
                 ? new Color(0.55f, 1f, 0.55f)
                 : current > 20
