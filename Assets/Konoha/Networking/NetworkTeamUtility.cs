@@ -8,6 +8,22 @@ namespace Konoha.Networking
         public const int CyanTeam = 0;
         public const int OrangeTeam = 1;
 
+        private static readonly Vector3[] CyanFormation =
+        {
+            new Vector3(-10.5f, 0.1f, -3.2f),
+            new Vector3(-8.2f, 0.1f, -1.1f),
+            new Vector3(-8.2f, 0.1f, 1.1f),
+            new Vector3(-10.5f, 0.1f, 3.2f)
+        };
+
+        private static readonly Vector3[] OrangeFormation =
+        {
+            new Vector3(10.5f, 0.1f, 3.2f),
+            new Vector3(8.2f, 0.1f, 1.1f),
+            new Vector3(8.2f, 0.1f, -1.1f),
+            new Vector3(10.5f, 0.1f, -3.2f)
+        };
+
         public static int GetTeam(ulong clientId)
         {
             return (int)(clientId % 2UL);
@@ -67,13 +83,41 @@ namespace Konoha.Networking
             return GetSpawnPosition(networkObject.OwnerClientId);
         }
 
+        public static Quaternion GetSpawnRotation(ulong clientId)
+        {
+            return GetTeamSpawnRotation(GetTeam(clientId));
+        }
+
+        public static Quaternion GetSpawnRotation(NetworkObject networkObject)
+        {
+            if (networkObject == null)
+                return Quaternion.identity;
+
+            return GetTeamSpawnRotation(GetTeam(networkObject));
+        }
+
         public static Vector3 GetTeamSpawnPosition(int team, int slot)
         {
             slot = Mathf.Clamp(slot, 0, 3);
 
-            float x = team == CyanTeam ? -9f : 9f;
-            float z = -6f + slot * 4f;
-            return new Vector3(x, 0.1f, z);
+            if (team == CyanTeam)
+                return CyanFormation[slot];
+
+            if (team == OrangeTeam)
+                return OrangeFormation[slot];
+
+            return Vector3.zero;
+        }
+
+        public static Quaternion GetTeamSpawnRotation(int team)
+        {
+            if (team == CyanTeam)
+                return Quaternion.LookRotation(Vector3.right);
+
+            if (team == OrangeTeam)
+                return Quaternion.LookRotation(Vector3.left);
+
+            return Quaternion.identity;
         }
     }
 }
