@@ -1005,6 +1005,8 @@ namespace Konoha.Networking
             if (heroButtonLabel != null)
                 heroButtonLabel.text = "HERO\n" + GetHeroName(Hero);
 
+            ApplyHeroHudTint();
+
             bool abilityAllowed = CanUseHeroAbility();
             RefreshAbilityButton(s1Button, s1Label, GetS1Name(), localS1Ready, abilityAllowed);
             RefreshAbilityButton(s2Button, s2Label, GetS2Name(), localS2Ready, abilityAllowed);
@@ -1024,6 +1026,31 @@ namespace Konoha.Networking
                                  Hero == PrototypeHero.Prabowo && IsGarudaActive ? " | GARUDA" : "";
                 heroStatusText.text = GetHeroName(Hero) + " | PENGARUH " + pengaruh.Value + "/100 | " + status + special;
             }
+        }
+
+        private void ApplyHeroHudTint()
+        {
+            Color accent = GetHeroAccentColor(Hero);
+            TintButton(heroButton, Color.Lerp(accent, new Color(0.04f, 0.06f, 0.08f), 0.25f));
+            TintButton(s1Button, Color.Lerp(accent, new Color(0.04f, 0.07f, 0.09f), 0.48f));
+            TintButton(s2Button, Color.Lerp(accent, new Color(0.04f, 0.07f, 0.09f), 0.48f));
+
+            bool ultReady = pengaruh.Value >= MaxPengaruh;
+            TintButton(
+                ultimateButton,
+                ultReady
+                    ? Color.Lerp(accent, Color.white, 0.12f)
+                    : new Color(0.12f, 0.16f, 0.20f, 0.96f));
+        }
+
+        private static void TintButton(Button button, Color color)
+        {
+            if (button == null)
+                return;
+
+            Image image = button.GetComponent<Image>();
+            if (image != null)
+                image.color = color;
         }
 
         private static void RefreshAbilityButton(Button button, Text label, string name, float readyAt, bool allowed)
@@ -1162,6 +1189,11 @@ namespace Konoha.Networking
 
             float t = Mathf.Clamp01(Vector2.Dot(p - p0, ab) / denominator);
             return Vector2.Distance(p, p0 + ab * t);
+        }
+
+        public static Color GetHeroAccentColor(PrototypeHero hero)
+        {
+            return HeroFxColor(hero);
         }
 
         private static Color HeroFxColor(PrototypeHero hero)
