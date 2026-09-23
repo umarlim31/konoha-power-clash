@@ -42,7 +42,7 @@ namespace Konoha.Networking
 
         private void ReconcileTeam(int team)
         {
-            var usedSlots = new HashSet<int>();
+            var humanSlots = new HashSet<int>();
             var bots = new List<NetworkBotController>();
             int humanCount = 0;
 
@@ -55,10 +55,8 @@ namespace Konoha.Networking
                 if (bot != null)
                 {
                     if (bot.Team == team)
-                    {
                         bots.Add(bot);
-                        usedSlots.Add(bot.Slot);
-                    }
+
                     continue;
                 }
 
@@ -67,21 +65,51 @@ namespace Konoha.Networking
                     continue;
 
                 humanCount++;
-                usedSlots.Add(NetworkTeamUtility.GetHumanSlot(networkObject.OwnerClientId));
+                humanSlots.Add(NetworkTeamUtility.GetHumanSlot(networkObject.OwnerClientId));
+            }
+
+            var retainedBots = new List<NetworkBotController>();
+            var usedBotSlots = new HashSet<int>();
+
+            foreach (NetworkBotController bot in bots)
+            {
+                if (bot == null)
+                    continue;
+
+                bool slotConflict = humanSlots.Contains(bot.Slot) || usedBotSlots.Contains(bot.Slot);
+
+                if (slotConflict)
+                {
+                    if (bot.NetworkObject != null && bot.NetworkObject.IsSpawned)
+                        bot.NetworkObject.Despawn(true);
+
+                    continue;
+                }
+
+                usedBotSlots.Add(bot.Slot);
+                retainedBots.Add(bot);
             }
 
             int desiredBots = Mathf.Clamp(TeamSize - humanCount, 0, TeamSize);
 
-            while (bots.Count > desiredBots)
+            while (retainedBots.Count > desiredBots)
             {
-                NetworkBotController bot = bots[bots.Count - 1];
-                bots.RemoveAt(bots.Count - 1);
+                int last = retainedBots.Count - 1;
+                NetworkBotController bot = retainedBots[last];
+                retainedBots.RemoveAt(last);
 
                 if (bot != null && bot.NetworkObject != null && bot.NetworkObject.IsSpawned)
                     bot.NetworkObject.Despawn(true);
             }
 
-            while (bots.Count < desiredBots)
+            var usedSlots = new HashSet<int>(humanSlots);
+            foreach (NetworkBotController bot in retainedBots)
+            {
+                if (bot != null)
+                    usedSlots.Add(bot.Slot);
+            }
+
+            while (retainedBots.Count < desiredBots)
             {
                 int slot = FindFreeSlot(usedSlots);
                 if (slot < 0)
@@ -92,7 +120,7 @@ namespace Konoha.Networking
                 if (bot == null)
                     break;
 
-                bots.Add(bot);
+                retainedBots.Add(bot);
             }
         }
 
