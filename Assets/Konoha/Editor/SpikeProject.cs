@@ -788,96 +788,278 @@ namespace Konoha.Editor
 
         private static void CreateMatchHud(RectTransform safe, Button chairButton)
         {
-            var panel = Rect(
-                "MatchPanel",
+            var scoreboard = Rect(
+                "MatchScoreboard",
                 safe,
+                new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f),
+                new Vector2(0f, -14f),
+                new Vector2(720f, 114f));
+            var scoreboardImage = scoreboard.gameObject.AddComponent<Image>();
+            scoreboardImage.color = new Color(0.025f, 0.045f, 0.075f, 0.94f);
+            scoreboardImage.raycastTarget = false;
+
+            var cyanBlock = Rect(
+                "CyanScoreBlock",
+                scoreboard,
                 new Vector2(0f, 1f),
                 new Vector2(0f, 1f),
-                new Vector2(20f, -18f),
-                new Vector2(650f, 116f));
-            var panelImage = panel.gameObject.AddComponent<Image>();
-            panelImage.color = new Color(0.035f, 0.07f, 0.10f, 0.90f);
-            panelImage.raycastTarget = false;
+                new Vector2(12f, -10f),
+                new Vector2(250f, 64f));
+            var cyanBlockImage = cyanBlock.gameObject.AddComponent<Image>();
+            cyanBlockImage.color = new Color(0.08f, 0.26f, 0.30f, 0.95f);
+            cyanBlockImage.raycastTarget = false;
 
-            var matchText = Label(
-                Rect("MatchState", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(12f, -8f), new Vector2(625f, 28f)),
-                "REBUT KURSI | WAITING", 16);
-            matchText.alignment = TextAnchor.MiddleLeft;
+            var cyanScore = Label(
+                Rect("CyanScore", cyanBlock, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, cyanBlock.sizeDelta),
+                "CYAN  000",
+                22);
+            cyanScore.alignment = TextAnchor.MiddleCenter;
 
-            var scoreText = Label(
-                Rect("MatchScore", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(12f, -38f), new Vector2(625f, 28f)),
-                "POWER | CYAN 0/100 • ORANGE 0/100", 16);
-            scoreText.alignment = TextAnchor.MiddleLeft;
+            var cyanTrack = Rect(
+                "CyanPowerTrack",
+                cyanBlock,
+                new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f),
+                new Vector2(0f, 7f),
+                new Vector2(220f, 8f));
+            var cyanTrackImage = cyanTrack.gameObject.AddComponent<Image>();
+            cyanTrackImage.color = new Color(0.04f, 0.08f, 0.10f, 1f);
+            cyanTrackImage.raycastTarget = false;
 
+            var cyanFillRect = Rect(
+                "CyanPowerFill",
+                cyanTrack,
+                Vector2.one * 0.5f,
+                Vector2.one * 0.5f,
+                Vector2.zero,
+                cyanTrack.sizeDelta);
+            var cyanFill = cyanFillRect.gameObject.AddComponent<Image>();
+            cyanFill.color = NetworkTeamUtility.GetTeamColor(NetworkTeamUtility.CyanTeam);
+            cyanFill.type = Image.Type.Filled;
+            cyanFill.fillMethod = Image.FillMethod.Horizontal;
+            cyanFill.fillOrigin = 0;
+            cyanFill.fillAmount = 0f;
+            cyanFill.raycastTarget = false;
+
+            var orangeBlock = Rect(
+                "OrangeScoreBlock",
+                scoreboard,
+                new Vector2(1f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(-12f, -10f),
+                new Vector2(250f, 64f));
+            var orangeBlockImage = orangeBlock.gameObject.AddComponent<Image>();
+            orangeBlockImage.color = new Color(0.32f, 0.18f, 0.07f, 0.95f);
+            orangeBlockImage.raycastTarget = false;
+
+            var orangeScore = Label(
+                Rect("OrangeScore", orangeBlock, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, orangeBlock.sizeDelta),
+                "ORANGE  000",
+                22);
+            orangeScore.alignment = TextAnchor.MiddleCenter;
+
+            var orangeTrack = Rect(
+                "OrangePowerTrack",
+                orangeBlock,
+                new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f),
+                new Vector2(0f, 7f),
+                new Vector2(220f, 8f));
+            var orangeTrackImage = orangeTrack.gameObject.AddComponent<Image>();
+            orangeTrackImage.color = new Color(0.10f, 0.06f, 0.035f, 1f);
+            orangeTrackImage.raycastTarget = false;
+
+            var orangeFillRect = Rect(
+                "OrangePowerFill",
+                orangeTrack,
+                Vector2.one * 0.5f,
+                Vector2.one * 0.5f,
+                Vector2.zero,
+                orangeTrack.sizeDelta);
+            var orangeFill = orangeFillRect.gameObject.AddComponent<Image>();
+            orangeFill.color = NetworkTeamUtility.GetTeamColor(NetworkTeamUtility.OrangeTeam);
+            orangeFill.type = Image.Type.Filled;
+            orangeFill.fillMethod = Image.FillMethod.Horizontal;
+            orangeFill.fillOrigin = 1;
+            orangeFill.fillAmount = 0f;
+            orangeFill.raycastTarget = false;
+
+            var timerValue = Label(
+                Rect(
+                    "MatchTimer",
+                    scoreboard,
+                    new Vector2(0.5f, 1f),
+                    new Vector2(0.5f, 1f),
+                    new Vector2(0f, -8f),
+                    new Vector2(190f, 42f)),
+                "07:00",
+                28);
+            timerValue.alignment = TextAnchor.MiddleCenter;
+
+            var phaseValue = Label(
+                Rect(
+                    "MatchPhase",
+                    scoreboard,
+                    new Vector2(0.5f, 1f),
+                    new Vector2(0.5f, 1f),
+                    new Vector2(0f, -46f),
+                    new Vector2(190f, 24f)),
+                "WAITING",
+                14);
+            phaseValue.alignment = TextAnchor.MiddleCenter;
+            phaseValue.color = new Color(0.82f, 0.88f, 0.95f);
+
+            var rosterValue = Label(
+                Rect(
+                    "RosterState",
+                    scoreboard,
+                    new Vector2(0.5f, 1f),
+                    new Vector2(0.5f, 1f),
+                    new Vector2(0f, -70f),
+                    new Vector2(190f, 22f)),
+                "4v4 0/8",
+                13);
+            rosterValue.alignment = TextAnchor.MiddleCenter;
+            rosterValue.color = new Color(0.64f, 0.70f, 0.78f);
+
+            var objectiveBanner = Rect(
+                "ObjectiveBanner",
+                scoreboard,
+                new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f),
+                new Vector2(0f, 4f),
+                new Vector2(690f, 30f));
+            var objectiveBg = objectiveBanner.gameObject.AddComponent<Image>();
+            objectiveBg.color = new Color(0.04f, 0.07f, 0.11f, 0.96f);
+            objectiveBg.raycastTarget = false;
             var objectiveText = Label(
-                Rect("ObjectiveState", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(12f, -68f), new Vector2(625f, 38f)),
-                "KURSI: NETRAL", 15);
-            objectiveText.alignment = TextAnchor.UpperLeft;
+                Rect("ObjectiveState", objectiveBanner, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, objectiveBanner.sizeDelta),
+                "KURSI NETRAL",
+                14);
+            objectiveText.alignment = TextAnchor.MiddleCenter;
+
+            var captureRoot = Rect(
+                "CaptureProgress",
+                scoreboard,
+                new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f),
+                new Vector2(0f, -5f),
+                new Vector2(690f, 5f));
+            var captureTrack = captureRoot.gameObject.AddComponent<Image>();
+            captureTrack.color = new Color(0.08f, 0.10f, 0.13f, 0.95f);
+            captureTrack.raycastTarget = false;
+            var captureFillRect = Rect(
+                "Fill",
+                captureRoot,
+                Vector2.one * 0.5f,
+                Vector2.one * 0.5f,
+                Vector2.zero,
+                captureRoot.sizeDelta);
+            var captureFill = captureFillRect.gameObject.AddComponent<Image>();
+            captureFill.color = Color.white;
+            captureFill.type = Image.Type.Filled;
+            captureFill.fillMethod = Image.FillMethod.Horizontal;
+            captureFill.fillAmount = 0f;
+            captureFill.raycastTarget = false;
+            captureRoot.gameObject.SetActive(false);
 
             var startRect = Rect(
                 "StartMatchButton",
                 safe,
-                new Vector2(0f, 1f),
-                new Vector2(0f, 1f),
-                new Vector2(20f, -142f),
-                new Vector2(135f, 44f));
+                new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f),
+                new Vector2(-430f, -25f),
+                new Vector2(118f, 44f));
             var startImage = startRect.gameObject.AddComponent<Image>();
-            startImage.color = new Color(0.12f, 0.34f, 0.40f, 0.96f);
+            startImage.color = new Color(0.10f, 0.38f, 0.43f, 0.96f);
             startImage.raycastTarget = true;
             var startButton = startRect.gameObject.AddComponent<Button>();
             startButton.targetGraphic = startImage;
             startButton.interactable = false;
             var startLabel = Label(
                 Rect("Label", startRect, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, startRect.sizeDelta),
-                "START", 15);
+                "START",
+                15);
             startLabel.alignment = TextAnchor.MiddleCenter;
 
-            Button MakeTestButton(string name, string caption, Vector2 position, Vector2 size)
+            var devRect = Rect(
+                "DeveloperToolsToggle",
+                safe,
+                new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f),
+                new Vector2(-430f, -76f),
+                new Vector2(118f, 34f));
+            var devImage = devRect.gameObject.AddComponent<Image>();
+            devImage.color = new Color(0.13f, 0.16f, 0.21f, 0.92f);
+            devImage.raycastTarget = true;
+            var devButton = devRect.gameObject.AddComponent<Button>();
+            devButton.targetGraphic = devImage;
+            var devLabel = Label(
+                Rect("Label", devRect, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, devRect.sizeDelta),
+                "DEV",
+                13);
+            devLabel.alignment = TextAnchor.MiddleCenter;
+
+            var debugRoot = Rect(
+                "DeveloperToolsPanel",
+                safe,
+                new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f),
+                new Vector2(-282f, -78f),
+                new Vector2(315f, 36f));
+            var debugRootImage = debugRoot.gameObject.AddComponent<Image>();
+            debugRootImage.color = new Color(0.035f, 0.055f, 0.08f, 0.92f);
+            debugRootImage.raycastTarget = false;
+
+            Button MakeTestButton(string name, string caption, float x)
             {
-                var rect = Rect(name, safe, new Vector2(0f, 1f), new Vector2(0f, 1f), position, size);
+                var rect = Rect(
+                    name,
+                    debugRoot,
+                    new Vector2(0f, 0.5f),
+                    new Vector2(0f, 0.5f),
+                    new Vector2(x, 0f),
+                    new Vector2(95f, 30f));
                 var image = rect.gameObject.AddComponent<Image>();
-                image.color = new Color(0.16f, 0.22f, 0.27f, 0.94f);
+                image.color = new Color(0.16f, 0.22f, 0.27f, 0.96f);
                 image.raycastTarget = true;
-                var testButton = rect.gameObject.AddComponent<Button>();
-                testButton.targetGraphic = image;
-                testButton.interactable = false;
+                var button = rect.gameObject.AddComponent<Button>();
+                button.targetGraphic = image;
+                button.interactable = false;
                 var label = Label(
-                    Rect("Label", rect, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, size),
+                    Rect("Label", rect, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, rect.sizeDelta),
                     caption,
-                    14);
+                    11);
                 label.alignment = TextAnchor.MiddleCenter;
-                return testButton;
+                return button;
             }
 
-            var debugTimerButton = MakeTestButton(
-                "DebugTimerButton",
-                "TEST TIMER 10s",
-                new Vector2(165f, -142f),
-                new Vector2(125f, 44f));
-
-            var debugPowerButton = MakeTestButton(
-                "DebugPowerButton",
-                "TEST POWER 95",
-                new Vector2(300f, -142f),
-                new Vector2(125f, 44f));
-
-            var debugPengaruhButton = MakeTestButton(
-                "DebugPengaruhButton",
-                "TEST ULT 100",
-                new Vector2(435f, -142f),
-                new Vector2(125f, 44f));
+            var debugTimerButton = MakeTestButton("DebugTimerButton", "TIMER 10s", 4f);
+            var debugPowerButton = MakeTestButton("DebugPowerButton", "POWER 95", 108f);
+            var debugPengaruhButton = MakeTestButton("DebugPengaruhButton", "ULT 100", 212f);
+            debugRoot.gameObject.SetActive(false);
 
             var matchHud = safe.gameObject.AddComponent<NetworkMatchHud>();
-            matchHud.matchText = matchText;
-            matchHud.scoreText = scoreText;
             matchHud.objectiveText = objectiveText;
+            matchHud.phaseText = phaseValue;
+            matchHud.timerText = timerValue;
+            matchHud.rosterText = rosterValue;
+            matchHud.cyanScoreText = cyanScore;
+            matchHud.orangeScoreText = orangeScore;
+            matchHud.cyanPowerFill = cyanFill;
+            matchHud.orangePowerFill = orangeFill;
+            matchHud.captureFill = captureFill;
+            matchHud.captureBarRoot = captureRoot.gameObject;
             matchHud.startButton = startButton;
             matchHud.chairButton = chairButton;
             matchHud.debugTimerButton = debugTimerButton;
             matchHud.debugPowerButton = debugPowerButton;
             matchHud.debugPengaruhButton = debugPengaruhButton;
+            matchHud.debugToolsToggleButton = devButton;
+            matchHud.debugToolsRoot = debugRoot.gameObject;
 
-            panel.transform.SetAsFirstSibling();
+            scoreboard.transform.SetAsFirstSibling();
         }
 
         private static void CreateNetworkingProof(
