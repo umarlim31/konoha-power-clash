@@ -748,12 +748,17 @@ namespace Konoha.Editor
             scaler.matchWidthOrHeight = 1f;
             var safe = Rect("SafeArea", canvasObject.transform, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
             safe.anchorMax = Vector2.one;
-            var pad = Rect("MovePad", safe, Vector2.zero, Vector2.one * 0.5f, new Vector2(165f, 135f), new Vector2(200f, 200f));
-            pad.gameObject.AddComponent<Image>().color = new Color(0.12f, 0.33f, 0.4f, 0.8f);
-            var handle = Rect("Handle", pad, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, new Vector2(72f, 72f));
-            var handleImage = handle.gameObject.AddComponent<Image>();
-            handleImage.color = new Color(0.2f, 0.95f, 0.85f, 0.95f);
-            handleImage.raycastTarget = false;
+            var pad = Rect("MovePad", safe, Vector2.zero, Vector2.one * 0.5f, new Vector2(165f, 135f), new Vector2(190f, 190f));
+            var padGraphic = pad.gameObject.AddComponent<CircleGraphic>();
+            padGraphic.color = new Color(0.05f, 0.19f, 0.23f, 0.72f);
+            padGraphic.segments = 48;
+            padGraphic.raycastTarget = true;
+
+            var handle = Rect("Handle", pad, Vector2.one * 0.5f, Vector2.one * 0.5f, Vector2.zero, new Vector2(66f, 66f));
+            var handleGraphic = handle.gameObject.AddComponent<CircleGraphic>();
+            handleGraphic.color = new Color(0.20f, 0.92f, 0.82f, 0.95f);
+            handleGraphic.segments = 36;
+            handleGraphic.raycastTarget = false;
             var joystick = pad.gameObject.AddComponent<TouchJoystick>();
             joystick.pad = pad;
             joystick.handle = handle;
