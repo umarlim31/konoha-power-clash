@@ -20,10 +20,6 @@ namespace Konoha.Networking
             if (match == null)
                 return;
 
-            if (match.State != GreyboxMatchState.Waiting &&
-                match.State != GreyboxMatchState.Result)
-                return;
-
             if (Time.unscaledTime < nextReconcileTime)
                 return;
 
