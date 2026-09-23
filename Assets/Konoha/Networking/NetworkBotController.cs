@@ -625,7 +625,7 @@ namespace Konoha.Networking
                 damage = Mathf.Max(1, Mathf.RoundToInt(damage * heroKit.GetOutgoingDamageMultiplier()));
 
             nextAttackTime = Time.unscaledTime + cooldown * Random.Range(0.96f, 1.16f);
-            currentTarget.ServerReceiveDamage(damage, NetworkMatchManager.NoClient);
+            currentTarget.ServerReceiveDamage(damage, NetworkMatchManager.NoClient, NetworkObjectId);
             heroKit?.ServerGainPengaruh(Mathf.Clamp(damage / 3, 3, 10));
 
             NetworkHeroKit targetKit = currentTarget.GetComponent<NetworkHeroKit>();
