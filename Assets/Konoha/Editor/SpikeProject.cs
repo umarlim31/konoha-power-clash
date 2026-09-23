@@ -860,7 +860,7 @@ namespace Konoha.Editor
                 new Vector2(0.5f, 1f),
                 new Vector2(0.5f, 1f),
                 new Vector2(0f, -14f),
-                new Vector2(720f, 114f));
+                new Vector2(720f, 124f));
             var scoreboardImage = scoreboard.gameObject.AddComponent<Image>();
             scoreboardImage.color = new Color(0.025f, 0.045f, 0.075f, 0.94f);
             scoreboardImage.raycastTarget = false;
@@ -969,10 +969,10 @@ namespace Konoha.Editor
                     scoreboard,
                     new Vector2(0.5f, 1f),
                     new Vector2(0.5f, 1f),
-                    new Vector2(0f, -46f),
-                    new Vector2(190f, 24f)),
+                    new Vector2(0f, -48f),
+                    new Vector2(190f, 20f)),
                 "WAITING",
-                14);
+                13);
             phaseValue.alignment = TextAnchor.MiddleCenter;
             phaseValue.color = new Color(0.82f, 0.88f, 0.95f);
 
@@ -983,9 +983,9 @@ namespace Konoha.Editor
                     new Vector2(0.5f, 1f),
                     new Vector2(0.5f, 1f),
                     new Vector2(0f, -70f),
-                    new Vector2(190f, 22f)),
+                    new Vector2(190f, 16f)),
                 "4v4 0/8",
-                13);
+                11);
             rosterValue.alignment = TextAnchor.MiddleCenter;
             rosterValue.color = new Color(0.64f, 0.70f, 0.78f);
 
@@ -994,8 +994,8 @@ namespace Konoha.Editor
                 scoreboard,
                 new Vector2(0.5f, 0f),
                 new Vector2(0.5f, 0f),
-                new Vector2(0f, 4f),
-                new Vector2(690f, 30f));
+                new Vector2(0f, 6f),
+                new Vector2(690f, 28f));
             var objectiveBg = objectiveBanner.gameObject.AddComponent<Image>();
             objectiveBg.color = new Color(0.04f, 0.07f, 0.11f, 0.96f);
             objectiveBg.raycastTarget = false;
