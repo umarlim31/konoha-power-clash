@@ -136,11 +136,26 @@ namespace Konoha.Networking
             if (manager.State == GreyboxMatchState.SuddenPower)
                 return "KURSI EMAS | FIRST +5 POWER WINS";
 
-            if (manager.RulerClientId != NetworkMatchManager.NoClient)
+            if (manager.HasRuler)
             {
-                int team = NetworkTeamUtility.GetTeam(manager.RulerClientId);
-                return "PENGUASA: P" + manager.RulerClientId + " TEAM " +
-                       NetworkTeamUtility.GetTeamName(team) + " | +1 POWER/DETIK";
+                NetworkObject ruler = FindActor(manager.RulerNetworkObjectId);
+
+                if (ruler != null)
+                {
+                    int team = NetworkTeamUtility.GetTeam(ruler);
+                    NetworkBotController bot = ruler.GetComponent<NetworkBotController>();
+
+                    string rulerName = bot != null
+                        ? "BOT " + bot.Slot + " " + bot.HeroName
+                        : manager.RulerClientId != NetworkMatchManager.NoClient
+                            ? "P" + manager.RulerClientId
+                            : "ACTOR";
+
+                    return "PENGUASA: " + rulerName + " TEAM " +
+                           NetworkTeamUtility.GetTeamName(team) + " | +1 POWER/DETIK";
+                }
+
+                return "PENGUASA AKTIF | +1 POWER/DETIK";
             }
 
             if (manager.IsContested)
@@ -209,6 +224,22 @@ namespace Konoha.Networking
         private void OnDebugPengaruhPressed()
         {
             manager?.RequestDebugPengaruhFromLocal();
+        }
+
+        private static NetworkObject FindActor(ulong networkObjectId)
+        {
+            if (networkObjectId == NetworkMatchManager.NoClient ||
+                NetworkManager.Singleton == null ||
+                NetworkManager.Singleton.SpawnManager == null)
+                return null;
+
+            foreach (NetworkObject networkObject in NetworkManager.Singleton.SpawnManager.SpawnedObjectsList)
+            {
+                if (networkObject != null && networkObject.NetworkObjectId == networkObjectId)
+                    return networkObject;
+            }
+
+            return null;
         }
 
         private static string GetStateText(GreyboxMatchState state)
