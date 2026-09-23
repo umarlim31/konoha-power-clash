@@ -336,6 +336,7 @@ namespace Konoha.Editor
             root.AddComponent<NetworkObject>();
             var match = root.AddComponent<NetworkMatchManager>();
             match.chairPosition = Vector3.zero;
+            root.AddComponent<NetworkMatchEvents>();
 
             var botRoster = root.AddComponent<NetworkBotRoster>();
             botRoster.botPrefab = botPrefab;
@@ -386,6 +387,7 @@ namespace Konoha.Editor
             body.transform.localPosition = Vector3.up;
             body.GetComponent<Renderer>().sharedMaterial = neutralMaterial;
             UnityEngine.Object.DestroyImmediate(body.GetComponent<Collider>());
+            CreateActorPresentation(root, body.transform);
 
             var facing = GameObject.CreatePrimitive(PrimitiveType.Cube);
             facing.name = "FacingMarker";
@@ -395,17 +397,17 @@ namespace Konoha.Editor
             facing.GetComponent<Renderer>().sharedMaterial = facingMaterial;
             UnityEngine.Object.DestroyImmediate(facing.GetComponent<Collider>());
 
-            var botMarker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            var botMarker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             botMarker.name = "BotMarker";
             botMarker.transform.SetParent(root.transform, false);
-            botMarker.transform.localPosition = new Vector3(0f, 2.65f, 0f);
-            botMarker.transform.localScale = Vector3.one * 0.25f;
+            botMarker.transform.localPosition = new Vector3(0f, 0.045f, 0f);
+            botMarker.transform.localScale = new Vector3(1.18f, 0.015f, 1.18f);
             botMarker.GetComponent<Renderer>().sharedMaterial = ownerMaterial;
             UnityEngine.Object.DestroyImmediate(botMarker.GetComponent<Collider>());
 
             var labelObject = new GameObject("OwnershipLabel");
             labelObject.transform.SetParent(root.transform, false);
-            labelObject.transform.localPosition = new Vector3(0f, 2.25f, 0f);
+            labelObject.transform.localPosition = new Vector3(0f, 2.78f, 0f);
             var label = labelObject.AddComponent<TextMesh>();
             label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             label.text = "BOT";
@@ -437,7 +439,9 @@ namespace Konoha.Editor
             identity.facingRenderer = facing.GetComponent<Renderer>();
             identity.localOwnerMarker = botMarker;
             identity.ownershipLabel = label;
-            combat.healthLabel = healthLabel;
+            healthObject.SetActive(false);
+            combat.healthLabel = null;
+            CreateWorldWibawaBar(root);
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
             UnityEngine.Object.DestroyImmediate(root);
@@ -485,6 +489,7 @@ namespace Konoha.Editor
             body.transform.localPosition = Vector3.up;
             body.GetComponent<Renderer>().sharedMaterial = neutralMaterial;
             UnityEngine.Object.DestroyImmediate(body.GetComponent<Collider>());
+            CreateActorPresentation(root, body.transform);
 
             var facing = GameObject.CreatePrimitive(PrimitiveType.Cube);
             facing.name = "FacingMarker";
@@ -494,17 +499,17 @@ namespace Konoha.Editor
             facing.GetComponent<Renderer>().sharedMaterial = facingMaterial;
             UnityEngine.Object.DestroyImmediate(facing.GetComponent<Collider>());
 
-            var ownerMarker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            var ownerMarker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             ownerMarker.name = "LocalOwnerMarker";
             ownerMarker.transform.SetParent(root.transform, false);
-            ownerMarker.transform.localPosition = new Vector3(0f, 2.65f, 0f);
-            ownerMarker.transform.localScale = Vector3.one * 0.32f;
+            ownerMarker.transform.localPosition = new Vector3(0f, 0.045f, 0f);
+            ownerMarker.transform.localScale = new Vector3(1.34f, 0.018f, 1.34f);
             ownerMarker.GetComponent<Renderer>().sharedMaterial = ownerMaterial;
             UnityEngine.Object.DestroyImmediate(ownerMarker.GetComponent<Collider>());
 
             var labelObject = new GameObject("OwnershipLabel");
             labelObject.transform.SetParent(root.transform, false);
-            labelObject.transform.localPosition = new Vector3(0f, 2.30f, 0f);
+            labelObject.transform.localPosition = new Vector3(0f, 2.82f, 0f);
             var label = labelObject.AddComponent<TextMesh>();
             label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             label.text = "PLAYER";
@@ -536,7 +541,9 @@ namespace Konoha.Editor
             identity.facingRenderer = facing.GetComponent<Renderer>();
             identity.localOwnerMarker = ownerMarker;
             identity.ownershipLabel = label;
-            combat.healthLabel = healthLabel;
+            healthObject.SetActive(false);
+            combat.healthLabel = null;
+            CreateWorldWibawaBar(root);
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
             UnityEngine.Object.DestroyImmediate(root);
