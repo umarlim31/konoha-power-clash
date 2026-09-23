@@ -138,7 +138,7 @@ namespace Konoha.Networking
         {
             switch (Hero)
             {
-                case PrototypeHero.Prabowo: return IsGarudaActive ? 31 : 24;
+                case PrototypeHero.Prabowo: return 24;
                 case PrototypeHero.Abah: return 13;
                 case PrototypeHero.Jokowi: return 15;
                 default: return 18;
