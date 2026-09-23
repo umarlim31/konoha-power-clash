@@ -219,6 +219,35 @@ namespace Konoha.Networking
             pengaruh.Value = Mathf.Clamp(pengaruh.Value + amount, 0, MaxPengaruh);
         }
 
+        public void ServerResetForMatch()
+        {
+            if (!IsServer)
+                return;
+
+            pengaruh.Value = 0;
+            rage.Value = 0;
+            silencedUntil.Value = 0d;
+            stunnedUntil.Value = 0d;
+            garudaUntil.Value = 0d;
+            roadUntil.Value = 0d;
+            narasiUntil.Value = 0d;
+            serverS1Ready = 0d;
+            serverS2Ready = 0d;
+            megaBasicCombo = 0;
+        }
+
+        public void ServerOnKnockedOut()
+        {
+            if (!IsServer)
+                return;
+
+            garudaUntil.Value = 0d;
+            roadUntil.Value = 0d;
+            narasiUntil.Value = 0d;
+            stunnedUntil.Value = 0d;
+            silencedUntil.Value = 0d;
+        }
+
         public void ServerOnBasicHit(NetworkHeroKit target, int damage)
         {
             if (!IsServer)
