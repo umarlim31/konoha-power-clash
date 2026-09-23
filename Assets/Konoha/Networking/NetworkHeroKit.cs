@@ -302,7 +302,7 @@ namespace Konoha.Networking
                     continue;
 
                 NetworkHeroKit allyKit = networkObject.GetComponent<NetworkHeroKit>();
-                if (allyKit == null || allyKit.Hero != PrototypeHero.Prabowo)
+                if (allyKit == null || allyKit == this || allyKit.Hero != PrototypeHero.Prabowo)
                     continue;
 
                 if (HorizontalDistanceSqr(transform.position, allyKit.transform.position) <= 25f)
@@ -509,7 +509,7 @@ namespace Konoha.Networking
         private void ServerKader()
         {
             Vector3 center = transform.position + transform.forward * 2.4f;
-            PlayAbilityFxClientRpc((int)Hero, 2, center, transform.right);
+            PlayAbilityFxClientRpc((int)Hero, 2, center, transform.forward);
             ServerGainPengaruh(4);
         }
 
@@ -568,9 +568,7 @@ namespace Konoha.Networking
                     continue;
 
                 Vector3 toward = delta.sqrMagnitude > 0.001f ? delta.normalized : direction;
-                if (Vector3.Dot(direction, toward) < 0.25f)
-                    continue;
-
+                float facingDot = Vector3.Dot(direction, toward);
                 bool sameTeam = NetworkTeamUtility.GetTeam(networkObject.OwnerClientId) ==
                                 NetworkTeamUtility.GetTeam(OwnerClientId);
 
@@ -579,9 +577,10 @@ namespace Konoha.Networking
 
                 if (sameTeam)
                 {
-                    combat?.ServerGrantShield(20);
+                    if (facingDot <= 0.15f)
+                        combat?.ServerGrantShield(20);
                 }
-                else
+                else if (facingDot >= 0.25f)
                 {
                     combat?.ServerReceiveDamage(10, OwnerClientId);
                     kit?.ServerApplyKnockback(toward * 3.0f);
@@ -717,7 +716,7 @@ namespace Konoha.Networking
 
             if (hero == PrototypeHero.Mega && slot == 2)
             {
-                yield return SpawnBlocker(position + direction * 1.1f, 6f);
+                yield return SpawnBlocker(position, 6f);
                 yield break;
             }
 
