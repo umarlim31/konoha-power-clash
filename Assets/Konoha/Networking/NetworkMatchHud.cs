@@ -13,11 +13,13 @@ namespace Konoha.Networking
         public Button chairButton;
         public Button debugTimerButton;
         public Button debugPowerButton;
+        public Button debugPengaruhButton;
 
         private Text startLabel;
         private Text chairLabel;
         private Text debugTimerLabel;
         private Text debugPowerLabel;
+        private Text debugPengaruhLabel;
         private NetworkMatchManager manager;
 
         private void Awake()
@@ -45,6 +47,12 @@ namespace Konoha.Networking
                 debugPowerLabel = debugPowerButton.GetComponentInChildren<Text>();
                 debugPowerButton.onClick.AddListener(OnDebugPowerPressed);
             }
+
+            if (debugPengaruhButton != null)
+            {
+                debugPengaruhLabel = debugPengaruhButton.GetComponentInChildren<Text>();
+                debugPengaruhButton.onClick.AddListener(OnDebugPengaruhPressed);
+            }
         }
 
         private void OnDestroy()
@@ -60,6 +68,9 @@ namespace Konoha.Networking
 
             if (debugPowerButton != null)
                 debugPowerButton.onClick.RemoveListener(OnDebugPowerPressed);
+
+            if (debugPengaruhButton != null)
+                debugPengaruhButton.onClick.RemoveListener(OnDebugPengaruhPressed);
         }
 
         private void Update()
@@ -76,6 +87,7 @@ namespace Konoha.Networking
                 SetButton(chairButton, chairLabel, false, "DUDUK");
                 SetButton(debugTimerButton, debugTimerLabel, false, "TEST TIMER 10s");
                 SetButton(debugPowerButton, debugPowerLabel, false, "TEST POWER 95");
+                SetButton(debugPengaruhButton, debugPengaruhLabel, false, "TEST ULT 100");
                 return;
             }
 
@@ -168,6 +180,7 @@ namespace Konoha.Networking
 
             SetButton(debugTimerButton, debugTimerLabel, manager.CanUseDebugTest, "TEST TIMER 10s");
             SetButton(debugPowerButton, debugPowerLabel, manager.CanUseDebugTest, "TEST POWER 95");
+            SetButton(debugPengaruhButton, debugPengaruhLabel, manager.CanUseDebugTest, "TEST ULT 100");
         }
 
         private void OnStartPressed()
@@ -188,6 +201,11 @@ namespace Konoha.Networking
         private void OnDebugPowerPressed()
         {
             manager?.RequestDebugPowerFromLocal();
+        }
+
+        private void OnDebugPengaruhPressed()
+        {
+            manager?.RequestDebugPengaruhFromLocal();
         }
 
         private static string GetStateText(GreyboxMatchState state)
