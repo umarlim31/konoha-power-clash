@@ -11,11 +11,16 @@ namespace Konoha.Networking
         public GameObject localOwnerMarker;
         public TextMesh ownershipLabel;
 
+        public float nameplateVisibleDistance = 15f;
+        public float nameplateScaleNear = 1f;
+        public float nameplateScaleFar = 0.78f;
+
         private Camera cachedCamera;
         private Color baseBodyColor;
         private Color baseFacingColor;
         private bool knockedOut;
         private Coroutine damageFlashRoutine;
+        private float nextReadabilityRefresh;
 
         public override void OnNetworkSpawn()
         {
@@ -32,17 +37,29 @@ namespace Konoha.Networking
             if (localOwnerMarker != null)
                 localOwnerMarker.SetActive(IsOwner && bot == null);
 
+            cachedCamera = Camera.main;
             RefreshOwnershipLabel();
+            RefreshReadability(true);
 
             gameObject.name = bot != null
                 ? "NetworkBot_" + NetworkTeamUtility.GetTeamName(team) + "_" + bot.Slot
                 : "NetworkPlayer_" + OwnerClientId + (IsOwner ? "_LOCAL" : "_REMOTE");
-            cachedCamera = Camera.main;
 
             Debug.Log(
-                "[KONOHA SPAWN] PlayerObject ready | owner=" + OwnerClientId +
+                "[KONOHA SPAWN] Actor ready | owner=" + OwnerClientId +
                 " | localClient=" + NetworkManager.LocalClientId +
-                " | isOwner=" + IsOwner);
+                " | isOwner=" + IsOwner +
+                " | bot=" + (bot != null));
+        }
+
+        private void Update()
+        {
+            if (!IsSpawned || Time.unscaledTime < nextReadabilityRefresh)
+                return;
+
+            nextReadabilityRefresh = Time.unscaledTime + 0.20f;
+            RefreshOwnershipLabel();
+            RefreshReadability(false);
         }
 
         public void RefreshOwnershipLabel()
@@ -51,46 +68,54 @@ namespace Konoha.Networking
                 return;
 
             NetworkBotController bot = GetComponent<NetworkBotController>();
-            int team = NetworkTeamUtility.GetTeam(NetworkObject);
             NetworkHeroKit kit = GetComponent<NetworkHeroKit>();
+            NetworkMatchManager match = NetworkMatchManager.Instance;
+            int team = NetworkTeamUtility.GetTeam(NetworkObject);
+
             string heroName = kit != null
                 ? NetworkHeroKit.GetHeroName(kit.Hero)
                 : bot != null ? bot.HeroName : "HERO";
 
-            if (bot != null)
+            string identity = bot != null
+                ? "B" + bot.Slot + " " + heroName
+                : "P" + OwnerClientId + " " + heroName + (IsOwner ? " • YOU" : "");
+
+            bool ruler = match != null && match.IsRuler(NetworkObject);
+            ownershipLabel.text = ruler
+                ? identity + "\nPENGUASA"
+                : identity;
+
+            if (knockedOut)
             {
-                ownershipLabel.text = "BOT " + bot.Slot +
-                                      " | " + NetworkTeamUtility.GetTeamName(team) +
-                                      " | " + heroName;
+                ownershipLabel.color = new Color(1f, 0.32f, 0.28f);
+            }
+            else if (bot == null && IsOwner)
+            {
+                ownershipLabel.color = new Color(0.50f, 1f, 0.58f);
             }
             else
             {
-                string role = OwnerClientId == Unity.Netcode.NetworkManager.ServerClientId ? "HOST" : "CLIENT";
-                ownershipLabel.text = "P" + OwnerClientId + " " + role +
-                                      " | " + NetworkTeamUtility.GetTeamName(team) +
-                                      " | " + heroName +
-                                      (IsOwner ? "\nYOU / OWNER" : "");
+                ownershipLabel.color = Color.Lerp(
+                    NetworkTeamUtility.GetTeamColor(team),
+                    Color.white,
+                    0.28f);
             }
-
-            ownershipLabel.color = knockedOut
-                ? new Color(1f, 0.32f, 0.28f)
-                : bot == null && IsOwner ? new Color(0.45f, 1f, 0.50f) : Color.white;
         }
 
         private void LateUpdate()
         {
-            if (!IsSpawned || ownershipLabel == null)
+            if (!IsSpawned || ownershipLabel == null || !ownershipLabel.gameObject.activeSelf)
                 return;
 
             if (cachedCamera == null)
                 cachedCamera = Camera.main;
 
-            if (cachedCamera != null)
-            {
-                Vector3 direction = ownershipLabel.transform.position - cachedCamera.transform.position;
-                if (direction.sqrMagnitude > 0.001f)
-                    ownershipLabel.transform.rotation = Quaternion.LookRotation(direction);
-            }
+            if (cachedCamera == null)
+                return;
+
+            Vector3 direction = ownershipLabel.transform.position - cachedCamera.transform.position;
+            if (direction.sqrMagnitude > 0.001f)
+                ownershipLabel.transform.rotation = Quaternion.LookRotation(direction);
         }
 
         public void PlayDamageFeedback()
@@ -115,14 +140,42 @@ namespace Konoha.Networking
             }
 
             ApplyCurrentVisual();
+            RefreshOwnershipLabel();
+            RefreshReadability(true);
+        }
 
-            if (ownershipLabel != null)
-            {
-                bool isHumanLocalOwner = GetComponent<NetworkBotController>() == null && IsOwner;
-                ownershipLabel.color = knockedOut
-                    ? new Color(1f, 0.32f, 0.28f)
-                    : isHumanLocalOwner ? new Color(0.45f, 1f, 0.50f) : Color.white;
-            }
+        private void RefreshReadability(bool force)
+        {
+            if (ownershipLabel == null)
+                return;
+
+            if (cachedCamera == null)
+                cachedCamera = Camera.main;
+
+            NetworkBotController bot = GetComponent<NetworkBotController>();
+            bool localHuman = bot == null && IsOwner;
+            NetworkMatchManager match = NetworkMatchManager.Instance;
+            bool ruler = match != null && match.IsRuler(NetworkObject);
+
+            float distance = cachedCamera != null
+                ? Vector3.Distance(cachedCamera.transform.position, transform.position)
+                : 0f;
+
+            bool visible = localHuman ||
+                           knockedOut ||
+                           ruler ||
+                           cachedCamera == null ||
+                           distance <= nameplateVisibleDistance;
+
+            if (force || ownershipLabel.gameObject.activeSelf != visible)
+                ownershipLabel.gameObject.SetActive(visible);
+
+            if (!visible)
+                return;
+
+            float t = Mathf.InverseLerp(7f, nameplateVisibleDistance, distance);
+            float scale = Mathf.Lerp(nameplateScaleNear, nameplateScaleFar, t);
+            ownershipLabel.transform.localScale = Vector3.one * scale;
         }
 
         private IEnumerator DamageFlash()
