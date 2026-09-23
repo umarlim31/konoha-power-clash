@@ -10,6 +10,7 @@ namespace Konoha.Character
         public LocomotionDefinition definition;
         private CharacterController controller;
         private float verticalSpeed;
+        public float speedMultiplier = 1f;
         public bool Grounded => controller != null && controller.isGrounded;
         public Vector3 Velocity => controller != null ? controller.velocity : Vector3.zero;
         private void Awake() => controller = GetComponent<CharacterController>();
@@ -21,7 +22,8 @@ namespace Konoha.Character
             if (Grounded && verticalSpeed < 0f) verticalSpeed = definition.groundStickSpeed;
             verticalSpeed += definition.gravity * deltaTime;
             Vector3 direction = intent.WorldDirection;
-            var collision = controller.Move((direction * definition.speed + Vector3.up * verticalSpeed) * deltaTime);
+            float effectiveSpeed = definition.speed * Mathf.Max(0.1f, speedMultiplier);
+            var collision = controller.Move((direction * effectiveSpeed + Vector3.up * verticalSpeed) * deltaTime);
             if ((collision & CollisionFlags.Above) != 0 && verticalSpeed > 0f) verticalSpeed = 0f;
             if (direction.sqrMagnitude > 0.001f)
                 transform.rotation = Quaternion.RotateTowards(transform.rotation,
