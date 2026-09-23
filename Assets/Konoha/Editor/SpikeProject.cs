@@ -182,7 +182,7 @@ namespace Konoha.Editor
                 PrimitiveType.Cylinder,
                 root.transform,
                 new Vector3(0f, 0.035f, 0f),
-                new Vector3(1.12f, 0.018f, 1.12f),
+                new Vector3(1.06f, 0.016f, 1.06f),
                 ringMaterial,
                 Vector3.zero);
             presentation.teamRingRenderer = ring.GetComponent<Renderer>();
@@ -194,28 +194,28 @@ namespace Konoha.Editor
 
             var megaRoot = new GameObject("HeroVisual_MEGA");
             megaRoot.transform.SetParent(root.transform, false);
-            ActorPrimitive("MegaShoulderL", PrimitiveType.Cube, megaRoot.transform, new Vector3(-0.58f, 1.45f, 0f), new Vector3(0.44f, 0.20f, 0.55f), mega, Vector3.zero);
-            ActorPrimitive("MegaShoulderR", PrimitiveType.Cube, megaRoot.transform, new Vector3(0.58f, 1.45f, 0f), new Vector3(0.44f, 0.20f, 0.55f), mega, Vector3.zero);
-            ActorPrimitive("MegaHornL", PrimitiveType.Cube, megaRoot.transform, new Vector3(-0.34f, 2.02f, 0.02f), new Vector3(0.42f, 0.11f, 0.11f), mega, new Vector3(0f, 0f, -24f));
-            ActorPrimitive("MegaHornR", PrimitiveType.Cube, megaRoot.transform, new Vector3(0.34f, 2.02f, 0.02f), new Vector3(0.42f, 0.11f, 0.11f), mega, new Vector3(0f, 0f, 24f));
+            ActorPrimitive("MegaShoulderL", PrimitiveType.Cube, megaRoot.transform, new Vector3(-0.49f, 1.45f, 0f), new Vector3(0.30f, 0.16f, 0.43f), mega, Vector3.zero);
+            ActorPrimitive("MegaShoulderR", PrimitiveType.Cube, megaRoot.transform, new Vector3(0.49f, 1.45f, 0f), new Vector3(0.30f, 0.16f, 0.43f), mega, Vector3.zero);
+            ActorPrimitive("MegaHornL", PrimitiveType.Cube, megaRoot.transform, new Vector3(-0.26f, 2.00f, 0.02f), new Vector3(0.28f, 0.08f, 0.08f), mega, new Vector3(0f, 0f, -28f));
+            ActorPrimitive("MegaHornR", PrimitiveType.Cube, megaRoot.transform, new Vector3(0.26f, 2.00f, 0.02f), new Vector3(0.28f, 0.08f, 0.08f), mega, new Vector3(0f, 0f, 28f));
 
             var prabowoRoot = new GameObject("HeroVisual_PRABOWO");
             prabowoRoot.transform.SetParent(root.transform, false);
-            ActorPrimitive("PrabowoShoulderL", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(-0.64f, 1.52f, 0f), new Vector3(0.52f, 0.26f, 0.66f), prabowo, Vector3.zero);
-            ActorPrimitive("PrabowoShoulderR", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(0.64f, 1.52f, 0f), new Vector3(0.52f, 0.26f, 0.66f), prabowo, Vector3.zero);
-            ActorPrimitive("PrabowoChest", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(0f, 1.38f, 0.48f), new Vector3(0.58f, 0.30f, 0.12f), prabowo, Vector3.zero);
+            ActorPrimitive("PrabowoShoulderL", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(-0.53f, 1.50f, 0f), new Vector3(0.34f, 0.20f, 0.50f), prabowo, Vector3.zero);
+            ActorPrimitive("PrabowoShoulderR", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(0.53f, 1.50f, 0f), new Vector3(0.34f, 0.20f, 0.50f), prabowo, Vector3.zero);
+            ActorPrimitive("PrabowoChest", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(0f, 1.36f, 0.47f), new Vector3(0.46f, 0.24f, 0.09f), prabowo, Vector3.zero);
 
             var abahRoot = new GameObject("HeroVisual_ABAH");
             abahRoot.transform.SetParent(root.transform, false);
-            ActorPrimitive("AbahScarf", PrimitiveType.Cube, abahRoot.transform, new Vector3(0f, 1.52f, 0.15f), new Vector3(1.18f, 0.12f, 0.22f), abah, new Vector3(0f, 0f, -8f));
-            ActorPrimitive("AbahBook", PrimitiveType.Cube, abahRoot.transform, new Vector3(-0.48f, 1.05f, 0.42f), new Vector3(0.30f, 0.42f, 0.10f), abah, new Vector3(0f, 8f, -12f));
-            ActorPrimitive("AbahSignal", PrimitiveType.Sphere, abahRoot.transform, new Vector3(0f, 2.05f, 0f), new Vector3(0.24f, 0.24f, 0.24f), abah, Vector3.zero);
+            ActorPrimitive("AbahScarf", PrimitiveType.Cube, abahRoot.transform, new Vector3(0f, 1.50f, 0.12f), new Vector3(0.76f, 0.09f, 0.18f), abah, new Vector3(0f, 0f, -7f));
+            ActorPrimitive("AbahBook", PrimitiveType.Cube, abahRoot.transform, new Vector3(-0.42f, 1.08f, 0.40f), new Vector3(0.22f, 0.32f, 0.08f), abah, new Vector3(0f, 8f, -10f));
+            ActorPrimitive("AbahSignal", PrimitiveType.Sphere, abahRoot.transform, new Vector3(0f, 2.00f, 0f), new Vector3(0.16f, 0.16f, 0.16f), abah, Vector3.zero);
 
             var jokowiRoot = new GameObject("HeroVisual_JOKOWI");
             jokowiRoot.transform.SetParent(root.transform, false);
-            ActorPrimitive("JokowiBeam", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0.42f, 1.30f, -0.20f), new Vector3(0.18f, 1.20f, 0.18f), jokowi, new Vector3(0f, 0f, -24f));
-            ActorPrimitive("JokowiTool", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0.55f, 1.72f, -0.20f), new Vector3(0.62f, 0.16f, 0.18f), jokowi, new Vector3(0f, 0f, -24f));
-            ActorPrimitive("JokowiVest", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0f, 1.26f, 0.48f), new Vector3(0.52f, 0.52f, 0.10f), jokowi, Vector3.zero);
+            ActorPrimitive("JokowiBeam", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0.38f, 1.28f, -0.16f), new Vector3(0.12f, 0.78f, 0.12f), jokowi, new Vector3(0f, 0f, -22f));
+            ActorPrimitive("JokowiTool", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0.47f, 1.60f, -0.16f), new Vector3(0.40f, 0.11f, 0.13f), jokowi, new Vector3(0f, 0f, -22f));
+            ActorPrimitive("JokowiVest", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0f, 1.27f, 0.47f), new Vector3(0.42f, 0.42f, 0.08f), jokowi, Vector3.zero);
 
             presentation.heroVisuals = new[]
             {
@@ -481,7 +481,7 @@ namespace Konoha.Editor
 
             var neutralMaterial = Material("NetworkPlayerNeutral", new Color(0.72f, 0.78f, 0.84f));
             var facingMaterial = Material("NetworkPlayerFacing", new Color(0.95f, 0.75f, 0.25f));
-            var ownerMaterial = Material("NetworkPlayerOwner", new Color(0.35f, 1.00f, 0.45f));
+            var ownerMaterial = Material("NetworkPlayerOwner", new Color(1.00f, 0.88f, 0.28f));
 
             var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             body.name = "Body";
@@ -503,7 +503,7 @@ namespace Konoha.Editor
             ownerMarker.name = "LocalOwnerMarker";
             ownerMarker.transform.SetParent(root.transform, false);
             ownerMarker.transform.localPosition = new Vector3(0f, 0.045f, 0f);
-            ownerMarker.transform.localScale = new Vector3(1.34f, 0.018f, 1.34f);
+            ownerMarker.transform.localScale = new Vector3(1.18f, 0.016f, 1.18f);
             ownerMarker.GetComponent<Renderer>().sharedMaterial = ownerMaterial;
             UnityEngine.Object.DestroyImmediate(ownerMarker.GetComponent<Collider>());
 
@@ -760,8 +760,12 @@ namespace Konoha.Editor
             var layout = canvasObject.AddComponent<SafeAreaLayout>();
             layout.safeRoot = safe;
             layout.joystick = pad;
-            Label(Rect("Instruction", safe, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 15f), new Vector2(560f, 32f)),
-                "0.0.6A | Proper 4v4 Match Experience", 20).alignment = TextAnchor.MiddleCenter;
+            var buildLabel = Label(
+                Rect("Instruction", safe, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 10f), new Vector2(480f, 24f)),
+                "0.0.6A • Proper 4v4 Match Experience",
+                12);
+            buildLabel.alignment = TextAnchor.MiddleCenter;
+            buildLabel.color = new Color(0.58f, 0.64f, 0.70f, 0.90f);
 
             Button MakeActionButton(string name, string caption, Vector2 position, Vector2 size)
             {
