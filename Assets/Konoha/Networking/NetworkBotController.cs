@@ -88,7 +88,13 @@ namespace Konoha.Networking
                 return;
 
             NetworkMatchManager match = NetworkMatchManager.Instance;
-            if (match == null || !match.AllowsGameplay || combat == null || combat.IsKnockedOut)
+            heroKit ??= GetComponent<NetworkHeroKit>();
+
+            if (match == null ||
+                !match.AllowsGameplay ||
+                combat == null ||
+                combat.IsKnockedOut ||
+                (heroKit != null && heroKit.IsStunned))
             {
                 desiredDirection = Vector3.zero;
                 return;
