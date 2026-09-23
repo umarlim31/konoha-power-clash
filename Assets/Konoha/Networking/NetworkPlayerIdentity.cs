@@ -117,9 +117,12 @@ namespace Konoha.Networking
             ApplyCurrentVisual();
 
             if (ownershipLabel != null)
+            {
+                bool isHumanLocalOwner = GetComponent<NetworkBotController>() == null && IsOwner;
                 ownershipLabel.color = knockedOut
                     ? new Color(1f, 0.32f, 0.28f)
-                    : IsOwner ? new Color(0.45f, 1f, 0.50f) : Color.white;
+                    : isHumanLocalOwner ? new Color(0.45f, 1f, 0.50f) : Color.white;
+            }
         }
 
         private IEnumerator DamageFlash()
