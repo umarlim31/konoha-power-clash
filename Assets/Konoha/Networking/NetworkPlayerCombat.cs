@@ -265,8 +265,12 @@ namespace Konoha.Networking
 
             heroKit ??= GetComponent<NetworkHeroKit>();
 
+            NetworkHeroKit attackerKit = FindHeroKitByOwner(sourceClientId);
+            float outgoingMultiplier = attackerKit != null ? attackerKit.GetOutgoingDamageMultiplier() : 1f;
             float incomingMultiplier = heroKit != null ? heroKit.GetIncomingDamageMultiplier() : 1f;
-            int adjustedDamage = Mathf.Max(1, Mathf.RoundToInt(damage * incomingMultiplier));
+            int adjustedDamage = Mathf.Max(
+                1,
+                Mathf.RoundToInt(damage * outgoingMultiplier * incomingMultiplier));
 
             int absorbed = Mathf.Min(shield.Value, adjustedDamage);
             if (absorbed > 0)
@@ -278,7 +282,6 @@ namespace Konoha.Networking
             if (adjustedDamage > 0)
                 health.Value = Mathf.Clamp(health.Value - adjustedDamage, 0, MaxWibawa);
 
-            NetworkHeroKit attackerKit = FindHeroKitByOwner(sourceClientId);
             attackerKit?.ServerGainPengaruh(Mathf.Clamp(damage / 2, 4, 15));
 
             if (health.Value == 0 && !serverRespawnRunning)
