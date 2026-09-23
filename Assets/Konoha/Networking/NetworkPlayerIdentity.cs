@@ -91,7 +91,7 @@ namespace Konoha.Networking
             }
             else if (bot == null && IsOwner)
             {
-                ownershipLabel.color = new Color(0.50f, 1f, 0.58f);
+                ownershipLabel.color = new Color(1.00f, 0.92f, 0.48f);
             }
             else
             {
