@@ -1096,9 +1096,9 @@ namespace Konoha.Networking
             switch (Hero)
             {
                 case PrototypeHero.Mega: return "BANTENG\nCHARGE";
-                case PrototypeHero.Prabowo: return "COMMANDER\nLEAP";
+                case PrototypeHero.Prabowo: return "CMD\nLEAP";
                 case PrototypeHero.Abah: return "NARASI";
-                case PrototypeHero.Jokowi: return "INFRASTRUKTUR";
+                case PrototypeHero.Jokowi: return "INFRA\nSTRUKTUR";
                 default: return "S1";
             }
         }
@@ -1119,10 +1119,10 @@ namespace Konoha.Networking
         {
             switch (Hero)
             {
-                case PrototypeHero.Mega: return "MONCONG PUTIH";
-                case PrototypeHero.Prabowo: return "GARUDA MODE";
+                case PrototypeHero.Mega: return "MONCONG";
+                case PrototypeHero.Prabowo: return "GARUDA";
                 case PrototypeHero.Abah: return "PIDATO";
-                case PrototypeHero.Jokowi: return "PROYEK NASIONAL";
+                case PrototypeHero.Jokowi: return "PROYEK";
                 default: return "ULT";
             }
         }
