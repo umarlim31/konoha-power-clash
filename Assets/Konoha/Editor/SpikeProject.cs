@@ -142,6 +142,88 @@ namespace Konoha.Editor
             return box;
         }
 
+        private static GameObject DecorativePrimitive(
+            string name,
+            PrimitiveType primitive,
+            Vector3 position,
+            Vector3 scale,
+            Material material,
+            Vector3 euler)
+        {
+            var value = GameObject.CreatePrimitive(primitive);
+            value.name = name;
+            value.transform.position = position;
+            value.transform.localScale = scale;
+            value.transform.eulerAngles = euler;
+            value.GetComponent<Renderer>().sharedMaterial = material;
+
+            Collider collider = value.GetComponent<Collider>();
+            if (collider != null)
+                UnityEngine.Object.DestroyImmediate(collider);
+
+            return value;
+        }
+
+        private static void CreateFloorChevron(
+            string name,
+            Vector3 center,
+            bool pointRight,
+            Material material)
+        {
+            float sign = pointRight ? 1f : -1f;
+
+            DecorativePrimitive(
+                name + "_A",
+                PrimitiveType.Cube,
+                center + new Vector3(-0.35f * sign, 0f, -0.35f),
+                new Vector3(0.92f, 0.012f, 0.16f),
+                material,
+                new Vector3(0f, pointRight ? -38f : 38f, 0f));
+
+            DecorativePrimitive(
+                name + "_B",
+                PrimitiveType.Cube,
+                center + new Vector3(-0.35f * sign, 0f, 0.35f),
+                new Vector3(0.92f, 0.012f, 0.16f),
+                material,
+                new Vector3(0f, pointRight ? 38f : -38f, 0f));
+        }
+
+        private static void CreateStyledCover(
+            string name,
+            Vector3 position,
+            Material bodyMaterial,
+            Material capMaterial,
+            Material accentMaterial,
+            bool mirror)
+        {
+            Box(name + "_Body", position + new Vector3(0f, 0.46f, 0f), new Vector3(2.85f, 0.92f, 3.10f), bodyMaterial);
+            DecorativePrimitive(
+                name + "_Top",
+                PrimitiveType.Cube,
+                position + new Vector3(0f, 0.96f, 0f),
+                new Vector3(3.12f, 0.11f, 3.36f),
+                capMaterial,
+                Vector3.zero);
+
+            float side = mirror ? -1f : 1f;
+            DecorativePrimitive(
+                name + "_Accent",
+                PrimitiveType.Cube,
+                position + new Vector3(1.46f * side, 0.62f, 0f),
+                new Vector3(0.08f, 0.34f, 2.40f),
+                accentMaterial,
+                Vector3.zero);
+
+            DecorativePrimitive(
+                name + "_Slant",
+                PrimitiveType.Cube,
+                position + new Vector3(-0.90f * side, 0.72f, 1.42f),
+                new Vector3(0.72f, 0.14f, 0.10f),
+                capMaterial,
+                new Vector3(0f, mirror ? -24f : 24f, 0f));
+        }
+
         private static GameObject ActorPrimitive(
             string name,
             PrimitiveType primitive,
