@@ -134,40 +134,71 @@ namespace Konoha.Editor
         private static void CreateArena()
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            var ground = Material("Floor", new Color(0.12f, 0.18f, 0.24f));
-            var wall = Material("Wall", new Color(0.35f, 0.43f, 0.50f));
-            var accent = Material("Marker", new Color(0.95f, 0.57f, 0.15f));
+
+            // Arena Negara Konoha v0.1 — playable Nusantara power-complex greybox.
+            var stone = Material("Floor", new Color(0.18f, 0.20f, 0.19f));
+            var wall = Material("Wall", new Color(0.38f, 0.40f, 0.37f));
+            var red = Material("KonohaRed", new Color(0.72f, 0.08f, 0.07f));
+            var ivory = Material("KonohaIvory", new Color(0.86f, 0.82f, 0.70f));
+            var gold = Material("PowerGold", new Color(0.72f, 0.48f, 0.12f));
+            var water = Material("WaterMarker", new Color(0.10f, 0.35f, 0.42f));
             var heroMaterial = Material("TemporaryHero", new Color(0.15f, 0.9f, 0.8f));
-            Box("Floor", new Vector3(0f, -0.5f, 0f), new Vector3(32f, 1f, 24f), ground);
-            Box("NorthBoundary", new Vector3(0f, 0.6f, 12f), new Vector3(33f, 1.2f, 1f), wall);
-            Box("SouthBoundary", new Vector3(0f, 0.6f, -12f), new Vector3(33f, 1.2f, 1f), wall);
-            Box("EastBoundary", new Vector3(16f, 0.6f, 0f), new Vector3(1f, 1.2f, 24f), wall);
-            Box("WestBoundary", new Vector3(-16f, 0.6f, 0f), new Vector3(1f, 1.2f, 24f), wall);
-            Box("ObstacleA", new Vector3(-5f, 0.6f, 2f), new Vector3(3f, 1.2f, 3f), wall);
-            Box("ObstacleB", new Vector3(5f, 0.6f, -2f), new Vector3(3f, 1.2f, 3f), wall);
-            for (int x = -10; x <= 10; x += 5)
+
+            var arena = new GameObject("ARENA_NEGARA_KONOHA_V01");
+            Box("Plaza_Floor", new Vector3(0f, -0.5f, 0f), new Vector3(52f, 1f, 42f), stone).transform.SetParent(arena.transform);
+            Box("NorthBoundary", new Vector3(0f, 1.5f, 21f), new Vector3(53f, 3f, 1f), wall).transform.SetParent(arena.transform);
+            Box("SouthBoundary", new Vector3(0f, 1.5f, -21f), new Vector3(53f, 3f, 1f), wall).transform.SetParent(arena.transform);
+            Box("EastBoundary", new Vector3(26f, 1.5f, 0f), new Vector3(1f, 3f, 42f), wall).transform.SetParent(arena.transform);
+            Box("WestBoundary", new Vector3(-26f, 1.5f, 0f), new Vector3(1f, 3f, 42f), wall).transform.SetParent(arena.transform);
+
+            // Central Kursi Kekuasaan objective + original Konoha Garuda landmark silhouette.
+            Box("CentralDais", new Vector3(0f, 0.5f, 0f), new Vector3(10f, 1f, 10f), ivory).transform.SetParent(arena.transform);
+            Box("PowerCore", new Vector3(0f, 1.35f, 0f), new Vector3(5f, 0.7f, 5f), gold).transform.SetParent(arena.transform);
+            Box("KursiKekuasaan_Back", new Vector3(0f, 3.1f, 0.8f), new Vector3(2.4f, 4.2f, 0.7f), gold).transform.SetParent(arena.transform);
+            Box("KursiKekuasaan_Seat", new Vector3(0f, 1.8f, -0.2f), new Vector3(2.4f, 0.6f, 2.2f), gold).transform.SetParent(arena.transform);
+            Box("GarudaMonument_Pillar", new Vector3(0f, 4.5f, 5.7f), new Vector3(1.5f, 9f, 1.5f), ivory).transform.SetParent(arena.transform);
+            Box("GarudaKonoha_Body", new Vector3(0f, 9.4f, 5.7f), new Vector3(1.3f, 2.0f, 0.8f), gold).transform.SetParent(arena.transform);
+            var wingL=Box("GarudaKonoha_WingL", new Vector3(-2.1f, 9.7f, 5.7f), new Vector3(3.4f, 0.55f, 0.65f), gold); wingL.transform.rotation=Quaternion.Euler(0f,0f,18f); wingL.transform.SetParent(arena.transform);
+            var wingR=Box("GarudaKonoha_WingR", new Vector3(2.1f, 9.7f, 5.7f), new Vector3(3.4f, 0.55f, 0.65f), gold); wingR.transform.rotation=Quaternion.Euler(0f,0f,-18f); wingR.transform.SetParent(arena.transform);
+
+            // Four approach lanes, ring cover and flank channels.
+            for (int i = -1; i <= 1; i += 2)
             {
-                var marker = Box("NavigationMarker", new Vector3(x, 0.006f, 6f), new Vector3(1f, 0.01f, 1f), accent);
-                UnityEngine.Object.DestroyImmediate(marker.GetComponent<Collider>());
+                Box("EastWestCover", new Vector3(i * 12f, 0.75f, 0f), new Vector3(4f, 1.5f, 2f), wall).transform.SetParent(arena.transform);
+                Box("NorthSouthCover", new Vector3(0f, 0.75f, i * 13f), new Vector3(2f, 1.5f, 4f), wall).transform.SetParent(arena.transform);
+                Box("FlankBridge", new Vector3(i * 19f, 1.0f, 0f), new Vector3(4f, 2f, 10f), ivory).transform.SetParent(arena.transform);
+                var canal=Box("CanalMarker", new Vector3(i * 19f, 0.03f, 12f), new Vector3(4f, 0.05f, 10f), water);
+                UnityEngine.Object.DestroyImmediate(canal.GetComponent<Collider>()); canal.transform.SetParent(arena.transform);
             }
+
+            // Six fictional institutional sectors from the Power Blueprint.
+            string[] sectorNames = { "MajelisDaun", "KomisiSuara", "BiroProsedur", "KonsorsiumModal", "MenaraNarasi", "GardaTakhta" };
+            Vector3[] sectorPos = {
+                new Vector3(-19f,2f,15f), new Vector3(0f,2f,17f), new Vector3(19f,2f,15f),
+                new Vector3(-19f,2f,-15f), new Vector3(0f,2f,-17f), new Vector3(19f,2f,-15f)
+            };
+            for (int i=0;i<sectorNames.Length;i++)
+            {
+                Box("Sector_"+sectorNames[i], sectorPos[i], new Vector3(9f,4f,5f), i%2==0 ? wall : ivory).transform.SetParent(arena.transform);
+                Box("Gate_"+sectorNames[i], sectorPos[i] + new Vector3(0f,-0.5f, sectorPos[i].z>0 ? -3f : 3f), new Vector3(3f,3f,1f), red).transform.SetParent(arena.transform);
+            }
+
+            // Spawn territories and readable red/blue team approach markers.
+            Box("Spawn_A", new Vector3(-22f,0.05f,0f), new Vector3(5f,0.1f,7f), red).transform.SetParent(arena.transform);
+            var blue = Material("TeamBlue", new Color(0.08f,0.30f,0.68f));
+            Box("Spawn_B", new Vector3(22f,0.05f,0f), new Vector3(5f,0.1f,7f), blue).transform.SetParent(arena.transform);
+
             var hero = new GameObject("TemporaryPlayableCharacter");
-            hero.transform.position = new Vector3(0f, 0.1f, -4f);
+            hero.transform.position = new Vector3(-20f, 0.1f, 0f);
             var controller = hero.AddComponent<CharacterController>();
-            controller.height = 2f;
-            controller.center = Vector3.up;
-            controller.radius = 0.45f;
-            controller.stepOffset = 0.2f;
-            controller.slopeLimit = 45f;
-            controller.minMoveDistance = 0f;
+            controller.height = 2f; controller.center = Vector3.up; controller.radius = 0.45f;
+            controller.stepOffset = 0.2f; controller.slopeLimit = 45f; controller.minMoveDistance = 0f;
             var model = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            model.name = "PlaceholderSilhouette";
-            model.transform.SetParent(hero.transform, false);
-            model.transform.localPosition = Vector3.up;
-            model.GetComponent<Renderer>().sharedMaterial = heroMaterial;
+            model.name = "PlaceholderSilhouette"; model.transform.SetParent(hero.transform, false);
+            model.transform.localPosition = Vector3.up; model.GetComponent<Renderer>().sharedMaterial = heroMaterial;
             UnityEngine.Object.DestroyImmediate(model.GetComponent<Collider>());
-            var nose = Box("FacingMarker", Vector3.zero, new Vector3(0.22f, 0.25f, 0.6f), accent);
-            UnityEngine.Object.DestroyImmediate(nose.GetComponent<Collider>());
-            nose.transform.SetParent(hero.transform, false);
+            var nose = Box("FacingMarker", Vector3.zero, new Vector3(0.22f, 0.25f, 0.6f), gold);
+            UnityEngine.Object.DestroyImmediate(nose.GetComponent<Collider>()); nose.transform.SetParent(hero.transform, false);
             nose.transform.localPosition = new Vector3(0f, 1.35f, 0.5f);
             var motor = hero.AddComponent<CharacterMotor>();
             motor.definition = LoadOrCreate<LocomotionDefinition>(Generated + "/Locomotion.asset");
@@ -175,27 +206,19 @@ namespace Konoha.Editor
             var cameraObject = new GameObject("MobileCamera", typeof(Camera), typeof(AudioListener));
             cameraObject.tag = "MainCamera";
             var camera = cameraObject.GetComponent<Camera>();
-            camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = new Color(0.04f, 0.07f, 0.1f);
-            camera.fieldOfView = 55f;
-            camera.nearClipPlane = 0.1f;
-            camera.farClipPlane = 80f;
-            var follow = cameraObject.AddComponent<MobileCombatCamera>();
-            follow.target = hero.transform;
+            camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = new Color(0.10f,0.12f,0.14f);
+            camera.fieldOfView = 55f; camera.nearClipPlane = 0.1f; camera.farClipPlane = 110f;
+            var follow = cameraObject.AddComponent<MobileCombatCamera>(); follow.target = hero.transform;
             cameraObject.transform.position = hero.transform.position + follow.offset;
             cameraObject.transform.rotation = Quaternion.LookRotation(-follow.offset);
             var light = new GameObject("Sun", typeof(Light)).GetComponent<Light>();
-            light.type = LightType.Directional;
-            light.intensity = 1.1f;
-            light.shadows = LightShadows.None;
-            light.transform.rotation = Quaternion.Euler(55f, -25f, 0f);
-            RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.55f, 0.6f, 0.7f);
+            light.type = LightType.Directional; light.intensity = 1.15f; light.shadows = LightShadows.None;
+            light.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
+            RenderSettings.ambientMode = AmbientMode.Flat; RenderSettings.ambientLight = new Color(0.58f,0.55f,0.48f);
 
             var joystick = CreateHud(motor);
             var driver = new GameObject("OfflineSpikeDriver").AddComponent<OfflineSpikeDriver>();
-            driver.joystick = joystick;
-            driver.motor = motor;
+            driver.joystick = joystick; driver.motor = motor;
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
         }
