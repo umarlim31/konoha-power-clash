@@ -1,5 +1,7 @@
 # KONOHA: POWER CLASH - Android Technical Spike 0.1
 
+> **Current development is on feature branches.** `main` and much of this README describe the old 0.0.1 spike. The 4v4 prototype lives on `feature/v0.0.6a2-hero-greybox-polish`; character concept alignment is on `feat/hero-concept-alignment-006a3`. For manual Unity Build Automation from a phone/tablet, read [Docs/MOBILE_MANUAL_BUILD_006A3.md](Docs/MOBILE_MANUAL_BUILD_006A3.md). The new solo-first PvE campaign is scoped separately in [Docs/GAME_BIBLE_V2_IMPLEMENTATION.md](Docs/GAME_BIBLE_V2_IMPLEMENTATION.md).
+
 Current build: **0.0.1**. Status: **PARTIAL - source prepared; Unity compilation and device validation pending**.
 Engine: **CANDIDATE LOCK**, not Final Freeze.
 
