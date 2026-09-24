@@ -485,8 +485,8 @@ namespace Konoha.Editor
             var facing = GameObject.CreatePrimitive(PrimitiveType.Cube);
             facing.name = "FacingMarker";
             facing.transform.SetParent(root.transform, false);
-            facing.transform.localPosition = new Vector3(0f, 1.35f, 0.55f);
-            facing.transform.localScale = new Vector3(0.22f, 0.25f, 0.6f);
+            facing.transform.localPosition = new Vector3(0f, 1.36f, 0.48f);
+            facing.transform.localScale = new Vector3(0.12f, 0.14f, 0.32f);
             facing.GetComponent<Renderer>().sharedMaterial = facingMaterial;
             UnityEngine.Object.DestroyImmediate(facing.GetComponent<Collider>());
 
@@ -500,12 +500,12 @@ namespace Konoha.Editor
 
             var labelObject = new GameObject("OwnershipLabel");
             labelObject.transform.SetParent(root.transform, false);
-            labelObject.transform.localPosition = new Vector3(0f, 2.78f, 0f);
+            labelObject.transform.localPosition = new Vector3(0f, 2.70f, 0f);
             var label = labelObject.AddComponent<TextMesh>();
             label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             label.text = "BOT";
-            label.fontSize = 32;
-            label.characterSize = 0.044f;
+            label.fontSize = 34;
+            label.characterSize = 0.048f;
             label.anchor = TextAnchor.MiddleCenter;
             label.alignment = TextAlignment.Center;
             label.color = Color.white;
@@ -587,8 +587,8 @@ namespace Konoha.Editor
             var facing = GameObject.CreatePrimitive(PrimitiveType.Cube);
             facing.name = "FacingMarker";
             facing.transform.SetParent(root.transform, false);
-            facing.transform.localPosition = new Vector3(0f, 1.35f, 0.55f);
-            facing.transform.localScale = new Vector3(0.22f, 0.25f, 0.6f);
+            facing.transform.localPosition = new Vector3(0f, 1.36f, 0.48f);
+            facing.transform.localScale = new Vector3(0.12f, 0.14f, 0.32f);
             facing.GetComponent<Renderer>().sharedMaterial = facingMaterial;
             UnityEngine.Object.DestroyImmediate(facing.GetComponent<Collider>());
 
@@ -602,12 +602,12 @@ namespace Konoha.Editor
 
             var labelObject = new GameObject("OwnershipLabel");
             labelObject.transform.SetParent(root.transform, false);
-            labelObject.transform.localPosition = new Vector3(0f, 2.82f, 0f);
+            labelObject.transform.localPosition = new Vector3(0f, 2.72f, 0f);
             var label = labelObject.AddComponent<TextMesh>();
             label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             label.text = "PLAYER";
-            label.fontSize = 34;
-            label.characterSize = 0.047f;
+            label.fontSize = 36;
+            label.characterSize = 0.050f;
             label.anchor = TextAnchor.MiddleCenter;
             label.alignment = TextAlignment.Center;
             label.color = Color.white;
