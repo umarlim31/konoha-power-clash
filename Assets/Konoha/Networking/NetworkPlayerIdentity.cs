@@ -77,8 +77,10 @@ namespace Konoha.Networking
                 : bot != null ? bot.HeroName : "HERO";
 
             string identity = bot != null
-                ? "B" + bot.Slot + " " + heroName
-                : "P" + OwnerClientId + " " + heroName + (IsOwner ? " • YOU" : "");
+                ? heroName + " • BOT"
+                : IsOwner
+                    ? heroName + " • YOU"
+                    : heroName + " • P" + OwnerClientId;
 
             bool ruler = match != null && match.IsRuler(NetworkObject);
             ownershipLabel.text = ruler
