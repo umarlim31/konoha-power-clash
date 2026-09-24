@@ -40,7 +40,7 @@ namespace Konoha.Networking
         {
             if (!Application.isPlaying)
             {
-                SetStatus("NETWORK READY | 0.0.6A.1");
+                SetStatus("NETWORK READY | 0.0.6A.2.2");
                 return;
             }
 
@@ -98,7 +98,7 @@ namespace Konoha.Networking
 
             initialized = true;
             SetNetworkButtons(false);
-            SetStatus("NETWORK READY | 0.0.6A.1");
+            SetStatus("NETWORK READY | 0.0.6A.2.2");
         }
 
         private void OnDestroy()
@@ -194,7 +194,7 @@ namespace Konoha.Networking
             RestoreOfflinePrototype();
             SetNetworkButtons(false);
             SetNetworkCompact(false);
-            SetStatus("NETWORK READY | 0.0.6A.1");
+            SetStatus("NETWORK READY | 0.0.6A.2.2");
         }
 
         private void OnClientConnected(ulong clientId)
