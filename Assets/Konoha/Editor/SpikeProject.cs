@@ -650,71 +650,99 @@ namespace Konoha.Editor
         private static void CreateArena()
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            var ground = Material("Floor", new Color(0.075f, 0.105f, 0.145f));
-            var wall = Material("Wall", new Color(0.25f, 0.31f, 0.38f));
-            var wallCap = Material("WallCap", new Color(0.43f, 0.50f, 0.58f));
-            var accent = Material("Marker", new Color(0.92f, 0.58f, 0.18f));
-            var laneMaterial = Material("CenterLane", new Color(0.105f, 0.145f, 0.19f));
+            var ground = Material("Floor", new Color(0.052f, 0.073f, 0.105f));
+            var floorInset = Material("FloorInset", new Color(0.075f, 0.100f, 0.137f));
+            var wall = Material("Wall", new Color(0.20f, 0.25f, 0.31f));
+            var wallCap = Material("WallCap", new Color(0.39f, 0.45f, 0.52f));
+            var trim = Material("ArenaTrim", new Color(0.16f, 0.20f, 0.25f));
+            var accent = Material("Marker", new Color(0.88f, 0.55f, 0.16f));
+            var laneMaterial = Material("CenterLane", new Color(0.086f, 0.118f, 0.155f));
             var heroMaterial = Material("TemporaryHero", new Color(0.15f, 0.9f, 0.8f));
             var cyanMaterial = Material("TeamCyan", NetworkTeamUtility.GetTeamColor(NetworkTeamUtility.CyanTeam));
             var orangeMaterial = Material("TeamOrange", NetworkTeamUtility.GetTeamColor(NetworkTeamUtility.OrangeTeam));
-            var cyanBaseMaterial = Material("TeamCyanBase", new Color(0.07f, 0.25f, 0.27f));
-            var orangeBaseMaterial = Material("TeamOrangeBase", new Color(0.31f, 0.17f, 0.07f));
-            var chairMaterial = Material("ChairGold", new Color(0.95f, 0.72f, 0.18f));
-            var zoneMaterial = Material("ChairZone", new Color(0.18f, 0.30f, 0.34f));
+            var cyanBaseMaterial = Material("TeamCyanBase", new Color(0.045f, 0.20f, 0.22f));
+            var orangeBaseMaterial = Material("TeamOrangeBase", new Color(0.26f, 0.13f, 0.05f));
+            var chairMaterial = Material("ChairGold", new Color(0.94f, 0.70f, 0.17f));
+            var chairDark = Material("ChairDark", new Color(0.20f, 0.16f, 0.07f));
+            var zoneMaterial = Material("ChairZone", new Color(0.13f, 0.21f, 0.24f));
             var networkPlayerPrefab = CreateNetworkPlayerPrefab();
             var networkBotPrefab = CreateNetworkBotPrefab();
             var matchManagerPrefab = CreateMatchManagerPrefab(networkBotPrefab);
             Box("Floor", new Vector3(0f, -0.5f, 0f), new Vector3(32f, 1f, 24f), ground);
-            Box("NorthBoundary", new Vector3(0f, 0.6f, 12f), new Vector3(33f, 1.2f, 1f), wall);
-            Box("SouthBoundary", new Vector3(0f, 0.6f, -12f), new Vector3(33f, 1.2f, 1f), wall);
-            Box("EastBoundary", new Vector3(16f, 0.6f, 0f), new Vector3(1f, 1.2f, 24f), wall);
-            Box("WestBoundary", new Vector3(-16f, 0.6f, 0f), new Vector3(1f, 1.2f, 24f), wall);
 
-            var centerLane = Box("CenterLane", new Vector3(0f, 0.008f, 0f), new Vector3(7.5f, 0.015f, 21f), laneMaterial);
-            UnityEngine.Object.DestroyImmediate(centerLane.GetComponent<Collider>());
+            Box("NorthBoundary", new Vector3(0f, 0.55f, 12f), new Vector3(33f, 1.1f, 0.8f), wall);
+            Box("SouthBoundary", new Vector3(0f, 0.55f, -12f), new Vector3(33f, 1.1f, 0.8f), wall);
+            Box("EastBoundary", new Vector3(16f, 0.55f, 0f), new Vector3(0.8f, 1.1f, 24f), wall);
+            Box("WestBoundary", new Vector3(-16f, 0.55f, 0f), new Vector3(0.8f, 1.1f, 24f), wall);
 
-            var cyanBase = Box("CyanSpawnBay", new Vector3(-9.4f, 0.012f, 0f), new Vector3(7.2f, 0.02f, 9.0f), cyanBaseMaterial);
-            var orangeBase = Box("OrangeSpawnBay", new Vector3(9.4f, 0.012f, 0f), new Vector3(7.2f, 0.02f, 9.0f), orangeBaseMaterial);
-            UnityEngine.Object.DestroyImmediate(cyanBase.GetComponent<Collider>());
-            UnityEngine.Object.DestroyImmediate(orangeBase.GetComponent<Collider>());
+            DecorativePrimitive("NorthTrim", PrimitiveType.Cube, new Vector3(0f, 1.12f, 11.96f), new Vector3(33f, 0.08f, 0.86f), wallCap, Vector3.zero);
+            DecorativePrimitive("SouthTrim", PrimitiveType.Cube, new Vector3(0f, 1.12f, -11.96f), new Vector3(33f, 0.08f, 0.86f), wallCap, Vector3.zero);
+            DecorativePrimitive("EastTrim", PrimitiveType.Cube, new Vector3(15.96f, 1.12f, 0f), new Vector3(0.86f, 0.08f, 24f), wallCap, Vector3.zero);
+            DecorativePrimitive("WestTrim", PrimitiveType.Cube, new Vector3(-15.96f, 1.12f, 0f), new Vector3(0.86f, 0.08f, 24f), wallCap, Vector3.zero);
 
-            Box("CoverLeftBase", new Vector3(-5.1f, 0.48f, 2.2f), new Vector3(2.8f, 0.96f, 3.2f), wall);
-            Box("CoverLeftCap", new Vector3(-5.1f, 1.02f, 2.2f), new Vector3(3.15f, 0.14f, 3.55f), wallCap);
-            Box("CoverRightBase", new Vector3(5.1f, 0.48f, -2.2f), new Vector3(2.8f, 0.96f, 3.2f), wall);
-            Box("CoverRightCap", new Vector3(5.1f, 1.02f, -2.2f), new Vector3(3.15f, 0.14f, 3.55f), wallCap);
+            DecorativePrimitive("CenterLane", PrimitiveType.Cube, new Vector3(0f, 0.008f, 0f), new Vector3(6.8f, 0.015f, 21f), laneMaterial, Vector3.zero);
+            DecorativePrimitive("NorthSideLane", PrimitiveType.Cube, new Vector3(0f, 0.010f, 7.7f), new Vector3(24f, 0.012f, 2.4f), floorInset, Vector3.zero);
+            DecorativePrimitive("SouthSideLane", PrimitiveType.Cube, new Vector3(0f, 0.010f, -7.7f), new Vector3(24f, 0.012f, 2.4f), floorInset, Vector3.zero);
 
-            Box("NorthPillarL", new Vector3(-11.5f, 0.9f, 8.7f), new Vector3(1.2f, 1.8f, 1.2f), wall);
-            Box("NorthPillarR", new Vector3(11.5f, 0.9f, 8.7f), new Vector3(1.2f, 1.8f, 1.2f), wall);
-            Box("SouthPillarL", new Vector3(-11.5f, 0.9f, -8.7f), new Vector3(1.2f, 1.8f, 1.2f), wall);
-            Box("SouthPillarR", new Vector3(11.5f, 0.9f, -8.7f), new Vector3(1.2f, 1.8f, 1.2f), wall);
+            DecorativePrimitive("CyanSpawnBay", PrimitiveType.Cube, new Vector3(-10.0f, 0.012f, 0f), new Vector3(8.0f, 0.02f, 9.4f), cyanBaseMaterial, Vector3.zero);
+            DecorativePrimitive("OrangeSpawnBay", PrimitiveType.Cube, new Vector3(10.0f, 0.012f, 0f), new Vector3(8.0f, 0.02f, 9.4f), orangeBaseMaterial, Vector3.zero);
 
-            var cyanBanner = Box("CyanTeamWall", new Vector3(-15.35f, 1.55f, 0f), new Vector3(0.18f, 2.6f, 7.8f), cyanBaseMaterial);
-            var orangeBanner = Box("OrangeTeamWall", new Vector3(15.35f, 1.55f, 0f), new Vector3(0.18f, 2.6f, 7.8f), orangeBaseMaterial);
-            UnityEngine.Object.DestroyImmediate(cyanBanner.GetComponent<Collider>());
-            UnityEngine.Object.DestroyImmediate(orangeBanner.GetComponent<Collider>());
+            for (int z = -3; z <= 3; z += 2)
+            {
+                CreateFloorChevron(
+                    "CyanChevron_" + z,
+                    new Vector3(-12.0f, 0.032f, z),
+                    true,
+                    cyanMaterial);
 
-            var chairPedestal = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            chairPedestal.name = "KursiPedestal";
-            chairPedestal.transform.position = new Vector3(0f, 0.08f, 0f);
-            chairPedestal.transform.localScale = new Vector3(1.65f, 0.08f, 1.65f);
-            chairPedestal.GetComponent<Renderer>().sharedMaterial = chairMaterial;
-            UnityEngine.Object.DestroyImmediate(chairPedestal.GetComponent<Collider>());
+                CreateFloorChevron(
+                    "OrangeChevron_" + z,
+                    new Vector3(12.0f, 0.032f, z),
+                    false,
+                    orangeMaterial);
+            }
+
+            CreateStyledCover("NorthWestCover", new Vector3(-5.2f, 0f, 2.5f), wall, wallCap, cyanBaseMaterial, false);
+            CreateStyledCover("SouthEastCover", new Vector3(5.2f, 0f, -2.5f), wall, wallCap, orangeBaseMaterial, true);
+
+            Box("NorthWestRelay", new Vector3(-8.7f, 0.72f, 7.7f), new Vector3(1.35f, 1.44f, 1.35f), trim);
+            DecorativePrimitive("NorthWestRelayCap", PrimitiveType.Cylinder, new Vector3(-8.7f, 1.52f, 7.7f), new Vector3(0.90f, 0.16f, 0.90f), cyanMaterial, Vector3.zero);
+
+            Box("SouthEastRelay", new Vector3(8.7f, 0.72f, -7.7f), new Vector3(1.35f, 1.44f, 1.35f), trim);
+            DecorativePrimitive("SouthEastRelayCap", PrimitiveType.Cylinder, new Vector3(8.7f, 1.52f, -7.7f), new Vector3(0.90f, 0.16f, 0.90f), orangeMaterial, Vector3.zero);
+
+            DecorativePrimitive("NorthEastLandmark", PrimitiveType.Cylinder, new Vector3(11.8f, 0.70f, 8.5f), new Vector3(0.70f, 0.70f, 0.70f), wall, Vector3.zero);
+            DecorativePrimitive("SouthWestLandmark", PrimitiveType.Cylinder, new Vector3(-11.8f, 0.70f, -8.5f), new Vector3(0.70f, 0.70f, 0.70f), wall, Vector3.zero);
+
+            DecorativePrimitive("CyanTeamWall", PrimitiveType.Cube, new Vector3(-15.30f, 1.30f, 0f), new Vector3(0.14f, 2.2f, 7.4f), cyanBaseMaterial, Vector3.zero);
+            DecorativePrimitive("OrangeTeamWall", PrimitiveType.Cube, new Vector3(15.30f, 1.30f, 0f), new Vector3(0.14f, 2.2f, 7.4f), orangeBaseMaterial, Vector3.zero);
+
+            DecorativePrimitive("CyanWallStripe", PrimitiveType.Cube, new Vector3(-15.20f, 1.62f, 0f), new Vector3(0.08f, 0.16f, 6.4f), cyanMaterial, Vector3.zero);
+            DecorativePrimitive("OrangeWallStripe", PrimitiveType.Cube, new Vector3(15.20f, 1.62f, 0f), new Vector3(0.08f, 0.16f, 6.4f), orangeMaterial, Vector3.zero);
+
+            DecorativePrimitive("KursiLowerDais", PrimitiveType.Cylinder, new Vector3(0f, 0.055f, 0f), new Vector3(2.25f, 0.055f, 2.25f), chairDark, Vector3.zero);
+            DecorativePrimitive("KursiUpperDais", PrimitiveType.Cylinder, new Vector3(0f, 0.115f, 0f), new Vector3(1.55f, 0.08f, 1.55f), chairMaterial, Vector3.zero);
 
             var chairZone = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             chairZone.name = "KursiCaptureZone";
-            chairZone.transform.position = new Vector3(0f, 0.025f, 0f);
+            chairZone.transform.position = new Vector3(0f, 0.020f, 0f);
             chairZone.transform.localScale = new Vector3(
                 NetworkMatchManager.CaptureRadius * 2f,
-                0.025f,
+                0.018f,
                 NetworkMatchManager.CaptureRadius * 2f);
             chairZone.GetComponent<Renderer>().sharedMaterial = zoneMaterial;
             UnityEngine.Object.DestroyImmediate(chairZone.GetComponent<Collider>());
 
-            var chairSeat = Box("KursiSeat", new Vector3(0f, 0.45f, 0f), new Vector3(1.25f, 0.28f, 1.15f), chairMaterial);
-            var chairBack = Box("KursiBack", new Vector3(0f, 1.15f, 0.48f), new Vector3(1.25f, 1.35f, 0.22f), chairMaterial);
-            var chairLeftArm = Box("KursiLeftArm", new Vector3(-0.73f, 0.75f, 0f), new Vector3(0.18f, 0.7f, 1.1f), chairMaterial);
-            var chairRightArm = Box("KursiRightArm", new Vector3(0.73f, 0.75f, 0f), new Vector3(0.18f, 0.7f, 1.1f), chairMaterial);
+            DecorativePrimitive("ObjectiveNorthTick", PrimitiveType.Cube, new Vector3(0f, 0.032f, 3.25f), new Vector3(1.8f, 0.018f, 0.10f), chairMaterial, Vector3.zero);
+            DecorativePrimitive("ObjectiveSouthTick", PrimitiveType.Cube, new Vector3(0f, 0.032f, -3.25f), new Vector3(1.8f, 0.018f, 0.10f), chairMaterial, Vector3.zero);
+            DecorativePrimitive("ObjectiveEastTick", PrimitiveType.Cube, new Vector3(3.25f, 0.032f, 0f), new Vector3(0.10f, 0.018f, 1.8f), chairMaterial, Vector3.zero);
+            DecorativePrimitive("ObjectiveWestTick", PrimitiveType.Cube, new Vector3(-3.25f, 0.032f, 0f), new Vector3(0.10f, 0.018f, 1.8f), chairMaterial, Vector3.zero);
+
+            var chairSeat = Box("KursiSeat", new Vector3(0f, 0.48f, 0f), new Vector3(1.18f, 0.28f, 1.05f), chairMaterial);
+            var chairBack = Box("KursiBack", new Vector3(0f, 1.18f, 0.43f), new Vector3(1.18f, 1.30f, 0.18f), chairMaterial);
+            var chairLeftArm = Box("KursiLeftArm", new Vector3(-0.67f, 0.77f, 0f), new Vector3(0.14f, 0.62f, 0.96f), chairMaterial);
+            var chairRightArm = Box("KursiRightArm", new Vector3(0.67f, 0.77f, 0f), new Vector3(0.14f, 0.62f, 0.96f), chairMaterial);
+            var chairCrown = DecorativePrimitive("KursiCrown", PrimitiveType.Cube, new Vector3(0f, 1.84f, 0.43f), new Vector3(0.72f, 0.12f, 0.16f), chairDark, new Vector3(0f, 0f, 0f));
 
             UnityEngine.Object.DestroyImmediate(chairSeat.GetComponent<Collider>());
             UnityEngine.Object.DestroyImmediate(chairBack.GetComponent<Collider>());
@@ -729,25 +757,35 @@ namespace Konoha.Editor
                 chairSeat.GetComponent<Renderer>(),
                 chairBack.GetComponent<Renderer>(),
                 chairLeftArm.GetComponent<Renderer>(),
-                chairRightArm.GetComponent<Renderer>()
+                chairRightArm.GetComponent<Renderer>(),
+                chairCrown.GetComponent<Renderer>()
             };
 
             for (ulong clientId = 0; clientId < 8; clientId++)
             {
                 int team = NetworkTeamUtility.GetTeam(clientId);
-                var spawnMarker = Box(
+                Vector3 spawn = NetworkTeamUtility.GetSpawnPosition(clientId);
+
+                var spawnMarker = DecorativePrimitive(
                     "TeamSpawn_" + clientId,
-                    NetworkTeamUtility.GetSpawnPosition(clientId) + new Vector3(0f, -0.085f, 0f),
-                    new Vector3(1.25f, 0.025f, 1.25f),
+                    PrimitiveType.Cylinder,
+                    spawn + new Vector3(0f, -0.070f, 0f),
+                    new Vector3(0.92f, 0.018f, 0.92f),
+                    team == NetworkTeamUtility.CyanTeam ? cyanMaterial : orangeMaterial,
+                    Vector3.zero);
+
+                CreateFloorChevron(
+                    "SpawnArrow_" + clientId,
+                    spawn + new Vector3(team == NetworkTeamUtility.CyanTeam ? 0.75f : -0.75f, -0.052f, 0f),
+                    team == NetworkTeamUtility.CyanTeam,
                     team == NetworkTeamUtility.CyanTeam ? cyanMaterial : orangeMaterial);
-                UnityEngine.Object.DestroyImmediate(spawnMarker.GetComponent<Collider>());
             }
 
-            for (int x = -10; x <= 10; x += 5)
+            for (int z = -7; z <= 7; z += 7)
             {
-                var marker = Box("NavigationMarker", new Vector3(x, 0.010f, 6.8f), new Vector3(0.70f, 0.012f, 0.70f), accent);
-                UnityEngine.Object.DestroyImmediate(marker.GetComponent<Collider>());
+                DecorativePrimitive("CenterGuide_" + z, PrimitiveType.Cube, new Vector3(0f, 0.024f, z), new Vector3(1.10f, 0.012f, 0.08f), accent, Vector3.zero);
             }
+
             var hero = new GameObject("TemporaryPlayableCharacter");
             hero.transform.position = new Vector3(0f, 0.1f, -4f);
             var controller = hero.AddComponent<CharacterController>();
