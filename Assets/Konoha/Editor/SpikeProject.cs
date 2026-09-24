@@ -176,17 +176,20 @@ namespace Konoha.Editor
             var presentation = root.AddComponent<NetworkActorPresentation>();
             presentation.bodyTransform = bodyTransform;
 
-            var ringMaterial = Material("ActorTeamRing", new Color(0.55f, 0.60f, 0.68f));
+            var ringMaterial = Material("ActorTeamRing", new Color(0.42f, 0.48f, 0.56f));
             var ring = ActorPrimitive(
                 "TeamRing",
                 PrimitiveType.Cylinder,
                 root.transform,
-                new Vector3(0f, 0.035f, 0f),
-                new Vector3(1.06f, 0.016f, 1.06f),
+                new Vector3(0f, 0.025f, 0f),
+                new Vector3(1.00f, 0.012f, 1.00f),
                 ringMaterial,
                 Vector3.zero);
             presentation.teamRingRenderer = ring.GetComponent<Renderer>();
 
+            Material dark = Material("HeroShellDark", new Color(0.075f, 0.09f, 0.12f));
+            Material metal = Material("HeroShellMetal", new Color(0.36f, 0.40f, 0.45f));
+            Material light = Material("HeroShellLight", new Color(0.76f, 0.80f, 0.84f));
             Material mega = Material("HeroMegaAccent", new Color(0.82f, 0.16f, 0.20f));
             Material prabowo = Material("HeroPrabowoAccent", new Color(0.95f, 0.72f, 0.20f));
             Material abah = Material("HeroAbahAccent", new Color(0.22f, 0.66f, 0.98f));
@@ -194,28 +197,36 @@ namespace Konoha.Editor
 
             var megaRoot = new GameObject("HeroVisual_MEGA");
             megaRoot.transform.SetParent(root.transform, false);
-            ActorPrimitive("MegaShoulderL", PrimitiveType.Cube, megaRoot.transform, new Vector3(-0.49f, 1.45f, 0f), new Vector3(0.30f, 0.16f, 0.43f), mega, Vector3.zero);
-            ActorPrimitive("MegaShoulderR", PrimitiveType.Cube, megaRoot.transform, new Vector3(0.49f, 1.45f, 0f), new Vector3(0.30f, 0.16f, 0.43f), mega, Vector3.zero);
-            ActorPrimitive("MegaHornL", PrimitiveType.Cube, megaRoot.transform, new Vector3(-0.26f, 2.00f, 0.02f), new Vector3(0.28f, 0.08f, 0.08f), mega, new Vector3(0f, 0f, -28f));
-            ActorPrimitive("MegaHornR", PrimitiveType.Cube, megaRoot.transform, new Vector3(0.26f, 2.00f, 0.02f), new Vector3(0.28f, 0.08f, 0.08f), mega, new Vector3(0f, 0f, 28f));
+            ActorPrimitive("MegaHelmet", PrimitiveType.Sphere, megaRoot.transform, new Vector3(0f, 1.92f, 0f), new Vector3(0.62f, 0.38f, 0.58f), dark, Vector3.zero);
+            ActorPrimitive("MegaShoulderL", PrimitiveType.Cylinder, megaRoot.transform, new Vector3(-0.48f, 1.43f, 0f), new Vector3(0.24f, 0.13f, 0.24f), mega, new Vector3(0f, 0f, 90f));
+            ActorPrimitive("MegaShoulderR", PrimitiveType.Cylinder, megaRoot.transform, new Vector3(0.48f, 1.43f, 0f), new Vector3(0.24f, 0.13f, 0.24f), mega, new Vector3(0f, 0f, 90f));
+            ActorPrimitive("MegaHornL", PrimitiveType.Cube, megaRoot.transform, new Vector3(-0.27f, 2.04f, 0.03f), new Vector3(0.30f, 0.07f, 0.07f), light, new Vector3(0f, 0f, -31f));
+            ActorPrimitive("MegaHornR", PrimitiveType.Cube, megaRoot.transform, new Vector3(0.27f, 2.04f, 0.03f), new Vector3(0.30f, 0.07f, 0.07f), light, new Vector3(0f, 0f, 31f));
+            ActorPrimitive("MegaChest", PrimitiveType.Cube, megaRoot.transform, new Vector3(0f, 1.34f, 0.45f), new Vector3(0.48f, 0.22f, 0.08f), mega, Vector3.zero);
 
             var prabowoRoot = new GameObject("HeroVisual_PRABOWO");
             prabowoRoot.transform.SetParent(root.transform, false);
-            ActorPrimitive("PrabowoShoulderL", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(-0.53f, 1.50f, 0f), new Vector3(0.34f, 0.20f, 0.50f), prabowo, Vector3.zero);
-            ActorPrimitive("PrabowoShoulderR", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(0.53f, 1.50f, 0f), new Vector3(0.34f, 0.20f, 0.50f), prabowo, Vector3.zero);
-            ActorPrimitive("PrabowoChest", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(0f, 1.36f, 0.47f), new Vector3(0.46f, 0.24f, 0.09f), prabowo, Vector3.zero);
+            ActorPrimitive("PrabowoHelmet", PrimitiveType.Sphere, prabowoRoot.transform, new Vector3(0f, 1.94f, 0f), new Vector3(0.58f, 0.40f, 0.56f), dark, Vector3.zero);
+            ActorPrimitive("PrabowoShoulderL", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(-0.52f, 1.48f, 0f), new Vector3(0.32f, 0.18f, 0.46f), metal, new Vector3(0f, 0f, -4f));
+            ActorPrimitive("PrabowoShoulderR", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(0.52f, 1.48f, 0f), new Vector3(0.32f, 0.18f, 0.46f), metal, new Vector3(0f, 0f, 4f));
+            ActorPrimitive("PrabowoChest", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(0f, 1.34f, 0.48f), new Vector3(0.52f, 0.30f, 0.08f), prabowo, Vector3.zero);
+            ActorPrimitive("PrabowoCrest", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(0f, 2.12f, -0.02f), new Vector3(0.11f, 0.26f, 0.11f), prabowo, new Vector3(0f, 0f, -8f));
 
             var abahRoot = new GameObject("HeroVisual_ABAH");
             abahRoot.transform.SetParent(root.transform, false);
-            ActorPrimitive("AbahScarf", PrimitiveType.Cube, abahRoot.transform, new Vector3(0f, 1.50f, 0.12f), new Vector3(0.76f, 0.09f, 0.18f), abah, new Vector3(0f, 0f, -7f));
-            ActorPrimitive("AbahBook", PrimitiveType.Cube, abahRoot.transform, new Vector3(-0.42f, 1.08f, 0.40f), new Vector3(0.22f, 0.32f, 0.08f), abah, new Vector3(0f, 8f, -10f));
-            ActorPrimitive("AbahSignal", PrimitiveType.Sphere, abahRoot.transform, new Vector3(0f, 2.00f, 0f), new Vector3(0.16f, 0.16f, 0.16f), abah, Vector3.zero);
+            ActorPrimitive("AbahCap", PrimitiveType.Sphere, abahRoot.transform, new Vector3(0f, 1.97f, 0f), new Vector3(0.52f, 0.28f, 0.50f), dark, Vector3.zero);
+            ActorPrimitive("AbahScarfFront", PrimitiveType.Cube, abahRoot.transform, new Vector3(0.18f, 1.42f, 0.45f), new Vector3(0.22f, 0.70f, 0.07f), abah, new Vector3(0f, 0f, -6f));
+            ActorPrimitive("AbahScarfBack", PrimitiveType.Cube, abahRoot.transform, new Vector3(-0.20f, 1.45f, -0.36f), new Vector3(0.18f, 0.62f, 0.07f), abah, new Vector3(10f, 0f, 7f));
+            ActorPrimitive("AbahBook", PrimitiveType.Cube, abahRoot.transform, new Vector3(-0.42f, 1.10f, 0.37f), new Vector3(0.21f, 0.29f, 0.07f), light, new Vector3(0f, 7f, -12f));
+            ActorPrimitive("AbahSignal", PrimitiveType.Sphere, abahRoot.transform, new Vector3(0f, 2.17f, 0f), new Vector3(0.13f, 0.13f, 0.13f), abah, Vector3.zero);
 
             var jokowiRoot = new GameObject("HeroVisual_JOKOWI");
             jokowiRoot.transform.SetParent(root.transform, false);
-            ActorPrimitive("JokowiBeam", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0.38f, 1.28f, -0.16f), new Vector3(0.12f, 0.78f, 0.12f), jokowi, new Vector3(0f, 0f, -22f));
-            ActorPrimitive("JokowiTool", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0.47f, 1.60f, -0.16f), new Vector3(0.40f, 0.11f, 0.13f), jokowi, new Vector3(0f, 0f, -22f));
-            ActorPrimitive("JokowiVest", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0f, 1.27f, 0.47f), new Vector3(0.42f, 0.42f, 0.08f), jokowi, Vector3.zero);
+            ActorPrimitive("JokowiCap", PrimitiveType.Sphere, jokowiRoot.transform, new Vector3(0f, 1.95f, 0f), new Vector3(0.54f, 0.30f, 0.52f), dark, Vector3.zero);
+            ActorPrimitive("JokowiVest", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0f, 1.31f, 0.46f), new Vector3(0.46f, 0.46f, 0.07f), jokowi, Vector3.zero);
+            ActorPrimitive("JokowiBackpack", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0f, 1.30f, -0.42f), new Vector3(0.46f, 0.56f, 0.14f), metal, Vector3.zero);
+            ActorPrimitive("JokowiToolHandle", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0.42f, 1.30f, -0.12f), new Vector3(0.10f, 0.76f, 0.10f), light, new Vector3(0f, 0f, -20f));
+            ActorPrimitive("JokowiToolHead", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0.51f, 1.61f, -0.12f), new Vector3(0.34f, 0.10f, 0.13f), jokowi, new Vector3(0f, 0f, -20f));
 
             presentation.heroVisuals = new[]
             {
