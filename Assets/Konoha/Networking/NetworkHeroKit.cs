@@ -1173,9 +1173,9 @@ namespace Konoha.Networking
             switch (hero)
             {
                 case PrototypeHero.Mega: return "MEGA";
-                case PrototypeHero.Prabowo: return "PRABOWO";
+                case PrototypeHero.Prabowo: return "GEMOY";
                 case PrototypeHero.Abah: return "ABAH";
-                case PrototypeHero.Jokowi: return "JOKOWI";
+                case PrototypeHero.Jokowi: return "PAK WI";
                 default: return hero.ToString().ToUpperInvariant();
             }
         }
@@ -1260,9 +1260,9 @@ namespace Konoha.Networking
             switch (hero)
             {
                 case PrototypeHero.Mega: return new Color(0.80f, 0.15f, 0.20f);
-                case PrototypeHero.Prabowo: return new Color(0.90f, 0.68f, 0.18f);
-                case PrototypeHero.Abah: return new Color(0.20f, 0.65f, 0.95f);
-                case PrototypeHero.Jokowi: return new Color(0.35f, 0.85f, 0.35f);
+                case PrototypeHero.Prabowo: return new Color(0.80f, 0.34f, 0.20f);
+                case PrototypeHero.Abah: return new Color(0.18f, 0.65f, 0.43f);
+                case PrototypeHero.Jokowi: return new Color(0.83f, 0.34f, 0.24f);
                 default: return Color.white;
             }
         }

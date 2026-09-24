@@ -106,13 +106,22 @@ namespace Konoha.Networking
             if (root == null)
                 return;
 
-            Color accent = NetworkHeroKit.GetHeroAccentColor(hero);
-            Color target = knockedOut
-                ? Color.Lerp(accent, Color.black, 0.72f)
-                : accent;
-
             foreach (Renderer renderer in root.GetComponentsInChildren<Renderer>(true))
-                SetRendererColor(renderer, target);
+            {
+                // Keep each generated material's original palette. Recoloring all pieces
+                // with the hero accent turned fabric, metal and ornaments into one flat hue.
+                Material source = renderer.sharedMaterial;
+                if (source == null) continue;
+                string property = source.HasProperty("_BaseColor") ? "_BaseColor" :
+                    source.HasProperty("_Color") ? "_Color" : null;
+                if (property == null) continue;
+                Color original = source.GetColor(property);
+                Color target = knockedOut ? Color.Lerp(original, Color.black, 0.72f) : original;
+                var block = new MaterialPropertyBlock();
+                renderer.GetPropertyBlock(block);
+                block.SetColor(property, target);
+                renderer.SetPropertyBlock(block);
+            }
         }
 
         private void ApplyTeamRing(int team, bool knockedOut)
