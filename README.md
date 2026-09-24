@@ -1,5 +1,7 @@
 # KONOHA: POWER CLASH - Android Technical Spike 0.1
 
+**New optional arena branch:** an offline 0.0.2 power-route scene and Android build menu are described in [docs/ARENA_0.0.2.md](docs/ARENA_0.0.2.md). Its visual and objective values are provisional pending Unity/device verification and the latest concept Bible. The original 0.0.1 instructions below describe the prior spike.
+
 Current build: **0.0.1**. Status: **PARTIAL - source prepared; Unity compilation and device validation pending**.
 Engine: **CANDIDATE LOCK**, not Final Freeze.
 

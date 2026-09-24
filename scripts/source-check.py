@@ -25,6 +25,6 @@ for path in root.glob('scripts/*.py'):
     ast.parse(path.read_text(), filename=str(path))
 for path in root.glob('Assets/**/*.cs'):
     assert path.read_text().strip(), f'Empty C# file: {path}'
-assert len(list(root.glob('Assets/**/*.cs'))) == 12
-print('PASS: JSON, assembly boundaries, unique Unity GUIDs, 12 source files, Python syntax.')
+assert len(list(root.glob('Assets/**/*.cs'))) >= 12
+print('PASS: JSON, assembly boundaries, unique Unity GUIDs, source files, Python syntax.')
 print('NOT RUN: C# compilation, Unity import/tests, APK build, Android hardware.')
