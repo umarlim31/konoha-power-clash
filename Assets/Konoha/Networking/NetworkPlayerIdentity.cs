@@ -27,8 +27,9 @@ namespace Konoha.Networking
             base.OnNetworkSpawn();
 
             int team = NetworkTeamUtility.GetTeam(NetworkObject);
-            baseBodyColor = NetworkTeamUtility.GetTeamColor(team);
-            baseFacingColor = Color.Lerp(baseBodyColor, Color.white, 0.35f);
+            Color teamColor = NetworkTeamUtility.GetTeamColor(team);
+            baseBodyColor = Color.Lerp(teamColor, new Color(0.08f, 0.10f, 0.13f), 0.32f);
+            baseFacingColor = Color.Lerp(teamColor, Color.white, 0.28f);
 
             ApplyCurrentVisual();
 
