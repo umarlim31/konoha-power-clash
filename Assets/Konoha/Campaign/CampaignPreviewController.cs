@@ -4,8 +4,8 @@ using UnityEngine.UI;
 
 namespace Konoha.Campaign
 {
-    // First solo gameplay preview. This uses the existing touch motor and generated hero
-    // silhouettes; faction AI and hero abilities remain future campaign work.
+    // Offline campaign slice. The abilities are lightweight prototype rules and do not
+    // share the PvP hero kit or network authority.
     public sealed class CampaignPreviewController : MonoBehaviour
     {
         public CharacterMotor player;
@@ -20,27 +20,38 @@ namespace Konoha.Campaign
         public Text objectiveText;
         public Text statusText;
         public Text heroText;
+        public Text feedbackText;
         public Button attackButton;
         public Button sitButton;
         public Button heroButton;
+        public Button skillButton;
 
-        private readonly CampaignRunState run = new CampaignRunState(2, 35);
-        private readonly float[] hold = new float[2];
+        private CampaignRunState run = new CampaignRunState(2, 35);
+        private readonly float[] skillReadyAt = new float[4];
         private int heroIndex;
         private int health = 100;
         private int guardHealth;
+        private int biroSteps;
+        private float majelisHold;
+        private float nextBiroStep;
         private float nextGuardHit;
         private float nextBasic;
         private float powerClock;
         private float counterattackClock;
+        private float guardStunnedUntil;
+        private float shieldUntil;
+        private float speedUntil;
         private bool counterattackStarted;
         private bool guardActive;
+        private string feedback;
+        private float feedbackUntil;
 
         private void Start()
         {
             attackButton.onClick.AddListener(BasicAttack);
             sitButton.onClick.AddListener(Sit);
             heroButton.onClick.AddListener(NextHero);
+            skillButton.onClick.AddListener(UseSkill);
             guardVisual.SetActive(false);
             ShowHero();
             RefreshHud();
@@ -51,6 +62,7 @@ namespace Konoha.Campaign
             if (attackButton != null) attackButton.onClick.RemoveListener(BasicAttack);
             if (sitButton != null) sitButton.onClick.RemoveListener(Sit);
             if (heroButton != null) heroButton.onClick.RemoveListener(NextHero);
+            if (skillButton != null) skillButton.onClick.RemoveListener(UseSkill);
         }
 
         private void Update()
@@ -58,21 +70,28 @@ namespace Konoha.Campaign
             if (player == null) return;
             float dt = Mathf.Min(Time.deltaTime, 0.05f);
             var position = player.transform.position;
+            player.speedMultiplier = Time.time < speedUntil ? 1.55f : 1f;
 
             if (run.Phase == CampaignPhase.GerbangRakyat && Near(position, plaza.position, 2.4f))
                 run.ReachPlaza();
 
             if (run.Phase == CampaignPhase.PlazaAspirasi)
             {
-                Capture(CampaignSector.MajelisDaun, majelis, 0, position, dt);
-                Capture(CampaignSector.BiroProsedur, biro, 1, position, dt);
+                // Majelis: listen to the people; Biro: confirm three separate files.
+                if (!run.HasSeal(CampaignSector.MajelisDaun))
+                {
+                    majelisHold = Near(position, majelis.position, 2.3f)
+                        ? Mathf.Min(3f, majelisHold + dt)
+                        : Mathf.Max(0f, majelisHold - dt * 0.5f);
+                    if (majelisHold >= 3f && run.AwardSeal(CampaignSector.MajelisDaun))
+                        Notify("Segel Majelis Daun diperoleh");
+                }
                 run.TryOpenInnerGate();
             }
 
             if (run.Phase == CampaignPhase.GerbangDalam && Near(position, garda.position, 2.6f))
             {
-                run.TryStartGuard();
-                SpawnGuard(garda.position, 75);
+                if (run.TryStartGuard()) SpawnGuard(garda.position, 100);
             }
 
             if (run.Phase == CampaignPhase.Memerintah)
@@ -113,25 +132,19 @@ namespace Konoha.Campaign
             RefreshHud();
         }
 
-        private void Capture(CampaignSector sector, Transform location, int index, Vector3 position, float dt)
-        {
-            if (run.HasSeal(sector)) return;
-            hold[index] = Near(position, location.position, 2.3f) ? hold[index] + dt : 0f;
-            if (hold[index] >= 2.5f)
-                run.AwardSeal(sector);
-        }
-
         private void SpawnGuard(Vector3 position, int hp)
         {
             guardVisual.transform.position = new Vector3(position.x, 0f, position.z);
             guardVisual.SetActive(true);
             guardHealth = hp;
             guardActive = true;
+            guardStunnedUntil = 0f;
             nextGuardHit = Time.time + 1.5f;
         }
 
         private void MoveAndAttackGuard(float dt)
         {
+            if (Time.time < guardStunnedUntil) return;
             Vector3 target = player.transform.position;
             target.y = guardVisual.transform.position.y;
             float distance = Vector3.Distance(guardVisual.transform.position, target);
@@ -143,15 +156,16 @@ namespace Konoha.Campaign
                     target, 2.1f * dt);
             else if (Time.time >= nextGuardHit)
             {
-                health = Mathf.Max(0, health - 18);
+                health = Mathf.Max(0, health - (Time.time < shieldUntil ? 8 : 18));
                 nextGuardHit = Time.time + 1.3f;
                 if (health == 0)
                 {
                     run.LoseSeat();
                     player.transform.position = new Vector3(0f, 0.1f, -8.5f);
                     health = 100;
+                    Notify("Tumbang! Kembali ke Gerbang Rakyat");
                     if (run.Phase == CampaignPhase.GardaTakhta)
-                        SpawnGuard(garda.position, 75);
+                        SpawnGuard(garda.position, 100);
                 }
             }
         }
@@ -161,25 +175,87 @@ namespace Konoha.Campaign
             if (!guardActive || Time.time < nextBasic || !Near(player.transform.position,
                     guardVisual.transform.position, 3f)) return;
             nextBasic = Time.time + 0.55f;
-            guardHealth -= 25;
+            HitGuard(25);
+        }
+
+        private void HitGuard(int damage)
+        {
+            if (!guardActive) return;
+            guardHealth -= damage;
+            Notify("Garda terkena " + damage + "  •  sisa " + Mathf.Max(0, guardHealth) + " HP");
             if (guardHealth > 0) return;
             guardActive = false;
             guardVisual.SetActive(false);
             if (run.Phase == CampaignPhase.GardaTakhta)
+            {
                 run.DefeatGuard();
+                Notify("Garda tumbang! Kursi terbuka");
+            }
         }
 
         private void Sit()
         {
+            if (run.Phase == CampaignPhase.Menang)
+            {
+                Restart();
+                return;
+            }
+            if (run.Phase == CampaignPhase.PlazaAspirasi &&
+                !run.HasSeal(CampaignSector.BiroProsedur) &&
+                Near(player.transform.position, biro.position, 2.3f) && Time.time >= nextBiroStep)
+            {
+                nextBiroStep = Time.time + 0.65f;
+                biroSteps++;
+                if (biroSteps >= 3 && run.AwardSeal(CampaignSector.BiroProsedur))
+                    Notify("Segel Biro Prosedur diperoleh");
+                else Notify("Berkas disahkan: " + biroSteps + "/3");
+                return;
+            }
             if (run.Phase == CampaignPhase.KursiTerbuka &&
                 Near(player.transform.position, chair.position, 2.2f))
-                run.TrySit();
+                if (run.TrySit()) Notify("Bertahan di Kursi untuk mengumpulkan Kuasa");
         }
+
+        private void UseSkill()
+        {
+            if (run.Phase == CampaignPhase.Menang || Time.time < skillReadyAt[heroIndex]) return;
+            switch (heroIndex)
+            {
+                case 0: // Mega: close range protection and area control.
+                    shieldUntil = Time.time + 5f;
+                    if (GuardWithin(3.5f)) HitGuard(30);
+                    Notify("Mega: perisai rakyat aktif 5 detik");
+                    skillReadyAt[0] = Time.time + 11f;
+                    break;
+                case 1: // Gemoy: powerful command hit with longer reach.
+                    if (!GuardWithin(4.5f)) return;
+                    HitGuard(50);
+                    Notify("Gemoy: komando maju!");
+                    skillReadyAt[1] = Time.time + 9f;
+                    break;
+                case 2: // Abah: mend wounds and halt the opponent briefly.
+                    health = Mathf.Min(100, health + 40);
+                    if (GuardWithin(4f)) guardStunnedUntil = Time.time + 2.5f;
+                    Notify("Abah: pulih 40 HP dan Garda tertahan");
+                    skillReadyAt[2] = Time.time + 11f;
+                    break;
+                default: // Pak Wi: navigate the two routes and dodge pursuit.
+                    speedUntil = Time.time + 5f;
+                    Notify("Pak Wi: jalan baru, bergerak lebih cepat");
+                    skillReadyAt[3] = Time.time + 9f;
+                    break;
+            }
+        }
+
+        private bool GuardWithin(float range) => guardActive &&
+            Near(player.transform.position, guardVisual.transform.position, range);
 
         private void NextHero()
         {
             if (heroVisuals == null || heroVisuals.Length == 0) return;
             heroIndex = (heroIndex + 1) % heroVisuals.Length;
+            speedUntil = 0f;
+            shieldUntil = 0f;
             ShowHero();
         }
 
@@ -188,22 +264,64 @@ namespace Konoha.Campaign
             if (heroVisuals == null) return;
             for (int i = 0; i < heroVisuals.Length; i++)
                 if (heroVisuals[i] != null) heroVisuals[i].SetActive(i == heroIndex);
+            var body = player.transform.Find("PlaceholderSilhouette");
+            if (body != null)
+            {
+                Renderer renderer = body.GetComponent<Renderer>();
+                if (renderer != null)
+                {
+                    Color[] colors = {
+                        new Color(0.19f, 0.08f, 0.10f), new Color(0.83f, 0.78f, 0.68f),
+                        new Color(0.08f, 0.28f, 0.22f), new Color(0.85f, 0.78f, 0.67f)
+                    };
+                    var block = new MaterialPropertyBlock();
+                    block.SetColor("_BaseColor", colors[heroIndex]);
+                    renderer.SetPropertyBlock(block);
+                    body.localScale = heroIndex == 1 ? new Vector3(1.12f, 1.06f, 1.12f)
+                        : heroIndex == 2 ? new Vector3(0.94f, 1f, 0.94f) : Vector3.one;
+                }
+            }
+        }
+
+        private void Restart()
+        {
+            run = new CampaignRunState(2, 35);
+            player.transform.position = new Vector3(0f, 0.1f, -9f);
+            health = 100;
+            biroSteps = 0;
+            majelisHold = 0f;
+            powerClock = 0f;
+            counterattackClock = 0f;
+            counterattackStarted = false;
+            guardActive = false;
+            guardVisual.SetActive(false);
+            Notify("Perjalanan baru dimulai");
+            shieldUntil = speedUntil = 0f;
+            for (int i = 0; i < skillReadyAt.Length; i++) skillReadyAt[i] = 0f;
+        }
+
+        private void Notify(string message)
+        {
+            feedback = message;
+            feedbackUntil = Time.time + 2.2f;
         }
 
         private void RefreshHud()
         {
             string[] names = { "MEGA", "GEMOY", "ABAH", "PAK WI" };
             heroText.text = "HERO: " + names[Mathf.Clamp(heroIndex, 0, names.Length - 1)] + "  |  HP " + health;
+            if (feedbackText != null)
+                feedbackText.text = Time.time < feedbackUntil ? feedback : string.Empty;
             statusText.text = "SEGEL " + run.SealCount + "/" + run.RequiredSeals +
                 "  |  KUASA " + run.Power + "/" + run.TargetPower +
                 (guardActive ? "  |  GARDA " + guardHealth + " HP" : "");
             switch (run.Phase)
             {
                 case CampaignPhase.GerbangRakyat:
-                    objectiveText.text = "GERBANG RAKYAT  >  Bergerak maju ke PLAZA"; break;
+                    objectiveText.text = "GERBANG RAKYAT  •  Menuju PLAZA di depan"; break;
                 case CampaignPhase.PlazaAspirasi:
-                    objectiveText.text = "KIRI MAJELIS " + (run.HasSeal(CampaignSector.MajelisDaun) ? "OK" : (hold[0] / 2.5f).ToString("P0")) +
-                        "  |  KANAN BIRO " + (run.HasSeal(CampaignSector.BiroProsedur) ? "OK" : (hold[1] / 2.5f).ToString("P0")); break;
+                    objectiveText.text = "KIRI MAJELIS: " + (run.HasSeal(CampaignSector.MajelisDaun) ? "SELESAI" : "dengar " + Mathf.CeilToInt(3f - majelisHold) + " dtk") +
+                        "  |  KANAN BIRO: " + (run.HasSeal(CampaignSector.BiroProsedur) ? "SELESAI" : "berkas " + biroSteps + "/3"); break;
                 case CampaignPhase.GerbangDalam:
                     objectiveText.text = "GERBANG DALAM TERBUKA  >  Hadapi GARDA TAKHTA"; break;
                 case CampaignPhase.GardaTakhta:
@@ -213,11 +331,23 @@ namespace Konoha.Campaign
                 case CampaignPhase.Memerintah:
                     objectiveText.text = "PERTAHANKAN TAKHTA  >  Tetap di dekat Kursi"; break;
                 default:
-                    objectiveText.text = "JALUR TAKHTA SELESAI  |  Kemenangan prototype"; break;
+                    objectiveText.text = "JALUR TAKHTA SELESAI! Tekan ULANG untuk bermain lagi"; break;
             }
-            sitButton.interactable = run.Phase == CampaignPhase.KursiTerbuka &&
+            bool canConfirm = run.Phase == CampaignPhase.PlazaAspirasi &&
+                !run.HasSeal(CampaignSector.BiroProsedur) &&
+                Near(player.transform.position, biro.position, 2.3f) && Time.time >= nextBiroStep;
+            bool canSit = run.Phase == CampaignPhase.KursiTerbuka &&
                 Near(player.transform.position, chair.position, 2.2f);
-            attackButton.interactable = guardActive;
+            sitButton.interactable = canConfirm || canSit || run.Phase == CampaignPhase.Menang;
+            sitButton.GetComponentInChildren<Text>().text = run.Phase == CampaignPhase.Menang ? "ULANG"
+                : canConfirm ? "SAHKAN " + (biroSteps + 1) + "/3" : "DUDUK";
+            attackButton.interactable = GuardWithin(3f) && Time.time >= nextBasic;
+            string[] skills = { "PERISAI", "KOMANDO", "PULIHKAN", "JALAN BARU" };
+            float remaining = Mathf.Max(0f, skillReadyAt[heroIndex] - Time.time);
+            skillButton.interactable = run.Phase != CampaignPhase.Menang && remaining <= 0f &&
+                (heroIndex != 1 || GuardWithin(4.5f));
+            skillButton.GetComponentInChildren<Text>().text = remaining > 0f
+                ? skills[heroIndex] + " " + Mathf.CeilToInt(remaining) : skills[heroIndex];
         }
 
         private static bool Near(Vector3 a, Vector3 b, float radius)

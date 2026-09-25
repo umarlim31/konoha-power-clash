@@ -22,8 +22,12 @@ namespace Konoha.Tests
                 Assert.That(preview.heroVisuals, Has.Length.EqualTo(4));
                 Assert.That(preview.attackButton, Is.Not.Null);
                 Assert.That(preview.sitButton, Is.Not.Null);
+                Assert.That(preview.skillButton, Is.Not.Null);
+                Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.chairBarrier.GetComponentsInChildren<BoxCollider>().Length,
                     Is.EqualTo(4));
+                Assert.That(GameObject.Find("Circular plaza stone"), Is.Not.Null);
+                Assert.That(GameObject.Find("CyanSpawnBay"), Is.Null);
             }
             finally
             {

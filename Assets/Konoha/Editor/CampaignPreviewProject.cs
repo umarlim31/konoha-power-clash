@@ -16,7 +16,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.7")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.7.1")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -24,8 +24,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.0.7.0";
-            PlayerSettings.Android.bundleVersionCode = 13;
+            PlayerSettings.bundleVersion = "0.0.7.1";
+            PlayerSettings.Android.bundleVersionCode = 14;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             var network = GameObject.Find("RuntimeNetworkingProof");
@@ -35,6 +35,12 @@ namespace Konoha.Editor
             if (player == null || canvas == null)
                 throw new InvalidOperationException("Expected offline player and mobile canvas from SpikeProject.");
             player.transform.position = new Vector3(0f, 0.1f, -9f);
+            var follow = UnityEngine.Object.FindFirstObjectByType<MobileCombatCamera>();
+            if (follow != null)
+            {
+                follow.offset = new Vector3(0f, 14.6f, -10.8f);
+                follow.crowdedOffset = follow.offset;
+            }
 
             var debug = canvas.GetComponent<SpikeDebugHud>();
             if (debug != null) UnityEngine.Object.DestroyImmediate(debug);
@@ -57,6 +63,61 @@ namespace Konoha.Editor
             var gateColor = Mat("CampaignGate", new Color(0.82f, 0.22f, 0.18f));
             var guardColor = Mat("CampaignGuard", new Color(0.17f, 0.22f, 0.32f));
             var green = Mat("CampaignSeal", new Color(0.22f, 0.68f, 0.45f));
+            var pavement = Mat("CampaignPavement", new Color(0.44f, 0.46f, 0.43f));
+            var route = Mat("CampaignRoute", new Color(0.63f, 0.58f, 0.48f));
+            var charcoal = Mat("CampaignCharcoal", new Color(0.25f, 0.30f, 0.29f));
+            var water = Mat("CampaignWater", new Color(0.10f, 0.33f, 0.39f));
+
+            // The 4v4 layout is still the collision foundation. Remove team-only
+            // arrows and colours so the solo route reads as a single civic plaza.
+            SetMaterial("Floor", pavement);
+            foreach (string name in new[] {
+                "CyanSpawnBay", "OrangeSpawnBay", "CyanTeamWall", "OrangeTeamWall",
+                "CyanWallStripe", "OrangeWallStripe", "NorthWestRelayCap",
+                "SouthEastRelayCap", "NorthSideLane", "SouthSideLane", "CenterLane"
+            }) RemoveObject(name);
+            for (int z = -3; z <= 3; z += 2)
+            {
+                RemoveObject("CyanChevron_" + z);
+                RemoveObject("OrangeChevron_" + z);
+            }
+            for (int i = 0; i < 8; i++)
+            {
+                RemoveObject("TeamSpawn_" + i);
+                RemoveObject("SpawnArrow_" + i);
+            }
+            for (int z = -7; z <= 7; z += 7) RemoveObject("CenterGuide_" + z);
+            Deco("Stone Processional", new Vector3(0, 0.012f, -5f),
+                new Vector3(4.6f, 0.018f, 13f), route);
+            Deco("Inner Plaza Paving", new Vector3(0, 0.012f, 4f),
+                new Vector3(4.6f, 0.018f, 7f), route);
+            foreach (int side in new[] { -1, 1 })
+            {
+                Deco("Side Processional", new Vector3(side * 5.5f, 0.014f, -6f),
+                    new Vector3(9f, 0.019f, 2.8f), route);
+                Deco("Courtyard Water", new Vector3(side * 11.3f, 0.036f, 5.8f),
+                    new Vector3(3.8f, 0.018f, 4f), water);
+                Box("Bridge to inner plaza", new Vector3(side * 7.9f, 0.15f, 5.8f),
+                    new Vector3(1.35f, 0.3f, 3.4f), stone);
+                Deco("Bridge parapet", new Vector3(side * 8.6f, 0.42f, 5.8f),
+                    new Vector3(0.14f, 0.56f, 3.4f), gold);
+                Deco("Konoha pennant", new Vector3(side * 13.8f, 1.75f, -8.2f),
+                    new Vector3(0.11f, 3.1f, 0.75f), gateColor);
+                Deco("Gateway pillar", new Vector3(side * 3.1f, 1.25f, 3.7f),
+                    new Vector3(0.66f, 2.5f, 0.66f), stone);
+                Deco("Gateway crown", new Vector3(side * 3.1f, 2.62f, 3.7f),
+                    new Vector3(0.88f, 0.25f, 0.88f), gold);
+            }
+            Disc("Circular plaza border", new Vector3(0, 0.022f, 0), 8.2f, charcoal);
+            Disc("Circular plaza stone", new Vector3(0, 0.042f, 0), 7.5f, stone);
+
+            var sun = GameObject.Find("Sun")?.GetComponent<Light>();
+            if (sun != null)
+            {
+                sun.color = new Color(1f, 0.87f, 0.67f);
+                sun.intensity = 1.35f;
+            }
+            RenderSettings.ambientLight = new Color(0.53f, 0.53f, 0.48f);
 
             // The chair stays visible but is surrounded by colliders until the guard falls.
             var barrier = new GameObject("Gerbang Takhta - locked");
@@ -68,6 +129,8 @@ namespace Konoha.Editor
             var majelis = Institution("Majelis Daun", new Vector3(-9f, 0f, -6f), burgundy, stone);
             var biro = Institution("Biro Prosedur", new Vector3(9f, 0f, -6f), biroColor, stone);
             var garda = Marker("Garda Takhta", new Vector3(0, 0, 5.5f), gold);
+            WorldLabel("PLAZA ASPIRASI", new Vector3(0, 0.45f, -6.5f));
+            WorldLabel("ISTANA / GARDA", new Vector3(0, 0.45f, 5.5f));
             var chair = new GameObject("Kursi Kekuasaan");
             chair.transform.position = Vector3.zero;
             WorldLabel("ISTANA TAKHTA", new Vector3(0, 2.8f, 0));
@@ -82,7 +145,7 @@ namespace Konoha.Editor
             for (int side = -1; side <= 1; side += 2)
             {
                 Deco("Reflecting Pool", new Vector3(side * 10, 0.035f, 7.7f),
-                    new Vector3(3.2f, 0.035f, 2.2f), Mat("CampaignWater", new Color(0.10f, 0.33f, 0.39f)));
+                    new Vector3(3.2f, 0.035f, 2.2f), water);
                 Deco("Ceremonial Banner", new Vector3(side * 14.5f, 1.8f, 6f),
                     new Vector3(0.12f, 3.2f, 0.75f), burgundy);
             }
@@ -110,26 +173,55 @@ namespace Konoha.Editor
             var placeholder = player.transform.Find("PlaceholderSilhouette");
             if (placeholder != null)
                 placeholder.GetComponent<Renderer>().sharedMaterial = Mat("CampaignHeroBody", new Color(0.17f, 0.20f, 0.24f));
+            var selection = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            selection.name = "Hero Ground Marker";
+            selection.transform.SetParent(player.transform, false);
+            selection.transform.localPosition = new Vector3(0f, 0.015f, 0f);
+            selection.transform.localScale = new Vector3(1.65f, 0.012f, 1.65f);
+            selection.GetComponent<Renderer>().sharedMaterial = gold;
+            UnityEngine.Object.DestroyImmediate(selection.GetComponent<Collider>());
 
+            var headingBackdrop = new GameObject("Objective backdrop", typeof(RectTransform), typeof(Image));
+            var backdropRect = (RectTransform)headingBackdrop.transform;
+            backdropRect.SetParent(safe, false);
+            backdropRect.anchorMin = backdropRect.anchorMax = new Vector2(0.5f, 1f);
+            backdropRect.pivot = new Vector2(0.5f, 1f);
+            backdropRect.anchoredPosition = new Vector2(0f, -6f);
+            backdropRect.sizeDelta = new Vector2(950f, 117f);
+            headingBackdrop.GetComponent<Image>().color = new Color(0.06f, 0.12f, 0.13f, 0.86f);
+            headingBackdrop.GetComponent<Image>().raycastTarget = false;
             var objective = Text("CampaignObjective", safe, new Vector2(0.5f, 1f),
-                new Vector2(0, -32), new Vector2(790, 60), 22);
+                new Vector2(0, -22), new Vector2(930, 52), 21);
             objective.alignment = TextAnchor.MiddleCenter;
+            objective.color = new Color(1f, 0.89f, 0.65f);
+            objective.gameObject.AddComponent<Outline>().effectColor = new Color(0.10f, 0.10f, 0.10f, 0.85f);
             var status = Text("CampaignStatus", safe, new Vector2(0.5f, 1f),
-                new Vector2(0, -88), new Vector2(750, 36), 18);
+                new Vector2(0, -78), new Vector2(750, 36), 18);
             status.alignment = TextAnchor.MiddleCenter;
+            status.gameObject.AddComponent<Outline>().effectColor = Color.black;
+            var feedback = Text("CampaignFeedback", safe, new Vector2(0.5f, 0.5f),
+                new Vector2(0, 165), new Vector2(660, 44), 21);
+            feedback.alignment = TextAnchor.MiddleCenter;
+            feedback.color = new Color(1f, 0.82f, 0.42f);
+            feedback.gameObject.AddComponent<Outline>().effectColor = Color.black;
             var heroText = Text("CampaignHero", safe, new Vector2(0.5f, 0f),
-                new Vector2(0, 55), new Vector2(480, 34), 18);
+                new Vector2(0, 42), new Vector2(480, 34), 18);
             heroText.alignment = TextAnchor.MiddleCenter;
             var heroButton = Button("HeroSelector", "GANTI HERO", safe, new Vector2(1f, 0f),
-                new Vector2(-282, 224), new Vector2(176, 52));
+                new Vector2(-270, 230), new Vector2(172, 56));
+            var skill = Button("CampaignSkill", "PERISAI", safe, new Vector2(1f, 0f),
+                new Vector2(-96, 230), new Vector2(172, 56));
             var basic = Button("CampaignBasic", "BASIC", safe, new Vector2(1f, 0f),
-                new Vector2(-106, 92), new Vector2(164, 66));
+                new Vector2(-96, 154), new Vector2(172, 66));
             var sit = Button("CampaignSit", "DUDUK", safe, new Vector2(1f, 0f),
-                new Vector2(-282, 92), new Vector2(164, 66));
+                new Vector2(-270, 154), new Vector2(172, 66));
+            skill.GetComponent<Image>().color = new Color(0.50f, 0.16f, 0.18f, 0.96f);
+            sit.GetComponent<Image>().color = new Color(0.59f, 0.42f, 0.18f, 0.96f);
+            heroButton.GetComponent<Image>().color = new Color(0.18f, 0.25f, 0.29f, 0.96f);
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 10), new Vector2(560, 26), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.0.7 - SOLO GREYBOX PREVIEW";
+            footer.text = "JALUR TAKHTA 0.0.7.1  •  SOLO PREVIEW";
 
             var preview = new GameObject("JalurTakhtaPreview").AddComponent<CampaignPreviewController>();
             preview.player = player;
@@ -144,14 +236,40 @@ namespace Konoha.Editor
             preview.objectiveText = objective;
             preview.statusText = status;
             preview.heroText = heroText;
+            preview.feedbackText = feedback;
             preview.attackButton = basic;
             preview.sitButton = sit;
             preview.heroButton = heroButton;
+            preview.skillButton = skill;
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.SaveAssets();
             Debug.Log("Jalur Takhta preview prepared: " + ScenePath);
+        }
+
+        private static void RemoveObject(string name)
+        {
+            var item = GameObject.Find(name);
+            if (item != null) UnityEngine.Object.DestroyImmediate(item);
+        }
+
+        private static void SetMaterial(string name, Material material)
+        {
+            var item = GameObject.Find(name);
+            if (item != null && item.TryGetComponent<Renderer>(out var renderer))
+                renderer.sharedMaterial = material;
+        }
+
+        private static GameObject Disc(string name, Vector3 center, float diameter, Material material)
+        {
+            var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            disc.name = name;
+            disc.transform.position = center;
+            disc.transform.localScale = new Vector3(diameter, 0.02f, diameter);
+            disc.GetComponent<Renderer>().sharedMaterial = material;
+            UnityEngine.Object.DestroyImmediate(disc.GetComponent<Collider>());
+            return disc;
         }
 
         private static Transform Institution(string name, Vector3 location, Material accent, Material stone)
