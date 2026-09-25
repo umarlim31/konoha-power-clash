@@ -16,7 +16,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.7.2")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.7.3")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -24,8 +24,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.0.7.2";
-            PlayerSettings.Android.bundleVersionCode = 15;
+            PlayerSettings.bundleVersion = "0.0.7.3";
+            PlayerSettings.Android.bundleVersionCode = 16;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             var network = GameObject.Find("RuntimeNetworkingProof");
@@ -41,8 +41,8 @@ namespace Konoha.Editor
                 follow.offset = new Vector3(0f, 14.6f, -10.8f);
                 follow.crowdedOffset = follow.offset;
                 follow.limitFocusToArena = true;
-                follow.focusXLimits = new Vector2(-6.5f, 6.5f);
-                follow.focusZLimits = new Vector2(-6f, 5f);
+                follow.focusXLimits = new Vector2(-9f, 9f);
+                follow.focusZLimits = new Vector2(-7.5f, 7f);
             }
 
             var debug = canvas.GetComponent<SpikeDebugHud>();
@@ -63,21 +63,23 @@ namespace Konoha.Editor
             layout.safeRoot = (RectTransform)safe;
             layout.joystick = (RectTransform)pad;
 
-            var stone = Mat("CampaignStone", new Color(0.54f, 0.52f, 0.46f));
-            var gold = Mat("CampaignGold", new Color(0.82f, 0.59f, 0.25f));
+            var stone = Mat("CampaignStone", new Color(0.56f, 0.55f, 0.52f));
+            var gold = Mat("CampaignGold", new Color(0.76f, 0.54f, 0.25f));
             var burgundy = Mat("CampaignMajelis", new Color(0.48f, 0.14f, 0.25f));
             var biroColor = Mat("CampaignBiro", new Color(0.43f, 0.47f, 0.49f));
             var gateColor = Mat("CampaignGate", new Color(0.82f, 0.22f, 0.18f));
             var guardColor = Mat("CampaignGuard", new Color(0.17f, 0.22f, 0.32f));
             var green = Mat("CampaignSeal", new Color(0.22f, 0.68f, 0.45f));
-            var pavement = Mat("CampaignPavement", new Color(0.44f, 0.46f, 0.43f));
-            var route = Mat("CampaignRoute", new Color(0.63f, 0.58f, 0.48f));
-            var charcoal = Mat("CampaignCharcoal", new Color(0.25f, 0.30f, 0.29f));
-            var water = Mat("CampaignWater", new Color(0.10f, 0.33f, 0.39f));
+            var pavement = Mat("CampaignPavement", new Color(0.42f, 0.43f, 0.42f));
+            var route = Mat("CampaignRoute", new Color(0.69f, 0.63f, 0.54f));
+            var charcoal = Mat("CampaignCharcoal", new Color(0.29f, 0.30f, 0.30f));
+            var water = Mat("CampaignWater", new Color(0.14f, 0.36f, 0.41f));
+            var waterHighlight = Mat("CampaignWaterHighlight", new Color(0.35f, 0.59f, 0.60f));
             var landscape = Mat("CampaignLandscape", new Color(0.24f, 0.32f, 0.24f));
             var leaves = Mat("CampaignLeaves", new Color(0.17f, 0.40f, 0.27f));
             var leavesLight = Mat("CampaignLeavesLight", new Color(0.34f, 0.53f, 0.30f));
-            var ivory = Mat("CampaignIvory", new Color(0.82f, 0.75f, 0.64f));
+            var ivory = Mat("CampaignIvory", new Color(0.86f, 0.80f, 0.71f));
+            var roof = Mat("CampaignRoof", new Color(0.38f, 0.45f, 0.37f));
 
             // A ground plane outside the collision walls prevents the empty dark
             // void seen when the tablet camera followed a player to the north edge.
@@ -145,6 +147,8 @@ namespace Konoha.Editor
                     Deco("Courtyard flowers", new Vector3(side * 14f, 0.88f, z),
                         new Vector3(0.36f, 0.10f, 0.36f), burgundy);
                 }
+                Palm(side * 13.3f, -10f, stone, leaves);
+                Palm(side * 13.3f, 10f, stone, leavesLight);
             }
             Deco("Stone Processional", new Vector3(0, 0.012f, -5f),
                 new Vector3(4.6f, 0.018f, 13f), route);
@@ -154,12 +158,9 @@ namespace Konoha.Editor
             {
                 Deco("Side Processional", new Vector3(side * 5.5f, 0.014f, -6f),
                     new Vector3(9f, 0.019f, 2.8f), route);
-                Deco("Courtyard Water", new Vector3(side * 11.3f, 0.036f, 5.8f),
-                    new Vector3(3.8f, 0.018f, 4f), water);
-                Box("Bridge to inner plaza", new Vector3(side * 7.9f, 0.15f, 5.8f),
-                    new Vector3(1.35f, 0.3f, 3.4f), stone);
-                Deco("Bridge parapet", new Vector3(side * 8.6f, 0.42f, 5.8f),
-                    new Vector3(0.14f, 0.56f, 3.4f), gold);
+                // Shallow ornamental pools frame the central route. The bridge
+                // actually crosses each pool; the water has no damage or collider.
+                PoolAndBridge(side, 5.4f, stone, ivory, water, waterHighlight);
                 Deco("Konoha pennant", new Vector3(side * 13.8f, 1.75f, -8.2f),
                     new Vector3(0.11f, 3.1f, 0.75f), gateColor);
                 Deco("Gateway pillar", new Vector3(side * 3.1f, 1.25f, 3.7f),
@@ -169,6 +170,22 @@ namespace Konoha.Editor
             }
             Disc("Circular plaza border", new Vector3(0, 0.022f, 0), 8.2f, charcoal);
             Disc("Circular plaza stone", new Vector3(0, 0.042f, 0), 7.5f, stone);
+            // Raise the walkable-colour inlays above the central disc. These are
+            // visuals only; all collision remains on the original flat floor.
+            Deco("Central south ceremonial route", new Vector3(0, 0.071f, -6f),
+                new Vector3(3.4f, 0.018f, 11.5f), route);
+            Deco("Central north ceremonial route", new Vector3(0, 0.071f, 6f),
+                new Vector3(3.4f, 0.018f, 11.5f), route);
+            for (int side = -1; side <= 1; side += 2)
+                Deco("Central lateral route", new Vector3(side * 5f, 0.071f, 0f),
+                    new Vector3(9f, 0.018f, 2.1f), route);
+            for (int i = 0; i < 24; i++)
+                RingStone("Concentric civic paving", 5.35f, i, 24, 0.16f, 0.079f, ivory);
+            for (int i = 0; i < 16; i++)
+                RingStone("Gold seat approach", 3.2f, i, 16, 0.12f, 0.083f, gold);
+            for (int z = -10; z <= 10; z += 2)
+                Deco("Processional seam", new Vector3(0f, 0.085f, z),
+                    new Vector3(3.35f, 0.012f, 0.045f), stone);
 
             var sun = GameObject.Find("Sun")?.GetComponent<Light>();
             if (sun != null)
@@ -193,29 +210,12 @@ namespace Konoha.Editor
             var chair = new GameObject("Kursi Kekuasaan");
             chair.transform.position = Vector3.zero;
             WorldLabel("ISTANA TAKHTA", new Vector3(0, 2.8f, 0));
-            // Distinct fictional bird monument rather than an official coat of arms.
-            Box("Monumen Burung Konoha Plinth", new Vector3(0, 0.4f, 9.5f),
-                new Vector3(2.8f, 0.8f, 1.5f), stone);
-            Deco("Abstract Bird Body", new Vector3(0, 2.15f, 9.5f), new Vector3(0.65f, 1.85f, 0.48f), gold);
-            var birdHead = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            birdHead.name = "Abstract Bird Head";
-            birdHead.transform.position = new Vector3(0f, 3.18f, 9.5f);
-            birdHead.transform.localScale = new Vector3(0.42f, 0.42f, 0.42f);
-            birdHead.GetComponent<Renderer>().sharedMaterial = gold;
-            UnityEngine.Object.DestroyImmediate(birdHead.GetComponent<Collider>());
-            for (int i = 0; i < 3; i++)
-                foreach (int side in new[] { -1, 1 })
-                {
-                    var feather = Deco("Abstract Bird Feather", new Vector3(side * (0.72f + i * 0.67f),
-                        2.65f + i * 0.27f, 9.5f), new Vector3(1.15f, 0.24f, 0.38f), gold);
-                    feather.transform.rotation = Quaternion.Euler(0f, side * 12f, side * 19f);
-                }
-            Deco("Bird Tail", new Vector3(0f, 1.17f, 9.5f),
-                new Vector3(0.36f, 0.85f, 0.24f), gold);
+            // Original winged Konoha sculpture, not a national emblem or copied seal.
+            BirdMonument(new Vector3(0, 0, 9.2f), stone, ivory, gold, charcoal);
+            CivicHall(stone, ivory, roof, burgundy, gold);
             for (int side = -1; side <= 1; side += 2)
             {
-                Deco("Reflecting Pool", new Vector3(side * 10, 0.035f, 7.7f),
-                    new Vector3(3.2f, 0.035f, 2.2f), water);
+                GuardianStatue(side * 20f, 8f, stone, charcoal, gold);
                 Deco("Ceremonial Banner", new Vector3(side * 14.5f, 1.8f, 6f),
                     new Vector3(0.12f, 3.2f, 0.75f), burgundy);
                 Deco("Red white civic ribbon", new Vector3(side * 14.3f, 2.35f, -3f),
@@ -270,25 +270,46 @@ namespace Konoha.Editor
             backdropRect.anchorMin = backdropRect.anchorMax = new Vector2(0.5f, 1f);
             backdropRect.pivot = new Vector2(0.5f, 1f);
             backdropRect.anchoredPosition = new Vector2(0f, -6f);
-            backdropRect.sizeDelta = new Vector2(820f, 93f);
-            headingBackdrop.GetComponent<Image>().color = new Color(0.06f, 0.12f, 0.13f, 0.86f);
+            backdropRect.sizeDelta = new Vector2(840f, 149f);
+            headingBackdrop.GetComponent<Image>().color = new Color(0.06f, 0.09f, 0.10f, 0.87f);
             headingBackdrop.GetComponent<Image>().raycastTarget = false;
             var objective = Text("CampaignObjective", safe, new Vector2(0.5f, 1f),
-                new Vector2(0, -14), new Vector2(800, 43), 18);
+                new Vector2(0, -14), new Vector2(810, 43), 21);
             objective.alignment = TextAnchor.MiddleCenter;
             objective.color = new Color(1f, 0.89f, 0.65f);
             objective.gameObject.AddComponent<Outline>().effectColor = new Color(0.10f, 0.10f, 0.10f, 0.85f);
             var status = Text("CampaignStatus", safe, new Vector2(0.5f, 1f),
-                new Vector2(0, -57), new Vector2(760, 28), 16);
+                new Vector2(0, -58), new Vector2(800, 28), 18);
             status.alignment = TextAnchor.MiddleCenter;
             status.gameObject.AddComponent<Outline>().effectColor = Color.black;
+            var progressTrack = new GameObject("ObjectiveProgressTrack", typeof(RectTransform), typeof(Image));
+            var progressRect = (RectTransform)progressTrack.transform;
+            progressRect.SetParent(safe, false);
+            progressRect.anchorMin = progressRect.anchorMax = new Vector2(0.5f, 1f);
+            progressRect.pivot = new Vector2(0.5f, 1f);
+            progressRect.anchoredPosition = new Vector2(0f, -92f);
+            progressRect.sizeDelta = new Vector2(530f, 10f);
+            progressTrack.GetComponent<Image>().color = new Color(0.22f, 0.22f, 0.21f, 0.9f);
+            progressTrack.GetComponent<Image>().raycastTarget = false;
+            var progressFill = new GameObject("ObjectiveProgressFill", typeof(RectTransform), typeof(Image));
+            var progressFillRect = (RectTransform)progressFill.transform;
+            progressFillRect.SetParent(progressRect, false);
+            progressFillRect.anchorMin = Vector2.zero;
+            progressFillRect.anchorMax = Vector2.one;
+            progressFillRect.offsetMin = progressFillRect.offsetMax = Vector2.zero;
+            var fillImage = progressFill.GetComponent<Image>();
+            fillImage.color = new Color(0.88f, 0.65f, 0.31f);
+            fillImage.type = Image.Type.Filled;
+            fillImage.fillMethod = Image.FillMethod.Horizontal;
+            fillImage.fillAmount = 0f;
+            fillImage.raycastTarget = false;
             var waypoint = Text("CampaignWaypoint", safe, new Vector2(0.5f, 1f),
-                new Vector2(0, -112), new Vector2(600, 34), 17);
+                new Vector2(0, -115), new Vector2(810, 36), 21);
             waypoint.alignment = TextAnchor.MiddleCenter;
             waypoint.color = new Color(1f, 0.86f, 0.58f);
             waypoint.gameObject.AddComponent<Outline>().effectColor = Color.black;
             var feedback = Text("CampaignFeedback", safe, new Vector2(0.5f, 0.5f),
-                new Vector2(0, 165), new Vector2(660, 44), 21);
+                new Vector2(0, 165), new Vector2(720, 48), 23);
             feedback.alignment = TextAnchor.MiddleCenter;
             feedback.color = new Color(1f, 0.82f, 0.42f);
             feedback.gameObject.AddComponent<Outline>().effectColor = Color.black;
@@ -296,20 +317,20 @@ namespace Konoha.Editor
                 new Vector2(0, 42), new Vector2(480, 34), 18);
             heroText.alignment = TextAnchor.MiddleCenter;
             var heroButton = Button("HeroSelector", "GANTI HERO", safe, new Vector2(1f, 0f),
-                new Vector2(-270, 230), new Vector2(172, 56));
+                new Vector2(-270, 230), new Vector2(156, 56));
             var skill = Button("CampaignSkill", "PERISAI", safe, new Vector2(1f, 0f),
-                new Vector2(-96, 230), new Vector2(172, 56));
+                new Vector2(-96, 230), new Vector2(156, 56));
             var basic = Button("CampaignBasic", "BASIC", safe, new Vector2(1f, 0f),
-                new Vector2(-96, 154), new Vector2(172, 66));
+                new Vector2(-96, 154), new Vector2(156, 66));
             var sit = Button("CampaignSit", "DUDUK", safe, new Vector2(1f, 0f),
-                new Vector2(-270, 154), new Vector2(172, 66));
+                new Vector2(-270, 154), new Vector2(156, 66));
             skill.GetComponent<Image>().color = new Color(0.50f, 0.16f, 0.18f, 0.96f);
             sit.GetComponent<Image>().color = new Color(0.59f, 0.42f, 0.18f, 0.96f);
             heroButton.GetComponent<Image>().color = new Color(0.18f, 0.25f, 0.29f, 0.96f);
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 10), new Vector2(560, 26), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.0.7.2  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.0.7.3  •  SOLO PREVIEW";
 
             var preview = new GameObject("JalurTakhtaPreview").AddComponent<CampaignPreviewController>();
             preview.player = player;
@@ -328,6 +349,7 @@ namespace Konoha.Editor
             preview.waypointText = waypoint;
             preview.heroText = heroText;
             preview.feedbackText = feedback;
+            preview.objectiveProgress = fillImage;
             preview.attackButton = basic;
             preview.sitButton = sit;
             preview.heroButton = heroButton;
@@ -363,6 +385,129 @@ namespace Konoha.Editor
             return disc;
         }
 
+        private static void RingStone(string name, float radius, int index, int count,
+            float width, float height, Material material)
+        {
+            float angle = (index + 0.5f) * 360f / count;
+            float radians = angle * Mathf.Deg2Rad;
+            var piece = Deco(name, new Vector3(Mathf.Sin(radians) * radius, height,
+                Mathf.Cos(radians) * radius),
+                new Vector3(width, 0.02f, 2f * Mathf.PI * radius / count * 0.91f), material);
+            piece.transform.rotation = Quaternion.Euler(0f, angle + 90f, 0f);
+        }
+
+        private static void PoolAndBridge(int side, float z, Material stone,
+            Material ivory, Material water, Material highlight)
+        {
+            float x = side * 10.6f;
+            Deco("Reflecting pool basin", new Vector3(x, 0.032f, z),
+                new Vector3(6.1f, 0.03f, 6.1f), stone);
+            Deco("Reflecting pool water", new Vector3(x, 0.055f, z),
+                new Vector3(5.65f, 0.02f, 5.65f), water);
+            for (int edge = -1; edge <= 1; edge += 2)
+            {
+                Deco("Pool coping", new Vector3(x + edge * 3.02f, 0.09f, z),
+                    new Vector3(0.22f, 0.08f, 6.1f), ivory);
+                Deco("Pool coping", new Vector3(x, 0.09f, z + edge * 3.02f),
+                    new Vector3(6.1f, 0.08f, 0.22f), ivory);
+                Deco("Water glint", new Vector3(x + edge * 1.3f, 0.069f, z - 1.25f),
+                    new Vector3(1.25f, 0.006f, 0.06f), highlight);
+                Deco("Bridge parapet", new Vector3(x, 0.22f, z + edge * 1.07f),
+                    new Vector3(5.6f, 0.28f, 0.13f), ivory);
+            }
+            // The bridge is flush with the original walkable floor and the low
+            // parapets are visual only, avoiding surprise collision on mobile.
+            Deco("Bridge across reflecting pool", new Vector3(x, 0.11f, z),
+                new Vector3(5.8f, 0.10f, 1.95f), stone);
+            for (int i = -2; i <= 2; i++)
+                Deco("Bridge paving seam", new Vector3(x + i * 0.9f, 0.166f, z),
+                    new Vector3(0.035f, 0.006f, 1.9f), ivory);
+        }
+
+        private static void BirdMonument(Vector3 location, Material stone,
+            Material ivory, Material gold, Material dark)
+        {
+            Box("Monumen Burung Konoha plinth", location + new Vector3(0, 0.5f, 0),
+                new Vector3(3.4f, 1f, 2f), stone);
+            Deco("Monument stepped base", location + new Vector3(0, 1.15f, 0),
+                new Vector3(2.8f, 0.3f, 1.7f), ivory);
+            Deco("Monument obelisk", location + new Vector3(0, 3.4f, 0),
+                new Vector3(1.15f, 4.2f, 0.9f), ivory);
+            Deco("Monument upper rim", location + new Vector3(0, 5.52f, 0),
+                new Vector3(1.45f, 0.18f, 1.1f), dark);
+            Deco("Bird body", location + new Vector3(0, 6.15f, 0),
+                new Vector3(0.58f, 0.98f, 0.5f), gold);
+            var head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            head.name = "Bird head";
+            head.transform.position = location + new Vector3(0, 6.9f, 0);
+            head.transform.localScale = new Vector3(0.42f, 0.42f, 0.42f);
+            head.GetComponent<Renderer>().sharedMaterial = gold;
+            UnityEngine.Object.DestroyImmediate(head.GetComponent<Collider>());
+            for (int side = -1; side <= 1; side += 2)
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    var feather = Deco("Original fan wing feather",
+                        location + new Vector3(side * (0.64f + i * 0.48f),
+                            6.3f + i * 0.26f, 0),
+                        new Vector3(0.95f, 0.21f, 0.32f), gold);
+                    feather.transform.rotation = Quaternion.Euler(0, side * 10f, side * (18f + i * 8f));
+                }
+            }
+            Deco("Bird tail", location + new Vector3(0, 5.65f, -0.2f),
+                new Vector3(0.24f, 0.65f, 0.3f), gold);
+        }
+
+        private static void CivicHall(Material stone, Material ivory,
+            Material roof, Material red, Material gold)
+        {
+            // Distant architectural silhouette sits beyond the collision wall.
+            // It uses fictional civic forms rather than a real building facade.
+            Deco("Konoha civic hall body", new Vector3(0, 3.0f, 18.2f),
+                new Vector3(17f, 6f, 3.2f), stone);
+            Deco("Civic hall terrace", new Vector3(0, 0.4f, 15.7f),
+                new Vector3(20f, 0.8f, 3.4f), ivory);
+            for (int i = -4; i <= 4; i++)
+                Deco("Civic hall colonnade", new Vector3(i * 1.95f, 2.6f, 16.48f),
+                    new Vector3(0.38f, 5.2f, 0.42f), ivory);
+            Deco("Civic hall lintel", new Vector3(0, 5.35f, 16.3f),
+                new Vector3(19f, 0.4f, 1f), stone);
+            Deco("Civic hall fascia", new Vector3(0, 6f, 16.3f),
+                new Vector3(19f, 0.15f, 1f), gold);
+            var dome = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            dome.name = "Fictional civic dome";
+            dome.transform.position = new Vector3(0, 6.05f, 18.2f);
+            dome.transform.localScale = new Vector3(9.6f, 4.1f, 5.6f);
+            dome.GetComponent<Renderer>().sharedMaterial = roof;
+            UnityEngine.Object.DestroyImmediate(dome.GetComponent<Collider>());
+            Deco("Dome spire", new Vector3(0, 8.55f, 18.2f),
+                new Vector3(0.18f, 1.2f, 0.18f), gold);
+            for (int side = -1; side <= 1; side += 2)
+            {
+                Deco("Civic hall red standard", new Vector3(side * 6.5f, 3.8f, 16.19f),
+                    new Vector3(0.8f, 3.2f, 0.08f), red);
+                Deco("Civic hall ivory standard", new Vector3(side * 6.5f, 5f, 16.12f),
+                    new Vector3(0.8f, 0.8f, 0.09f), ivory);
+            }
+        }
+
+        private static void GuardianStatue(float x, float z, Material stone,
+            Material dark, Material gold)
+        {
+            Deco("Nusantara guardian pedestal", new Vector3(x, 1f, z),
+                new Vector3(2.8f, 2f, 2.5f), dark);
+            Deco("Nusantara guardian torso", new Vector3(x, 3.05f, z),
+                new Vector3(1.8f, 2.15f, 1f), stone);
+            var head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            head.name = "Nusantara guardian head";
+            head.transform.position = new Vector3(x, 4.65f, z);
+            head.transform.localScale = new Vector3(1.1f, 1.2f, 0.95f);
+            head.GetComponent<Renderer>().sharedMaterial = stone;
+            UnityEngine.Object.DestroyImmediate(head.GetComponent<Collider>());
+            Deco("Guardian headpiece", new Vector3(x, 5.3f, z),
+                new Vector3(1.5f, 0.28f, 1.1f), gold);
+        }
+
         private static void Tree(string name, Vector3 position, Material trunk, Material canopy,
             Material highlight)
         {
@@ -382,12 +527,52 @@ namespace Konoha.Editor
             UnityEngine.Object.DestroyImmediate(top.GetComponent<Collider>());
         }
 
+        private static void Palm(float x, float z, Material trunk, Material leaf)
+        {
+            var stem = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            stem.name = "Nusantara courtyard palm";
+            stem.transform.position = new Vector3(x, 1.35f, z);
+            stem.transform.localScale = new Vector3(0.2f, 1.35f, 0.2f);
+            stem.GetComponent<Renderer>().sharedMaterial = trunk;
+            UnityEngine.Object.DestroyImmediate(stem.GetComponent<Collider>());
+            for (int i = 0; i < 5; i++)
+            {
+                var frond = Deco("Palm frond", new Vector3(x, 2.8f, z),
+                    new Vector3(0.28f, 0.09f, 2.2f), leaf);
+                frond.transform.rotation = Quaternion.Euler(18f, i * 72f, 0);
+            }
+        }
+
         private static Transform Institution(string name, Vector3 location, Material accent,
             Material stone, Material gold)
         {
             var marker = Marker(name, location, accent);
+            for (int i = 0; i < 12; i++)
+            {
+                float angle = (i + 0.5f) * Mathf.PI * 2f / 12f;
+                var edge = Deco(name + " interaction boundary",
+                    location + new Vector3(Mathf.Sin(angle) * 2.8f, 0.085f,
+                        Mathf.Cos(angle) * 2.8f),
+                    new Vector3(0.13f, 0.03f, 1.42f), gold);
+                edge.transform.rotation = Quaternion.Euler(0, (i + 0.5f) * 30f + 90f, 0);
+            }
+            Deco(name + " stairs", location + new Vector3(0, 0.13f, 2.0f),
+                new Vector3(4.8f, 0.24f, 0.8f), stone);
             Box(name + " Facade", location + new Vector3(0, 1.65f, 1.6f), new Vector3(4.6f, 3.3f, 0.45f), stone);
             Box(name + " Roof", location + new Vector3(0, 3.45f, 1.45f), new Vector3(5.1f, 0.32f, 1.2f), accent);
+            Deco(name + " pediment", location + new Vector3(0, 3.72f, 1.4f),
+                new Vector3(3.6f, 0.26f, 1.0f), stone);
+            if (name.StartsWith("Biro", StringComparison.Ordinal))
+            {
+                for (int i = -1; i <= 1; i++)
+                    Deco(name + " archive window", location + new Vector3(i * 1.2f, 2f, 1.35f),
+                        new Vector3(0.35f, 0.65f, 0.07f), gold);
+            }
+            else
+            {
+                Deco(name + " assembly crest", location + new Vector3(0, 2.25f, 1.34f),
+                    new Vector3(0.7f, 0.7f, 0.08f), gold);
+            }
             Deco(name + " Gold Cornice", location + new Vector3(0, 3.19f, 1.1f),
                 new Vector3(4.8f, 0.12f, 0.16f), gold);
             foreach (int side in new[] { -1, 1 })
@@ -397,7 +582,7 @@ namespace Konoha.Editor
                 Deco(name + " Standard", location + new Vector3(side * 2.03f, 2.16f, 0.55f),
                     new Vector3(0.25f, 1.22f, 0.12f), accent);
             }
-            WorldLabel(name.ToUpperInvariant(), location + new Vector3(0, 3.9f, 1.5f));
+            WorldLabel(name.ToUpperInvariant(), location + new Vector3(0, 4.25f, 1.5f));
             return marker;
         }
 

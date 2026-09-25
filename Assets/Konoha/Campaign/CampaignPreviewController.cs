@@ -24,6 +24,7 @@ namespace Konoha.Campaign
         public Text waypointText;
         public Text heroText;
         public Text feedbackText;
+        public Image objectiveProgress;
         public Button attackButton;
         public Button sitButton;
         public Button heroButton;
@@ -49,6 +50,7 @@ namespace Konoha.Campaign
         private string feedback;
         private float feedbackUntil;
         private float guardFlashUntil;
+        private bool enteredMajelis;
         private MaterialPropertyBlock ringBlock;
         private MaterialPropertyBlock guardBlock;
 
@@ -88,10 +90,14 @@ namespace Konoha.Campaign
                 // Majelis: listen to the people; Biro: confirm three separate files.
                 if (!run.HasSeal(CampaignSector.MajelisDaun))
                 {
-                    majelisHold = Near(position, majelis.position, 2.3f)
-                        ? Mathf.Min(3f, majelisHold + dt)
-                        : Mathf.Max(0f, majelisHold - dt * 0.5f);
-                    if (majelisHold >= 3f && run.AwardSeal(CampaignSector.MajelisDaun))
+                    bool insideMajelis = Near(position, majelis.position, 2.8f);
+                    if (insideMajelis && !enteredMajelis)
+                        Notify("Tetap di lingkaran Majelis sampai bar penuh");
+                    enteredMajelis = insideMajelis;
+                    majelisHold = insideMajelis
+                        ? Mathf.Min(2.5f, majelisHold + dt)
+                        : Mathf.Max(0f, majelisHold - dt * 0.25f);
+                    if (majelisHold >= 2.5f && run.AwardSeal(CampaignSector.MajelisDaun))
                         Notify("Segel Majelis Daun diperoleh");
                 }
                 run.TryOpenInnerGate();
@@ -212,7 +218,7 @@ namespace Konoha.Campaign
             }
             if (run.Phase == CampaignPhase.PlazaAspirasi &&
                 !run.HasSeal(CampaignSector.BiroProsedur) &&
-                Near(player.transform.position, biro.position, 2.3f) && Time.time >= nextBiroStep)
+                Near(player.transform.position, biro.position, 2.8f) && Time.time >= nextBiroStep)
             {
                 nextBiroStep = Time.time + 0.65f;
                 biroSteps++;
@@ -321,6 +327,9 @@ namespace Konoha.Campaign
             health = 100;
             biroSteps = 0;
             majelisHold = 0f;
+            enteredMajelis = false;
+            nextBiroStep = 0f;
+            nextBasic = 0f;
             powerClock = 0f;
             counterattackClock = 0f;
             counterattackStarted = false;
@@ -351,8 +360,10 @@ namespace Konoha.Campaign
                 case CampaignPhase.GerbangRakyat:
                     objectiveText.text = "GERBANG RAKYAT  •  Menuju PLAZA di depan"; break;
                 case CampaignPhase.PlazaAspirasi:
-                    objectiveText.text = "KIRI MAJELIS: " + (run.HasSeal(CampaignSector.MajelisDaun) ? "SELESAI" : "dengar " + Mathf.CeilToInt(3f - majelisHold) + " dtk") +
-                        "  |  KANAN BIRO: " + (run.HasSeal(CampaignSector.BiroProsedur) ? "SELESAI" : "berkas " + biroSteps + "/3"); break;
+                    objectiveText.text = !run.HasSeal(CampaignSector.MajelisDaun)
+                        ? "1/2  MAJELIS: tahan di lingkaran " + Mathf.CeilToInt(Mathf.Max(0f, 2.5f - majelisHold)) + " detik"
+                        : "2/2  BIRO: masuk lingkaran, tekan SAHKAN " + (biroSteps + 1) + "/3";
+                    break;
                 case CampaignPhase.GerbangDalam:
                     objectiveText.text = "GERBANG DALAM TERBUKA  >  Hadapi GARDA TAKHTA"; break;
                 case CampaignPhase.GardaTakhta:
@@ -366,7 +377,7 @@ namespace Konoha.Campaign
             }
             bool atBiro = run.Phase == CampaignPhase.PlazaAspirasi &&
                 !run.HasSeal(CampaignSector.BiroProsedur) &&
-                Near(player.transform.position, biro.position, 2.3f);
+                Near(player.transform.position, biro.position, 2.8f);
             bool canConfirm = atBiro && Time.time >= nextBiroStep;
             bool canSit = run.Phase == CampaignPhase.KursiTerbuka &&
                 Near(player.transform.position, chair.position, 2.2f);
@@ -382,6 +393,13 @@ namespace Konoha.Campaign
                 (heroIndex != 1 || GuardWithin(4.5f));
             skillButton.GetComponentInChildren<Text>().text = remaining > 0f
                 ? skills[heroIndex] + " " + Mathf.CeilToInt(remaining) : skills[heroIndex];
+            if (objectiveProgress != null)
+            {
+                objectiveProgress.fillAmount = run.Phase == CampaignPhase.PlazaAspirasi
+                    ? (run.HasSeal(CampaignSector.MajelisDaun) ? biroSteps / 3f : majelisHold / 2.5f)
+                    : run.Phase == CampaignPhase.GardaTakhta ? 1f - guardHealth / 100f
+                    : run.Phase == CampaignPhase.Memerintah ? (float)run.Power / run.TargetPower : 0f;
+            }
             RefreshWaypoint();
         }
 
@@ -412,10 +430,10 @@ namespace Konoha.Campaign
             }
             Vector3 delta = destination.position - player.transform.position;
             float distance = new Vector2(delta.x, delta.z).magnitude;
-            if (distance < 2.3f)
+            if (distance < (run.Phase == CampaignPhase.PlazaAspirasi ? 2.8f : 2.3f))
             {
                 waypointText.text = run.Phase == CampaignPhase.PlazaAspirasi
-                    ? (destination == majelis ? "DI MAJELIS: dengarkan suara rakyat"
+                    ? (destination == majelis ? "DI MAJELIS: tetap di sini hingga bar penuh"
                         : "DI BIRO: tekan SAHKAN 3 kali")
                     : "DI LOKASI: " + label;
                 return;
