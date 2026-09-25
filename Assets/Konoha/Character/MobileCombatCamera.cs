@@ -10,6 +10,11 @@ namespace Konoha.Character
         public Vector3 crowdedOffset = new Vector3(0f, 16.4f, -13.4f);
         [Min(0.01f)] public float followTime = 0.17f;
         [Min(0.01f)] public float zoomTime = 0.24f;
+        // Enabled only for the solo scene. Keep the arena in frame when a player
+        // explores along the boundary; the network match keeps its original camera.
+        public bool limitFocusToArena;
+        public Vector2 focusXLimits = new Vector2(-6.5f, 6.5f);
+        public Vector2 focusZLimits = new Vector2(-3f, 4f);
 
         private Vector3 smoothVelocity;
         private Vector3 currentOffset;
@@ -35,6 +40,11 @@ namespace Konoha.Character
                 : desiredOffset;
 
             Vector3 focus = GetFocusPoint();
+            if (limitFocusToArena)
+            {
+                focus.x = Mathf.Clamp(focus.x, focusXLimits.x, focusXLimits.y);
+                focus.z = Mathf.Clamp(focus.z, focusZLimits.x, focusZLimits.y);
+            }
             Vector3 destination = focus + currentOffset;
 
             transform.position = initialized
@@ -68,6 +78,8 @@ namespace Konoha.Character
 
         private float EvaluateCrowding()
         {
+            if (limitFocusToArena)
+                return 0f;
             NetworkPlayerCombat[] actors =
                 Object.FindObjectsByType<NetworkPlayerCombat>(FindObjectsSortMode.None);
 

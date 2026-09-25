@@ -1,4 +1,5 @@
 using Konoha.Campaign;
+using Konoha.Character;
 using Konoha.Editor;
 using NUnit.Framework;
 using UnityEditor;
@@ -24,10 +25,17 @@ namespace Konoha.Tests
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.skillButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
+                Assert.That(preview.waypointText, Is.Not.Null);
                 Assert.That(preview.chairBarrier.GetComponentsInChildren<BoxCollider>().Length,
                     Is.EqualTo(4));
                 Assert.That(GameObject.Find("Circular plaza stone"), Is.Not.Null);
                 Assert.That(GameObject.Find("CyanSpawnBay"), Is.Null);
+                Assert.That(GameObject.Find("CyanChevron_-3_A"), Is.Null);
+                Assert.That(GameObject.Find("SpawnArrow_0_A"), Is.Null);
+                Assert.That(GameObject.Find("Surrounding Konoha Landscape"), Is.Not.Null);
+                var camera = UnityEngine.Object.FindFirstObjectByType<MobileCombatCamera>();
+                Assert.That(camera, Is.Not.Null);
+                Assert.That(camera.limitFocusToArena, Is.True);
             }
             finally
             {

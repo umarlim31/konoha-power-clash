@@ -16,7 +16,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.7.1")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.7.2")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -24,8 +24,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.0.7.1";
-            PlayerSettings.Android.bundleVersionCode = 14;
+            PlayerSettings.bundleVersion = "0.0.7.2";
+            PlayerSettings.Android.bundleVersionCode = 15;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             var network = GameObject.Find("RuntimeNetworkingProof");
@@ -40,6 +40,9 @@ namespace Konoha.Editor
             {
                 follow.offset = new Vector3(0f, 14.6f, -10.8f);
                 follow.crowdedOffset = follow.offset;
+                follow.limitFocusToArena = true;
+                follow.focusXLimits = new Vector2(-6.5f, 6.5f);
+                follow.focusZLimits = new Vector2(-3f, 4f);
             }
 
             var debug = canvas.GetComponent<SpikeDebugHud>();
@@ -71,26 +74,78 @@ namespace Konoha.Editor
             var route = Mat("CampaignRoute", new Color(0.63f, 0.58f, 0.48f));
             var charcoal = Mat("CampaignCharcoal", new Color(0.25f, 0.30f, 0.29f));
             var water = Mat("CampaignWater", new Color(0.10f, 0.33f, 0.39f));
+            var landscape = Mat("CampaignLandscape", new Color(0.24f, 0.32f, 0.24f));
+            var leaves = Mat("CampaignLeaves", new Color(0.17f, 0.40f, 0.27f));
+            var leavesLight = Mat("CampaignLeavesLight", new Color(0.34f, 0.53f, 0.30f));
+            var ivory = Mat("CampaignIvory", new Color(0.82f, 0.75f, 0.64f));
+
+            // A ground plane outside the collision walls prevents the empty dark
+            // void seen when the tablet camera followed a player to the north edge.
+            Deco("Surrounding Konoha Landscape", new Vector3(0f, -0.65f, 0f),
+                new Vector3(94f, 0.22f, 82f), landscape);
 
             // The 4v4 layout is still the collision foundation. Remove team-only
             // arrows and colours so the solo route reads as a single civic plaza.
             SetMaterial("Floor", pavement);
             foreach (string name in new[] {
+                "NorthBoundary", "SouthBoundary", "EastBoundary", "WestBoundary",
+                "NorthWestCover_Body", "SouthEastCover_Body", "NorthWestRelay",
+                "SouthEastRelay"
+            }) SetMaterial(name, stone);
+            foreach (string name in new[] {
+                "NorthTrim", "SouthTrim", "EastTrim", "WestTrim",
+                "NorthWestCover_Top", "SouthEastCover_Top",
+                "NorthWestCover_Slant", "SouthEastCover_Slant"
+            }) SetMaterial(name, ivory);
+            foreach (string name in new[] {
                 "CyanSpawnBay", "OrangeSpawnBay", "CyanTeamWall", "OrangeTeamWall",
                 "CyanWallStripe", "OrangeWallStripe", "NorthWestRelayCap",
-                "SouthEastRelayCap", "NorthSideLane", "SouthSideLane", "CenterLane"
+                "SouthEastRelayCap", "NorthSideLane", "SouthSideLane", "CenterLane",
+                "NorthWestCover_Accent", "SouthEastCover_Accent"
             }) RemoveObject(name);
             for (int z = -3; z <= 3; z += 2)
             {
-                RemoveObject("CyanChevron_" + z);
-                RemoveObject("OrangeChevron_" + z);
+                RemoveObject("CyanChevron_" + z + "_A");
+                RemoveObject("CyanChevron_" + z + "_B");
+                RemoveObject("OrangeChevron_" + z + "_A");
+                RemoveObject("OrangeChevron_" + z + "_B");
             }
             for (int i = 0; i < 8; i++)
             {
                 RemoveObject("TeamSpawn_" + i);
-                RemoveObject("SpawnArrow_" + i);
+                RemoveObject("SpawnArrow_" + i + "_A");
+                RemoveObject("SpawnArrow_" + i + "_B");
             }
             for (int z = -7; z <= 7; z += 7) RemoveObject("CenterGuide_" + z);
+            // Low-cost scenery remains outside the walkable arena. The silhouettes
+            // give the plaza a civic-garden setting even near camera boundaries.
+            foreach (int side in new[] { -1, 1 })
+            {
+                for (int i = 0; i < 3; i++)
+                    Tree("Garden tree", new Vector3(side * 20f, 0f, -9f + i * 9f),
+                        stone, leaves, leavesLight);
+                for (int i = 0; i < 2; i++)
+                {
+                    Tree("North garden tree", new Vector3(side * (5f + i * 7f), 0f, 17f),
+                        stone, leaves, leavesLight);
+                    Tree("South garden tree", new Vector3(side * (5f + i * 7f), 0f, -17f),
+                        stone, leaves, leavesLight);
+                }
+                for (int i = 0; i < 2; i++)
+                {
+                    float z = i == 0 ? -7.5f : 7.5f;
+                    Box("Courtyard planter", new Vector3(side * 14f, 0.20f, z),
+                        new Vector3(1.2f, 0.40f, 2.0f), stone);
+                    var shrub = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    shrub.name = "Courtyard shrubs";
+                    shrub.transform.position = new Vector3(side * 14f, 0.55f, z);
+                    shrub.transform.localScale = new Vector3(1.0f, 0.62f, 1.72f);
+                    shrub.GetComponent<Renderer>().sharedMaterial = leaves;
+                    UnityEngine.Object.DestroyImmediate(shrub.GetComponent<Collider>());
+                    Deco("Courtyard flowers", new Vector3(side * 14f, 0.88f, z),
+                        new Vector3(0.36f, 0.10f, 0.36f), burgundy);
+                }
+            }
             Deco("Stone Processional", new Vector3(0, 0.012f, -5f),
                 new Vector3(4.6f, 0.018f, 13f), route);
             Deco("Inner Plaza Paving", new Vector3(0, 0.012f, 4f),
@@ -130,8 +185,8 @@ namespace Konoha.Editor
             Box("East Gate", new Vector3(2.35f, 0.75f, 0), new Vector3(0.26f, 1.5f, 5.1f), gateColor).transform.SetParent(barrier.transform);
             Box("West Gate", new Vector3(-2.35f, 0.75f, 0), new Vector3(0.26f, 1.5f, 5.1f), gateColor).transform.SetParent(barrier.transform);
             var plaza = Marker("Plaza Aspirasi", new Vector3(0, 0, -6.5f), green);
-            var majelis = Institution("Majelis Daun", new Vector3(-9f, 0f, -6f), burgundy, stone);
-            var biro = Institution("Biro Prosedur", new Vector3(9f, 0f, -6f), biroColor, stone);
+            var majelis = Institution("Majelis Daun", new Vector3(-9f, 0f, -6f), burgundy, stone, gold);
+            var biro = Institution("Biro Prosedur", new Vector3(9f, 0f, -6f), biroColor, stone, gold);
             var garda = Marker("Garda Takhta", new Vector3(0, 0, 5.5f), gold);
             WorldLabel("PLAZA ASPIRASI", new Vector3(0, 0.45f, -6.5f));
             WorldLabel("ISTANA / GARDA", new Vector3(0, 0.45f, 5.5f));
@@ -141,17 +196,32 @@ namespace Konoha.Editor
             // Distinct fictional bird monument rather than an official coat of arms.
             Box("Monumen Burung Konoha Plinth", new Vector3(0, 0.4f, 9.5f),
                 new Vector3(2.8f, 0.8f, 1.5f), stone);
-            Deco("Abstract Bird Body", new Vector3(0, 2.2f, 9.5f), new Vector3(0.48f, 2.8f, 0.5f), gold);
+            Deco("Abstract Bird Body", new Vector3(0, 2.15f, 9.5f), new Vector3(0.65f, 1.85f, 0.48f), gold);
+            var birdHead = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            birdHead.name = "Abstract Bird Head";
+            birdHead.transform.position = new Vector3(0f, 3.18f, 9.5f);
+            birdHead.transform.localScale = new Vector3(0.42f, 0.42f, 0.42f);
+            birdHead.GetComponent<Renderer>().sharedMaterial = gold;
+            UnityEngine.Object.DestroyImmediate(birdHead.GetComponent<Collider>());
             for (int i = 0; i < 3; i++)
                 foreach (int side in new[] { -1, 1 })
-                    Deco("Abstract Wing", new Vector3(side * (0.58f + i * 0.5f), 3.0f + i * 0.17f, 9.5f),
-                        new Vector3(0.88f, 0.13f, 0.3f), gold);
+                {
+                    var feather = Deco("Abstract Bird Feather", new Vector3(side * (0.72f + i * 0.67f),
+                        2.65f + i * 0.27f, 9.5f), new Vector3(1.15f, 0.24f, 0.38f), gold);
+                    feather.transform.rotation = Quaternion.Euler(0f, side * 12f, side * 19f);
+                }
+            Deco("Bird Tail", new Vector3(0f, 1.17f, 9.5f),
+                new Vector3(0.36f, 0.85f, 0.24f), gold);
             for (int side = -1; side <= 1; side += 2)
             {
                 Deco("Reflecting Pool", new Vector3(side * 10, 0.035f, 7.7f),
                     new Vector3(3.2f, 0.035f, 2.2f), water);
                 Deco("Ceremonial Banner", new Vector3(side * 14.5f, 1.8f, 6f),
                     new Vector3(0.12f, 3.2f, 0.75f), burgundy);
+                Deco("Red white civic ribbon", new Vector3(side * 14.3f, 2.35f, -3f),
+                    new Vector3(0.12f, 0.44f, 2.1f), gateColor);
+                Deco("Ivory civic ribbon", new Vector3(side * 14.3f, 1.93f, -3f),
+                    new Vector3(0.12f, 0.40f, 2.1f), ivory);
             }
 
             var guard = new GameObject("GardaTakhta_Greybox");
@@ -200,18 +270,23 @@ namespace Konoha.Editor
             backdropRect.anchorMin = backdropRect.anchorMax = new Vector2(0.5f, 1f);
             backdropRect.pivot = new Vector2(0.5f, 1f);
             backdropRect.anchoredPosition = new Vector2(0f, -6f);
-            backdropRect.sizeDelta = new Vector2(950f, 117f);
+            backdropRect.sizeDelta = new Vector2(820f, 93f);
             headingBackdrop.GetComponent<Image>().color = new Color(0.06f, 0.12f, 0.13f, 0.86f);
             headingBackdrop.GetComponent<Image>().raycastTarget = false;
             var objective = Text("CampaignObjective", safe, new Vector2(0.5f, 1f),
-                new Vector2(0, -22), new Vector2(930, 52), 21);
+                new Vector2(0, -14), new Vector2(800, 43), 18);
             objective.alignment = TextAnchor.MiddleCenter;
             objective.color = new Color(1f, 0.89f, 0.65f);
             objective.gameObject.AddComponent<Outline>().effectColor = new Color(0.10f, 0.10f, 0.10f, 0.85f);
             var status = Text("CampaignStatus", safe, new Vector2(0.5f, 1f),
-                new Vector2(0, -78), new Vector2(750, 36), 18);
+                new Vector2(0, -57), new Vector2(760, 28), 16);
             status.alignment = TextAnchor.MiddleCenter;
             status.gameObject.AddComponent<Outline>().effectColor = Color.black;
+            var waypoint = Text("CampaignWaypoint", safe, new Vector2(0.5f, 1f),
+                new Vector2(0, -112), new Vector2(600, 34), 17);
+            waypoint.alignment = TextAnchor.MiddleCenter;
+            waypoint.color = new Color(1f, 0.86f, 0.58f);
+            waypoint.gameObject.AddComponent<Outline>().effectColor = Color.black;
             var feedback = Text("CampaignFeedback", safe, new Vector2(0.5f, 0.5f),
                 new Vector2(0, 165), new Vector2(660, 44), 21);
             feedback.alignment = TextAnchor.MiddleCenter;
@@ -234,7 +309,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 10), new Vector2(560, 26), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.0.7.1  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.0.7.2  •  SOLO PREVIEW";
 
             var preview = new GameObject("JalurTakhtaPreview").AddComponent<CampaignPreviewController>();
             preview.player = player;
@@ -245,9 +320,12 @@ namespace Konoha.Editor
             preview.chair = chair.transform;
             preview.chairBarrier = barrier;
             preview.guardVisual = guard;
+            preview.guardRenderer = guardBody.GetComponent<Renderer>();
+            preview.heroMarker = selection.transform;
             preview.heroVisuals = visuals;
             preview.objectiveText = objective;
             preview.statusText = status;
+            preview.waypointText = waypoint;
             preview.heroText = heroText;
             preview.feedbackText = feedback;
             preview.attackButton = basic;
@@ -285,15 +363,41 @@ namespace Konoha.Editor
             return disc;
         }
 
-        private static Transform Institution(string name, Vector3 location, Material accent, Material stone)
+        private static void Tree(string name, Vector3 position, Material trunk, Material canopy,
+            Material highlight)
+        {
+            Deco(name + " trunk", position + new Vector3(0f, 1.05f, 0f),
+                new Vector3(0.34f, 2.1f, 0.34f), trunk);
+            var crown = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            crown.name = name + " canopy";
+            crown.transform.position = position + new Vector3(0f, 2.35f, 0f);
+            crown.transform.localScale = new Vector3(2.5f, 1.15f, 2.5f);
+            crown.GetComponent<Renderer>().sharedMaterial = canopy;
+            UnityEngine.Object.DestroyImmediate(crown.GetComponent<Collider>());
+            var top = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            top.name = name + " highlight";
+            top.transform.position = position + new Vector3(0f, 2.95f, 0f);
+            top.transform.localScale = new Vector3(1.75f, 0.75f, 1.75f);
+            top.GetComponent<Renderer>().sharedMaterial = highlight;
+            UnityEngine.Object.DestroyImmediate(top.GetComponent<Collider>());
+        }
+
+        private static Transform Institution(string name, Vector3 location, Material accent,
+            Material stone, Material gold)
         {
             var marker = Marker(name, location, accent);
-            Box(name + " Facade", location + new Vector3(0, 1.25f, 1.5f), new Vector3(3.8f, 2.5f, 0.45f), stone);
-            Box(name + " Roof", location + new Vector3(0, 2.6f, 1.5f), new Vector3(4.2f, 0.3f, 0.9f), accent);
+            Box(name + " Facade", location + new Vector3(0, 1.65f, 1.6f), new Vector3(4.6f, 3.3f, 0.45f), stone);
+            Box(name + " Roof", location + new Vector3(0, 3.45f, 1.45f), new Vector3(5.1f, 0.32f, 1.2f), accent);
+            Deco(name + " Gold Cornice", location + new Vector3(0, 3.19f, 1.1f),
+                new Vector3(4.8f, 0.12f, 0.16f), gold);
             foreach (int side in new[] { -1, 1 })
-                Box(name + " Column", location + new Vector3(side * 1.5f, 0.9f, 0.55f),
-                    new Vector3(0.3f, 1.8f, 0.4f), stone);
-            WorldLabel(name.ToUpperInvariant(), location + new Vector3(0, 3.25f, 1.5f));
+            {
+                Box(name + " Column", location + new Vector3(side * 1.8f, 1.4f, 0.85f),
+                    new Vector3(0.34f, 2.8f, 0.42f), stone);
+                Deco(name + " Standard", location + new Vector3(side * 2.03f, 2.16f, 0.55f),
+                    new Vector3(0.25f, 1.22f, 0.12f), accent);
+            }
+            WorldLabel(name.ToUpperInvariant(), location + new Vector3(0, 3.9f, 1.5f));
             return marker;
         }
 

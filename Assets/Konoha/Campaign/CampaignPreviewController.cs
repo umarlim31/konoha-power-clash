@@ -16,9 +16,12 @@ namespace Konoha.Campaign
         public Transform chair;
         public GameObject chairBarrier;
         public GameObject guardVisual;
+        public Renderer guardRenderer;
+        public Transform heroMarker;
         public GameObject[] heroVisuals;
         public Text objectiveText;
         public Text statusText;
+        public Text waypointText;
         public Text heroText;
         public Text feedbackText;
         public Button attackButton;
@@ -45,6 +48,9 @@ namespace Konoha.Campaign
         private bool guardActive;
         private string feedback;
         private float feedbackUntil;
+        private float guardFlashUntil;
+        private MaterialPropertyBlock ringBlock;
+        private MaterialPropertyBlock guardBlock;
 
         private void Start()
         {
@@ -53,6 +59,8 @@ namespace Konoha.Campaign
             heroButton.onClick.AddListener(NextHero);
             skillButton.onClick.AddListener(UseSkill);
             guardVisual.SetActive(false);
+            ringBlock = new MaterialPropertyBlock();
+            guardBlock = new MaterialPropertyBlock();
             ShowHero();
             RefreshHud();
         }
@@ -129,6 +137,7 @@ namespace Konoha.Campaign
                 guardActive = false;
                 guardVisual.SetActive(false);
             }
+            RefreshWorldFeedback();
             RefreshHud();
         }
 
@@ -182,6 +191,7 @@ namespace Konoha.Campaign
         {
             if (!guardActive) return;
             guardHealth -= damage;
+            guardFlashUntil = Time.time + 0.22f;
             Notify("Garda terkena " + damage + "  •  sisa " + Mathf.Max(0, guardHealth) + " HP");
             if (guardHealth > 0) return;
             guardActive = false;
@@ -283,6 +293,27 @@ namespace Konoha.Campaign
             }
         }
 
+        private void RefreshWorldFeedback()
+        {
+            if (heroMarker != null && ringBlock != null)
+            {
+                Color[] colors = {
+                    new Color(0.88f, 0.24f, 0.28f), new Color(0.94f, 0.68f, 0.30f),
+                    new Color(0.27f, 0.78f, 0.52f), new Color(0.94f, 0.55f, 0.30f)
+                };
+                ringBlock.SetColor("_BaseColor", colors[heroIndex]);
+                heroMarker.GetComponent<Renderer>().SetPropertyBlock(ringBlock);
+                float pulse = 1.65f + 0.06f * Mathf.Sin(Time.time * 3f);
+                heroMarker.localScale = new Vector3(pulse, 0.012f, pulse);
+            }
+            if (guardActive && guardRenderer != null && guardBlock != null)
+            {
+                guardBlock.SetColor("_BaseColor", Time.time < guardFlashUntil
+                    ? new Color(1f, 0.82f, 0.38f) : new Color(0.17f, 0.22f, 0.32f));
+                guardRenderer.SetPropertyBlock(guardBlock);
+            }
+        }
+
         private void Restart()
         {
             run = new CampaignRunState(2, 35);
@@ -333,21 +364,70 @@ namespace Konoha.Campaign
                 default:
                     objectiveText.text = "JALUR TAKHTA SELESAI! Tekan ULANG untuk bermain lagi"; break;
             }
-            bool canConfirm = run.Phase == CampaignPhase.PlazaAspirasi &&
+            bool atBiro = run.Phase == CampaignPhase.PlazaAspirasi &&
                 !run.HasSeal(CampaignSector.BiroProsedur) &&
-                Near(player.transform.position, biro.position, 2.3f) && Time.time >= nextBiroStep;
+                Near(player.transform.position, biro.position, 2.3f);
+            bool canConfirm = atBiro && Time.time >= nextBiroStep;
             bool canSit = run.Phase == CampaignPhase.KursiTerbuka &&
                 Near(player.transform.position, chair.position, 2.2f);
             sitButton.interactable = canConfirm || canSit || run.Phase == CampaignPhase.Menang;
-            sitButton.GetComponentInChildren<Text>().text = run.Phase == CampaignPhase.Menang ? "ULANG"
-                : canConfirm ? "SAHKAN " + (biroSteps + 1) + "/3" : "DUDUK";
+            sitButton.GetComponentInChildren<Text>(true).text = run.Phase == CampaignPhase.Menang ? "ULANG"
+                : atBiro ? "SAHKAN " + (biroSteps + 1) + "/3" : "DUDUK";
+            sitButton.gameObject.SetActive(atBiro || canSit || run.Phase == CampaignPhase.Menang);
             attackButton.interactable = GuardWithin(3f) && Time.time >= nextBasic;
+            attackButton.gameObject.SetActive(guardActive);
             string[] skills = { "PERISAI", "KOMANDO", "PULIHKAN", "JALAN BARU" };
             float remaining = Mathf.Max(0f, skillReadyAt[heroIndex] - Time.time);
             skillButton.interactable = run.Phase != CampaignPhase.Menang && remaining <= 0f &&
                 (heroIndex != 1 || GuardWithin(4.5f));
             skillButton.GetComponentInChildren<Text>().text = remaining > 0f
                 ? skills[heroIndex] + " " + Mathf.CeilToInt(remaining) : skills[heroIndex];
+            RefreshWaypoint();
+        }
+
+        private void RefreshWaypoint()
+        {
+            if (waypointText == null) return;
+            Transform destination;
+            string label;
+            switch (run.Phase)
+            {
+                case CampaignPhase.GerbangRakyat:
+                    destination = plaza; label = "PLAZA"; break;
+                case CampaignPhase.PlazaAspirasi:
+                    destination = run.HasSeal(CampaignSector.MajelisDaun) ? biro : majelis;
+                    label = run.HasSeal(CampaignSector.MajelisDaun) ? "BIRO" : "MAJELIS";
+                    break;
+                case CampaignPhase.GerbangDalam:
+                case CampaignPhase.GardaTakhta:
+                    destination = guardActive ? guardVisual.transform : garda;
+                    label = "GARDA"; break;
+                case CampaignPhase.KursiTerbuka:
+                case CampaignPhase.Memerintah:
+                    destination = guardActive ? guardVisual.transform : chair;
+                    label = guardActive ? "PERTAHANKAN KURSI" : "KURSI"; break;
+                default:
+                    waypointText.text = string.Empty;
+                    return;
+            }
+            Vector3 delta = destination.position - player.transform.position;
+            float distance = new Vector2(delta.x, delta.z).magnitude;
+            if (distance < 2.3f)
+            {
+                waypointText.text = run.Phase == CampaignPhase.PlazaAspirasi
+                    ? (destination == majelis ? "DI MAJELIS: dengarkan suara rakyat"
+                        : "DI BIRO: tekan SAHKAN 3 kali")
+                    : "DI LOKASI: " + label;
+                return;
+            }
+            string direction;
+            if (Mathf.Abs(delta.x) > Mathf.Abs(delta.z) * 1.8f)
+                direction = delta.x < 0f ? "BARAT" : "TIMUR";
+            else if (Mathf.Abs(delta.z) > Mathf.Abs(delta.x) * 1.8f)
+                direction = delta.z < 0f ? "SELATAN" : "UTARA";
+            else direction = (delta.z < 0f ? "SELATAN " : "UTARA ") +
+                    (delta.x < 0f ? "BARAT" : "TIMUR");
+            waypointText.text = "ARAH " + label + ": " + direction + "  •  " + Mathf.CeilToInt(distance) + " m";
         }
 
         private static bool Near(Vector3 a, Vector3 b, float radius)
