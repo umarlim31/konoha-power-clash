@@ -287,8 +287,8 @@ namespace Konoha.Campaign
                 if (renderer != null)
                 {
                     Color[] colors = {
-                        new Color(0.19f, 0.08f, 0.10f), new Color(0.83f, 0.78f, 0.68f),
-                        new Color(0.08f, 0.28f, 0.22f), new Color(0.85f, 0.78f, 0.67f)
+                        new Color(0.43f, 0.11f, 0.16f), new Color(0.83f, 0.78f, 0.68f),
+                        new Color(0.11f, 0.34f, 0.26f), new Color(0.85f, 0.78f, 0.67f)
                     };
                     var block = new MaterialPropertyBlock();
                     block.SetColor("_BaseColor", colors[heroIndex]);
@@ -309,7 +309,7 @@ namespace Konoha.Campaign
                 };
                 ringBlock.SetColor("_BaseColor", colors[heroIndex]);
                 heroMarker.GetComponent<Renderer>().SetPropertyBlock(ringBlock);
-                float pulse = 1.65f + 0.06f * Mathf.Sin(Time.time * 3f);
+                float pulse = 1.32f + 0.04f * Mathf.Sin(Time.time * 3f);
                 heroMarker.localScale = new Vector3(pulse, 0.012f, pulse);
             }
             if (guardActive && guardRenderer != null && guardBlock != null)

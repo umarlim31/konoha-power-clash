@@ -38,6 +38,16 @@ namespace Konoha.Tests
                 Assert.That(GameObject.Find("Fictional civic dome"), Is.Not.Null);
                 Assert.That(GameObject.Find("Bridge across reflecting pool"), Is.Not.Null);
                 Assert.That(GameObject.Find("Majelis Daun interaction boundary"), Is.Not.Null);
+                Assert.That(GameObject.Find("Majelis Daun pitched assembly roof"), Is.Not.Null);
+                Assert.That(GameObject.Find("Biro Prosedur archive lantern"), Is.Not.Null);
+                Assert.That(GameObject.Find("Objective backdrop").GetComponent<RectTransform>().sizeDelta.y,
+                    Is.LessThan(100f));
+                Assert.That(GameObject.Find("TouchCanvas").GetComponent<Konoha.UI.SafeAreaLayout>().compactJoystick,
+                    Is.True);
+                Assert.That(GameObject.Find("North Gate").GetComponent<Renderer>().enabled, Is.False);
+                Assert.That(GameObject.Find("North Gate ritual seal"), Is.Not.Null);
+                Assert.That(GameObject.Find("Floor").GetComponent<Renderer>().sharedMaterial.GetTexture("_BaseMap"),
+                    Is.Not.Null);
                 var camera = UnityEngine.Object.FindFirstObjectByType<MobileCombatCamera>();
                 Assert.That(camera, Is.Not.Null);
                 Assert.That(camera.limitFocusToArena, Is.True);
