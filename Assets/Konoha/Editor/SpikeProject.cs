@@ -45,7 +45,7 @@ namespace Konoha.Editor
         // Konoha.Editor.SpikeProject.prepare.
         public static void prepare()
         {
-            Prepare();
+            CampaignPreviewProject.Prepare();
         }
 
         private static void ConfigureAndroid()

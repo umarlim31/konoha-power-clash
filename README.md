@@ -1,5 +1,7 @@
 # KONOHA: POWER CLASH - Android Technical Spike 0.1
 
+> **Playable Jalur Takhta preview:** On branch `feat/jalur-takhta-first-playable`, follow [Docs/JALUR_TAKHTA_FIRST_PLAYABLE_007.md](Docs/JALUR_TAKHTA_FIRST_PLAYABLE_007.md) to trigger the Android build manually. This branch generates a separate solo scene; the 4v4 source remains available on its existing branch. The older instructions below describe the archived 0.0.1 spike.
+
 > **Current development is on feature branches.** `main` and much of this README describe the old 0.0.1 spike. The 4v4 prototype lives on `feature/v0.0.6a2-hero-greybox-polish`; character concept alignment is on `feat/hero-concept-alignment-006a3`. For manual Unity Build Automation from a phone/tablet, read [Docs/MOBILE_MANUAL_BUILD_006A3.md](Docs/MOBILE_MANUAL_BUILD_006A3.md). The new solo-first PvE campaign is scoped separately in [Docs/GAME_BIBLE_V2_IMPLEMENTATION.md](Docs/GAME_BIBLE_V2_IMPLEMENTATION.md).
 
 Current build: **0.0.1**. Status: **PARTIAL - source prepared; Unity compilation and device validation pending**.
