@@ -42,7 +42,7 @@ namespace Konoha.Editor
                 follow.crowdedOffset = follow.offset;
                 follow.limitFocusToArena = true;
                 follow.focusXLimits = new Vector2(-6.5f, 6.5f);
-                follow.focusZLimits = new Vector2(-3f, 4f);
+                follow.focusZLimits = new Vector2(-6f, 5f);
             }
 
             var debug = canvas.GetComponent<SpikeDebugHud>();

@@ -36,6 +36,7 @@ namespace Konoha.Tests
                 var camera = UnityEngine.Object.FindFirstObjectByType<MobileCombatCamera>();
                 Assert.That(camera, Is.Not.Null);
                 Assert.That(camera.limitFocusToArena, Is.True);
+                Assert.That(camera.focusZLimits.x, Is.EqualTo(-6f));
             }
             finally
             {

@@ -14,7 +14,7 @@ namespace Konoha.Character
         // explores along the boundary; the network match keeps its original camera.
         public bool limitFocusToArena;
         public Vector2 focusXLimits = new Vector2(-6.5f, 6.5f);
-        public Vector2 focusZLimits = new Vector2(-3f, 4f);
+        public Vector2 focusZLimits = new Vector2(-6f, 5f);
 
         private Vector3 smoothVelocity;
         private Vector3 currentOffset;
