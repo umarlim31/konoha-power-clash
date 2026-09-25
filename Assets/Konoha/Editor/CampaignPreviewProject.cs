@@ -49,6 +49,10 @@ namespace Konoha.Editor
             var safe = canvas.transform.Find("SafeArea");
             var matchHud = safe.GetComponent<NetworkMatchHud>();
             if (matchHud != null) UnityEngine.Object.DestroyImmediate(matchHud);
+            // The PvP chair script recolours the seat grey when no network match is
+            // present. The solo objective must retain its gold focal colour.
+            var networkChair = UnityEngine.Object.FindFirstObjectByType<NetworkChairVisual>();
+            if (networkChair != null) UnityEngine.Object.DestroyImmediate(networkChair);
             var pad = safe.Find("MovePad");
             for (int i = safe.childCount - 1; i >= 0; i--)
                 if (safe.GetChild(i) != pad) UnityEngine.Object.DestroyImmediate(safe.GetChild(i).gameObject);
@@ -158,6 +162,15 @@ namespace Konoha.Editor
             guardBody.transform.localPosition = Vector3.up;
             guardBody.GetComponent<Renderer>().sharedMaterial = guardColor;
             UnityEngine.Object.DestroyImmediate(guardBody.GetComponent<Collider>());
+            var guardCrest = Deco("Guard crest", Vector3.zero, new Vector3(0.26f, 0.30f, 0.17f), gateColor);
+            guardCrest.transform.SetParent(guard.transform, false);
+            guardCrest.transform.localPosition = new Vector3(0f, 2.07f, 0.22f);
+            var guardShield = Deco("Guard shield", Vector3.zero, new Vector3(0.75f, 0.92f, 0.15f), gold);
+            guardShield.transform.SetParent(guard.transform, false);
+            guardShield.transform.localPosition = new Vector3(-0.56f, 1.02f, 0.28f);
+            var guardCape = Deco("Guard cape", Vector3.zero, new Vector3(1.08f, 1.05f, 0.12f), gateColor);
+            guardCape.transform.SetParent(guard.transform, false);
+            guardCape.transform.localPosition = new Vector3(0f, 1.03f, -0.42f);
             WorldLabel("GARDA", garda.position + new Vector3(0, 2.5f, 0)).transform.SetParent(guard.transform);
 
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(SpikeProject.Generated + "/NetworkPlayer.prefab");
