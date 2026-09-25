@@ -9,6 +9,7 @@ namespace Konoha.Campaign
     public sealed class CampaignPreviewController : MonoBehaviour
     {
         public CharacterMotor player;
+        public CampaignMonument centralMonument;
         public Transform plaza;
         public Transform majelis;
         public Transform biro;
@@ -167,8 +168,13 @@ namespace Konoha.Campaign
             // chair enclosure to chase a player who has not reached this sector.
             if (run.Phase == CampaignPhase.GardaTakhta && distance > 6f) return;
             if (distance > 1.5f)
+            {
+                Vector3 destination = centralMonument != null
+                    ? CampaignMonument.GuardDestination(guardVisual.transform.position, target, centralMonument.solid.bounds)
+                    : target;
                 guardVisual.transform.position = Vector3.MoveTowards(guardVisual.transform.position,
-                    target, 2.1f * dt);
+                    destination, 2.1f * dt);
+            }
             else if (Time.time >= nextGuardHit)
             {
                 health = Mathf.Max(0, health - (Time.time < shieldUntil ? 8 : 18));

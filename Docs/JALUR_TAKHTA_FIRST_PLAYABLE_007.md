@@ -1,37 +1,53 @@
-# Jalur Takhta 0.0.8 — visual rebuild preview
+# Jalur Takhta 0.0.8.1 — capital environment art pass
 
 Source branch: `feat/jalur-takhta-first-playable`, based on `feat/hero-concept-alignment-006a3`.
-The existing 4v4 scene, networking, bots and match rules remain in the repository. This branch directs the **existing manual Unity Build Automation pre-export method** to a separate campaign preview scene.
+The campaign retains a separate scene and Android package. Existing 4v4 generation, networking and match rules are unchanged.
 
-## Build manually from Android/tablet
+## Manual Android/tablet build
 
-1. In the existing Unity Build Automation Android target, select source branch `feat/jalur-takhta-first-playable` and keep Unity **6000.0.60f1**.
-2. Leave pre-export method `Konoha.Editor.SpikeProject.prepare` unchanged. On this branch it prepares `Assets/Konoha/Generated/JalurTakhtaPreview.unity` as the only enabled build scene.
-3. Start the build manually in the mobile browser, then download and install its Android APK. The app name is **KONOHA Jalur Takhta Preview**, version `0.0.8`, code 17, with package ID `com.konoha.powerclash.jalurtakhta`. It updates the earlier solo preview and can stay installed beside the 4v4 app.
-4. On startup, confirm the bottom text says `JALUR TAKHTA 0.0.8 • SOLO PREVIEW`. The game begins offline without host/join. No local Unity Editor or PC interaction is needed.
+1. In the existing Unity Build Automation Android target, select `feat/jalur-takhta-first-playable`, Unity **6000.0.60f1**.
+2. Keep pre-export method **`Konoha.Editor.SpikeProject.prepare`**. This generates `Assets/Konoha/Generated/JalurTakhtaPreview.unity` and the saved meshes, textures, materials and solo URP asset under `Assets/Konoha/Generated/Capital`.
+3. Start the build manually. Install the APK: **KONOHA Jalur Takhta Preview**, version **0.0.8.1**, Android code **18**, package `com.konoha.powerclash.jalurtakhta`.
+4. Confirm the bottom label reads `JALUR TAKHTA 0.0.8.1 • SOLO PREVIEW`. An old label means the previous APK/commit was built or installed.
 
-If the target does not execute EditMode tests, an APK build verifies import/compilation but does not verify the three state tests or scene-wiring test. Send the build log if compilation or export fails.
+If the target does not run EditMode tests, an APK build only verifies import/compilation. The tests in the repository still require a Unity test runner. Send the build log if compilation or export fails.
 
-## Playthrough to check on device
+## What changed after the 0.0.8 recording
 
-1. Drag the joystick forward from Gerbang Rakyat to the green Plaza Aspirasi marker.
-   The smaller top banner and a direction/distance prompt show the next destination. If you walk along a boundary, the camera should keep more of the arena in view and show a garden outside the wall rather than a black void.
-2. Go left to **Majelis Daun** and stay within its gold outlined zone for 2.5 seconds; watch the bar beneath the top objective fill. Leaving the zone slowly reduces progress. Go right to **Biro Prosedur**, stand within its matching outline and press **SAHKAN** three times, about 0.65 second apart. Both Segel open the inner route.
-3. Approach Garda Takhta beyond the central seat. Use **BASIC** at close range (four hits from 100 HP), or a hero skill, to defeat it. Press **GANTI HERO** to try a different kit: Mega has a 5-second shield and close-range attack; Gemoy has a heavy hit; Abah heals and briefly stops the guard; Pak Wi runs faster for 5 seconds. Each skill has a cooldown.
-4. Watch the red seat enclosure disappear, enter the Kursi area and tap **DUDUK**. Remain near the seat to build Kuasa. A counterattack arrives shortly afterward; BASIC can defeat it. If pushed away or knocked out, Kuasa pauses until you sit again.
-5. Reach 35 Kuasa to show the prototype result. Press **ULANG** to start a fresh run without closing the app.
+The earlier arena inherited disabled shadows and assembled landmarks largely from primitive boxes. This revision replaces its environment generator with a dedicated capital art pass:
 
-Check joystick comfort, direction prompt at the north and west edges, legibility of left/right sector markers, gate collision, attack range, camera tracking, text safe area on phone and tablet, and whether a full run can be completed without a restart. The SAHKAN/DUDUK button appears only near its target; BASIC appears once the guard arrives. A recording reaching the two seals and the first guard would verify the rest of the loop. When entering Majelis, stop moving until the bar fills; this was hard to understand in the 0.0.7.2 recording.
+- Saved custom meshes for an octagonal, tapered central monument; curved pointed bronze feathers; profiled columns; tiered hip roofs; arches; dome; palms; and thin circular inlays.
+- The Garuda Konoha monument now sits within the central plaza, behind the throne. The northern civic hall, domed roof, side institutions, guardian sculptures, folded red/white banners, garden beds and distant buildings frame its silhouette.
+- Andesite, pale stone, patinated roof, bronze and cloth materials have distinct surface settings. Fine grain and staggered stone joints replace the earlier coarse floor pattern.
+- Solo URP enables main-light soft shadows, a 2048 shadow map, two cascades and a 48 m shadow distance. Tropical sky, gradient ambient lighting and distant fog add depth. MSAA remains 2x, HDR stays off; the PvP pipeline asset is separate and unchanged.
+- Pool bridges have physical decks and 15-degree entry ramps. Old PvP covers, relays and their colliders are removed from the solo scene.
+- The monument fades when it obscures the player's torso; saved transparent variants are included in the scene. The guard takes a route around the monument footprint.
+- **LIHAT ARENA** opens a slowly moving overview, pauses the solo game and hides other controls. **KEMBALI MAIN** restores the camera, HUD, input and time scale.
 
-## Honest scope
+Scene elements use shared materials and saved mesh assets. Static scenery is marked for batching; the fading monument is excluded from static batching. These are budget choices, not measured device performance.
 
-This is an **offline solo gameplay preview**. It reuses existing movement and builds a stone plaza from procedural geometry. The 0.0.7.2 recording spent much of its time around Majelis without earning the first seal. The unbuilt 0.0.7.3 source drew the interaction boundary at the actual trigger radius, added a progress bar and clearer single-step instructions, and eased the hold. Version 0.0.8 adds a lower solo camera, procedural stone paving and water ripples, two institution building volumes with distinct rooflines, a thinner sealed throne gate in place of the red box, and a smaller solo HUD and joystick. The concentric plaza, reflecting pools and bridges, enlarged original winged monument, distant fictional domed hall, guardian silhouettes and courtyard palms are retained from 0.0.7.3. These remain lightweight stylized placeholders, not a 3D reproduction of the concept sheet. The four hero actions and two sector tasks are playable placeholders; the guard is still a simple chasing enemy. Dodge, Modal/Koneksi, branching negotiation, cutscenes, saves, co-op, production animation, and finished character and environment models are not implemented. The bird monument is an original fictional motif, not an official Garuda emblem. Scene generation and Android compilation require the manual Unity Build Automation run; source checks cannot certify an APK or device performance.
+## Device acceptance
 
-## Visual acceptance on phone and tablet
+First use **LIHAT ARENA** for a full-arena recording, then **KEMBALI MAIN** for the gameplay check. The source has not been rendered by Unity in the authoring environment, so the APK is the required visual acceptance step.
 
-- From Gerbang Rakyat, the player, two sector entrances, chair and northern hall should each read as distinct landmarks. The seat should have thin red and gold seals, without an opaque red cage.
-- While approaching Majelis, the building should show a pitched roof; Biro should show a flat layered roof. Both zones have an outlined interaction radius matching the actual trigger.
-- Walk around the gate and both bridges. Check that any place where geometry looks solid also has an obvious route or a deliberate blocker. Decorative water is shallow and walkable outside the visual bridge in this prototype.
-- Watch for joystick/button overlap and excessive top-panel obstruction at phone landscape and tablet aspect ratios. Report device model, FPS impression and a screenshot at spawn, at Majelis, and at the open throne.
+- At spawn: verify the central winged monument, roof silhouettes, pale main lane, side institutions and cast shadows are recognizable; check for pink materials, missing meshes or flicker.
+- Walk north behind the monument: verify it fades only when blocking the avatar and becomes opaque again when the sightline clears. In overview it should be fully visible.
+- Check both bridge approaches, boundary walls and the two institution entrances. The shallow water remains non-lethal and walkable; bridge decks rise physically above it.
+- Enter/exit overview while moving: the joystick must reset; gameplay and the previous camera must resume without a stuck pause or hidden controls.
+- On phone and tablet, check the top-left overview button, objective panel, joystick and action buttons for overlap. Record device model, frame-rate impression and any sustained heat/stutter. Shadows may require tuning after measured device results.
 
-The concept Bible v2 calls for solo-first Jalur Takhta and retains Rebut Kursi as a separate PvP mode. We have deliberately kept the campaign preview on its own generated scene and separate Android package. The prior source branch remains available for testing the 4v4 game.
+## Complete solo playthrough
+
+1. Move forward from Gerbang Rakyat to the bronze **Plaza Aspirasi** ring.
+2. Go left to **Majelis Daun**, remain within its ring for 2.5 seconds and watch the progress bar. Go right to **Biro Prosedur**, stand in its ring and tap **SAHKAN** three times, at least 0.65 seconds apart.
+3. Follow the direction prompt around the central enclosure to **Garda Takhta**. Use BASIC at close range or a hero skill. GANTI HERO cycles Mega, Gemoy, Abah and Pak Wi.
+4. After defeating Garda, the thin red/gold seals disappear. Approach the throne from the south, tap **DUDUK** and remain nearby. The counterattack should move around the monument instead of crossing through its base.
+5. Reach 35 Kuasa. Tap **ULANG** to restart. Verify the whole route, both seals, guard fight, throne and counterattack in one run.
+
+## Validation and remaining scope
+
+Local validation: `python scripts/source-check.py` and `git diff --check`. No Unity Editor or C# compiler is available in this workspace. Unity import, compilation, EditMode tests, APK generation and device rendering/performance have **not** been run here.
+
+The updated scene test reloads the saved scene, checks persisted meshes/materials and solo shadow settings, confirms old blockers are removed, and samples capsule clearance along the campaign route. A guard-route test checks that the monument is avoided and the throne can be reached. They are prepared tests, not reported passes.
+
+This is an implemented procedural environment art pass, with original fictional civic motifs. It is not a validated match to the premium concept board. Characters retain their existing prototype models and animation; water uses a stylized surface rather than real-time planar reflections. Final sculpted assets, authored texture maps, NPC crowds and production animation remain future work. The PR stays draft until the manual APK has been reviewed on device.
