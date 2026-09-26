@@ -1,6 +1,8 @@
 using Konoha.Campaign;
 using Konoha.Character;
 using Konoha.Editor;
+using Konoha.Input;
+using UnityEngine.EventSystems;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -42,7 +44,8 @@ namespace Konoha.Tests
                     Assert.That(material.GetFloat("_Surface"), Is.EqualTo(1f));
                 }
                 foreach (string obsolete in new[] { "CyanSpawnBay", "CyanChevron_-3_A", "SpawnArrow_0_A",
-                    "NorthWestCover_Body", "SouthEastCover_Body", "NorthWestRelay", "SouthEastRelay" })
+                    "NorthWestCover_Body", "SouthEastCover_Body", "NorthWestRelay", "SouthEastRelay",
+                    "NorthBoundary", "SouthBoundary", "EastBoundary", "WestBoundary" })
                     Assert.That(GameObject.Find(obsolete), Is.Null, obsolete);
                 foreach (string landmark in new[] { "Circular plaza stone", "Monumen Garuda Konoha",
                     "Fictional civic dome", "Bridge across reflecting pool", "Majelis Daun interaction boundary",
@@ -65,7 +68,30 @@ namespace Konoha.Tests
                 Assert.That(pvp.shadowDistance, Is.Zero);
                 Assert.That(Object.FindFirstObjectByType<CampaignArenaView>().viewButton, Is.Not.Null);
                 Assert.That(GameObject.Find("TouchCanvas").GetComponent<Konoha.UI.SafeAreaLayout>().compactJoystick, Is.True);
-                Assert.That(Object.FindFirstObjectByType<MobileCombatCamera>().limitFocusToArena, Is.True);
+                var camera = Object.FindFirstObjectByType<MobileCombatCamera>();
+                Assert.That(camera.limitFocusToArena, Is.False);
+                Assert.That(camera.allowOrbit, Is.True);
+                Assert.That(preview.player.allowJump, Is.True);
+                Assert.That(Object.FindFirstObjectByType<Konoha.Core.OfflineSpikeDriver>().enabled, Is.False);
+                var traversal = preview.player.GetComponent<CampaignTraversal>();
+                Assert.That(traversal.jumpButton, Is.Not.Null);
+                Assert.That(traversal.movementCamera, Is.EqualTo(camera.transform));
+                Assert.That(traversal.boundaryRadii.x, Is.GreaterThan(20));
+                Assert.That(GameObject.Find("Camera drag surface").GetComponent<CampaignCameraDrag>().follow, Is.SameAs(camera));
+                var view = Object.FindFirstObjectByType<CampaignArenaView>();
+                float timeScale = Time.timeScale;
+                view.Toggle();
+                try
+                {
+                    Assert.That(Time.timeScale, Is.Zero);
+                    Assert.That(traversal.enabled, Is.False);
+                    Assert.That(camera.enabled, Is.False);
+                    Assert.That(traversal.jumpButton.gameObject.activeSelf, Is.False);
+                }
+                finally { view.Toggle(); }
+                Assert.That(Time.timeScale, Is.EqualTo(timeScale));
+                Assert.That(traversal.enabled && camera.enabled, Is.True);
+                Assert.That(traversal.jumpButton.gameObject.activeSelf, Is.True);
 
                 // Sample actual collision along the complete campaign route, excluding the player's own capsule.
                 preview.chairBarrier.SetActive(false);
@@ -81,8 +107,92 @@ namespace Konoha.Tests
                             Assert.That(hit.transform.IsChildOf(preview.player.transform), Is.True,
                                 "Blocked campaign route at " + p + " by " + hit.name);
                     }
+                VerifyWaterExitsAndJump(preview.player);
+                // New jump must not bypass the locked mission enclosure.
+                preview.chairBarrier.SetActive(true);
+                Physics.SyncTransforms();
+                preview.player.Teleport(new Vector3(0,.1f,-3.4f));
+                Settle(preview.player);
+                Assert.That(preview.player.TryJump(), Is.True);
+                for(int i=0;i<90;i++) preview.player.Step(new MoveIntent(Vector2.up),1f/60f);
+                Assert.That(preview.player.transform.position.z,Is.LessThan(-2.7f));
             }
             finally { SpikeProject.Prepare(); }
+        }
+
+        private static void Settle(CharacterMotor motor)
+        {
+            Physics.SyncTransforms();
+            for(int i=0;i<45;i++) motor.Step(new MoveIntent(Vector2.zero),1f/60f);
+            Assert.That(motor.Grounded,Is.True);
+        }
+
+        private static void VerifyWaterExitsAndJump(CharacterMotor motor)
+        {
+            foreach(int side in new[]{-1,1}) foreach(int exit in new[]{-1,1})
+            {
+                motor.Teleport(new Vector3(side*10,.12f,5.8f+exit*1.7f));
+                Settle(motor);
+                for(int i=0;i<35;i++) motor.Step(new MoveIntent(new Vector2(0,exit)),1f/60f);
+                Assert.That((motor.transform.position.z-5.8f)*exit,Is.GreaterThan(3.2f),
+                    "Could not walk out of canal without jumping");
+            }
+            motor.Teleport(new Vector3(0,.1f,-9));
+            Settle(motor);
+            float start=motor.transform.position.y, peak=start;
+            Assert.That(motor.TryJump(),Is.True);
+            Assert.That(motor.TryJump(),Is.False,"Duplicate launch in same frame");
+            for(int i=0;i<120;i++)
+            {
+                motor.Step(new MoveIntent(Vector2.zero),1f/60f);
+                peak=Mathf.Max(peak,motor.transform.position.y);
+                if(i==10) Assert.That(motor.TryJump(),Is.False,"Air jump must be rejected");
+            }
+            Assert.That(peak-start,Is.InRange(1f,1.4f));
+            Assert.That(motor.Grounded,Is.True);
+            Assert.That(motor.TryJump(),Is.True,"Jump should become available again after landing");
+            motor.Teleport(new Vector3(0,.1f,-9));
+        }
+
+        [Test]
+        public void CameraRelativeMovementAndInvisibleOvalBoundaryRemainConsistent()
+        {
+            var east=CampaignTraversal.CameraRelative(Vector2.up,Vector3.right);
+            Assert.That(east.x,Is.EqualTo(1).Within(.001f));
+            Assert.That(east.y,Is.EqualTo(0).Within(.001f));
+            Assert.That(CampaignTraversal.CameraRelative(Vector2.one,Vector3.back).magnitude,Is.LessThanOrEqualTo(1.0001f));
+            var center=new Vector2(0,4); var radii=new Vector2(26,29);
+            Vector3 outside=CampaignTraversal.ClampToCampus(new Vector3(70,1.2f,80),center,radii);
+            float oval=outside.x*outside.x/(26*26)+(outside.z-4)*(outside.z-4)/(29*29);
+            Assert.That(oval,Is.EqualTo(1).Within(.0001f));
+            Assert.That(outside.y,Is.EqualTo(1.2f));
+            Assert.That(CampaignTraversal.ClampToCampus(new Vector3(20,0,4),center,radii),Is.EqualTo(new Vector3(20,0,4)));
+        }
+
+        [Test]
+        public void CameraGestureIgnoresUnownedFingerAndClampsPitchAndZoom()
+        {
+            var cameraObject=new GameObject("Test orbit camera");
+            var dragObject=new GameObject("Test drag");
+            try
+            {
+                var follow=cameraObject.AddComponent<MobileCombatCamera>(); follow.allowOrbit=true;
+                var drag=dragObject.AddComponent<CampaignCameraDrag>(); drag.follow=follow;
+                drag.OnPointerDown(new PointerEventData(null){pointerId=4,position=new Vector2(100,100)});
+                drag.OnDrag(new PointerEventData(null){pointerId=9,position=new Vector2(400,100)});
+                Assert.That(follow.orbitYaw,Is.Zero);
+                drag.OnDrag(new PointerEventData(null){pointerId=4,position=new Vector2(200,100)});
+                Assert.That(follow.orbitYaw,Is.GreaterThan(0));
+                drag.OnPointerUp(new PointerEventData(null){pointerId=4});
+                follow.RotateOrbit(new Vector2(0,100));
+                Assert.That(follow.orbitPitch,Is.EqualTo(25));
+                follow.ZoomOrbit(100);
+                Assert.That(follow.orbitDistance,Is.EqualTo(13));
+                follow.ResetOrbit();
+                Assert.That(follow.orbitYaw,Is.Zero);
+                Assert.That(follow.orbitDistance,Is.EqualTo(22));
+            }
+            finally { Object.DestroyImmediate(dragObject); Object.DestroyImmediate(cameraObject); }
         }
 
         [Test]

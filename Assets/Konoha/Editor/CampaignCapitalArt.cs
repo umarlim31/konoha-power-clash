@@ -54,7 +54,7 @@ namespace Konoha.Editor
                 }
                 art.Banner(new Vector3(side * 3.5f, 0, -10.5f), 3.1f);
                 art.Banner(new Vector3(side * 15, 0, 9.8f), 3.8f);
-                // Skyline wings are beyond collision boundaries, framing the central civic hall.
+                // Distant wings frame the expanded campus.
                 for (int i = 0; i < 4; i++)
                     art.Skyline(new Vector3(side * (13 + i * 6.5f), 0, 28 + (i % 2) * 7), 5 + i * 2);
             }
@@ -173,21 +173,38 @@ namespace Konoha.Editor
 
         private void GroundAndStreets()
         {
-            Block("Surrounding Konoha Landscape", new Vector3(0,-.65f,10), new Vector3(110,.3f,95), leaf);
-            Block("Floor", new Vector3(0,-.35f,0), new Vector3(32,.7f,24), paving, true);
-            Block("Civic forecourt", new Vector3(0,-.12f,19), new Vector3(40,.2f,14), stone);
-            Block("South boulevard", new Vector3(0,-.11f,-19), new Vector3(14,.2f,14), stone);
-            foreach (int side in new[] {-1,1})
+            var grass=Surface("TropicalGardenGround",new Color(.24f,.34f,.16f),.1f);
+            grass.SetTexture("_BaseMap",Texture("Grain"));
+            grass.SetTextureScale("_BaseMap",new Vector2(55,55));
+            EditorUtility.SetDirty(grass);
+            Block("Surrounding Konoha Landscape", new Vector3(0,-.16f,4), new Vector3(180,.3f,160), grass);
+            // A continuous collision floor extends beyond the logical oval campus boundary.
+            // There is no perimeter wall or rendered boundary box.
+            var floor=Block("Floor", new Vector3(0,-.35f,4), new Vector3(88,.7f,88), paving, true);
+            floor.GetComponent<Renderer>().enabled=false;
+            MeshObject("Oval capital promenade",CampaignCapitalMeshes.CampusGround(30,34),
+                new Vector3(0,.001f,4),Vector3.one,paving);
+            paving.SetTextureScale("_BaseMap", new Vector2(44,44));
+            EditorUtility.SetDirty(paving);
+            Block("Civic forecourt inlay", new Vector3(0,.015f,12), new Vector3(18,.025f,5), ivory);
+            Block("South boulevard", new Vector3(0,.015f,-18), new Vector3(5,.025f,17), ivory);
+            for (int side=-1;side<=1;side+=2)
             {
-                Block(side < 0 ? "WestBoundary" : "EastBoundary", new Vector3(side*16,.42f,0), new Vector3(.6f,.84f,24), stone,true);
-                Block(side < 0 ? "SouthBoundary" : "NorthBoundary", new Vector3(0,.42f,side*12), new Vector3(32,.84f,.6f),stone,true);
-                Block("Balustrade coping",new Vector3(side*16,.9f,0),new Vector3(.82f,.13f,24),ivory);
-                Block("Balustrade coping",new Vector3(0,.9f,side*12),new Vector3(32,.13f,.82f),ivory);
-                for (int i=0;i<9;i++)
+                Block("Garden promenade",new Vector3(side*20,.015f,1),new Vector3(3,.025f,35),ivory);
+                Block("Garden crosswalk",new Vector3(side*15,.018f,-12.5f),new Vector3(13,.025f,2.1f),ivory);
+                Pavilion(new Vector3(side*19.5f,0,-16));
+                for(int i=0;i<4;i++)
                 {
-                    Column(new Vector3(side*16,0,-11+i*2.75f),.38f);
-                    Column(new Vector3(-14+i*3.5f,0,side*12),.38f);
+                    GardenIsland(new Vector3(side*24,0,-9+i*8),new Vector3(4.8f,.14f,4.3f));
+                    Palm(new Vector3(side*24,0,-9+i*8),5.4f,i*53);
+                    Lamp(new Vector3(side*18.3f,0,-9+i*8));
                 }
+                GardenIsland(new Vector3(side*8.5f,0,-18.5f),new Vector3(7,.14f,5.5f));
+                Palm(new Vector3(side*8.5f,0,-18.5f),5.8f,side*42);
+                Banner(new Vector3(side*3.8f,0,-20),3.8f);
+                // Buildings continue outside the playable campus, maintaining a city silhouette in reverse views.
+                for(int i=0;i<3;i++)
+                    Skyline(new Vector3(side*(14+i*9),0,-32-(i%2)*5),5+i*2);
             }
             // Thin inlays sit above the floor and do not introduce invisible steps.
             Block("Ceremonial main lane",new Vector3(0,.015f,0),new Vector3(3.5f,.025f,23.2f),ivory);
@@ -274,11 +291,11 @@ namespace Konoha.Editor
 
         private void CivicHall(Vector3 p)
         {
-            Steps(p+new Vector3(0,0,-5),17,6,.17f,.55f);
-            Block("Civic hall podium",p+new Vector3(0,.5f,0),new Vector3(21,1,9),stone);
-            Block("Civic hall core",p+new Vector3(0,3.1f,1),new Vector3(17,4.3f,5.5f),ivory);
-            Block("Deep colonnade shadow",p+new Vector3(0,3,-2),new Vector3(17,3.7f,.3f),dark);
-            for(int i=-5;i<=5;i++) Column(p+new Vector3(i*1.65f,1,-3.4f),1.43f);
+            Steps(p+new Vector3(0,0,-7.45f),17,6,.17f,.55f);
+            Block("Civic hall podium",p+new Vector3(0,.5f,0),new Vector3(21,1,9),stone,true);
+            Block("Civic hall core",p+new Vector3(0,3.1f,1),new Vector3(17,4.3f,5.5f),ivory,true);
+            Block("Deep colonnade shadow",p+new Vector3(0,3,-2),new Vector3(17,3.7f,.3f),dark,true);
+            for(int i=-5;i<=5;i++) Column(p+new Vector3(i*1.65f,1,-3.4f),1.43f,true);
             Block("Civic entablature",p+new Vector3(0,5.2f,-.4f),new Vector3(21,.4f,8),ivory);
             Block("Bronze cornice",p+new Vector3(0,5.48f,-.4f),new Vector3(21.3f,.13f,8.2f),bronze);
             MeshObject("Fictional civic dome",dome,p+new Vector3(0,5.6f,0),new Vector3(6.4f,5,5),green);
@@ -302,7 +319,7 @@ namespace Konoha.Editor
             Steps(b+new Vector3(0,0,-1.05f),5.5f,3,.12f,.28f);
             foreach(int side in new[]{-1,1})
             {
-                Column(b+new Vector3(side*2.3f,.25f,-.4f),.96f);
+                Column(b+new Vector3(side*2.3f,.25f,-.4f),.96f,true);
                 MeshObject(name+" carved window arch",arch,b+new Vector3(side*1.75f,1.65f,.17f),new Vector3(.55f,.65f,.45f),bronze);
                 Block(name+" window recess",b+new Vector3(side*1.75f,1.2f,.17f),new Vector3(.85f,1.25f,.05f),dark);
             }
@@ -321,9 +338,15 @@ namespace Konoha.Editor
             surface.GetComponent<Renderer>().shadowCastingMode=ShadowCastingMode.Off;
             foreach(int side in new[]{-1,1})
             {
-                Block("Canal carved coping",p+new Vector3(0,.22f,side*2.7f),new Vector3(6.2f,.44f,.24f),ivory,true);
+                // Low, stepable coping and two broad open exits prevent the former .44 m trap.
                 for(int end=-1;end<=1;end+=2)
-                    Block("Canal return coping",p+new Vector3(side*2.95f,.22f,end*1.8f),new Vector3(.24f,.44f,1.7f),ivory,true);
+                {
+                    Block("Low canal coping",p+new Vector3(end*2.05f,.06f,side*2.7f),new Vector3(2.1f,.12f,.24f),ivory,true);
+                    Block("Low canal return",p+new Vector3(side*2.95f,.06f,end*1.8f),new Vector3(.24f,.12f,1.7f),ivory,true);
+                }
+                // A 1.9 m wide opening; its shallow ramp crosses the water edge in both directions.
+                var exit=Block("Canal walk-out ramp",p+new Vector3(0,.035f,side*2.7f),new Vector3(1.9f,.07f,1.5f),ivory,true);
+                exit.transform.rotation=Quaternion.Euler(side*-3f,0,0);
                 // Ramp rise .48 over run 1.8 (15 degrees), within the controller's slope limit.
                 var ramp=Block("Bridge approach ramp",p+new Vector3(side*3.2f,.26f,0),new Vector3(1.9f,.12f,1.9f),ivory,true);
                 ramp.transform.rotation=Quaternion.Euler(0,0,-side*15f);
@@ -361,7 +384,9 @@ namespace Konoha.Editor
         {
             // Tapered trunk and pointed bent fronds replace the sphere-tree silhouette.
             var trunk=CampaignCapitalMeshes.Lathe("PalmTrunk",new[]{new Vector2(0,0),new Vector2(.17f,0),new Vector2(.12f,1),new Vector2(0,1)},12);
-            MeshObject("Palm tapered trunk",trunk,p,new Vector3(1,height,1),dark);
+            var palm = MeshObject("Palm tapered trunk",trunk,p,new Vector3(1,height,1),dark);
+            var trunkCollider = palm.AddComponent<BoxCollider>();
+            trunkCollider.center=new Vector3(0,.5f,0); trunkCollider.size=new Vector3(.26f,1,.26f);
             for(int i=0;i<10;i++)
             {
                 var go=MeshObject("Palm curved frond",frond,p+Vector3.up*height,new Vector3(1.3f,1.35f,2.45f),i%2==0?leaf:paleLeaf);
@@ -384,7 +409,7 @@ namespace Konoha.Editor
 
         private void Statue(Vector3 p)
         {
-            Block("Guardian pedestal",p+Vector3.up*1.1f,new Vector3(3.2f,2.2f,3),stone);
+            Block("Guardian pedestal",p+Vector3.up*1.1f,new Vector3(3.2f,2.2f,3),stone,true);
             Block("Guardian pedestal cornice",p+Vector3.up*2.25f,new Vector3(3.6f,.25f,3.4f),ivory);
             Ellipsoid("Guardian carved torso",p+new Vector3(0,3.7f,0),new Vector3(1.6f,2.1f,.9f),stone);
             Ellipsoid("Guardian head",p+new Vector3(0,5.1f,0),new Vector3(.85f,1.05f,.8f),ivory);
@@ -400,7 +425,7 @@ namespace Konoha.Editor
 
         private void Skyline(Vector3 p,float height)
         {
-            Block("Distant civic tower",p+Vector3.up*(height*.5f),new Vector3(4,height,4),ivory);
+            Block("Distant civic tower",p+Vector3.up*(height*.5f),new Vector3(4,height,4),ivory,true);
             Roof(p+Vector3.up*height,new Vector3(2.7f,2,2.7f),green);
             for(int i=0;i<3;i++)
                 Block("Tower recessed arcade",p+new Vector3((i-1)*1.05f,height*.55f,-2.02f),new Vector3(.62f,height*.53f,.05f),dark);
@@ -434,7 +459,40 @@ namespace Konoha.Editor
             for(int i=0;i<count;i++)
                 Block("Carved civic stair",p+new Vector3(0,(i+1)*rise*.5f,i*run),new Vector3(width,(i+1)*rise,run+.02f),ivory,true);
         }
-        private void Column(Vector3 p,float scale) => MeshObject("Profiled civic column",column,p,Vector3.one*scale,ivory);
+        private void Column(Vector3 p,float scale,bool solid=false)
+        {
+            var go=MeshObject("Profiled civic column",column,p,Vector3.one*scale,ivory);
+            if(solid)
+            {
+                var collider=go.AddComponent<BoxCollider>();
+                collider.center=new Vector3(0,1.425f,0); collider.size=new Vector3(.46f,2.85f,.46f);
+            }
+        }
+
+        private void GardenIsland(Vector3 p,Vector3 size)
+        {
+            Block("Low garden border",p+Vector3.up*(size.y*.5f),size,ivory,true);
+            Block("Planted garden soil",p+Vector3.up*.15f,new Vector3(size.x-.22f,.025f,size.z-.22f),leaf);
+            for(int i=-1;i<=1;i++)
+            {
+                Ellipsoid("Flower garden foliage",p+new Vector3(i*size.x*.25f,.34f,-size.z*.28f),new Vector3(1.15f,.42f,.8f),paleLeaf);
+                Ellipsoid("Garden blossom cluster",p+new Vector3(i*size.x*.25f,.55f,-size.z*.28f),new Vector3(.60f,.18f,.48f),flower);
+            }
+        }
+
+        private void Pavilion(Vector3 p)
+        {
+            Block("Pavilion stone landing",p+Vector3.up*.075f,new Vector3(4.8f,.15f,4.8f),ivory,true);
+            foreach(int x in new[]{-1,1}) foreach(int z in new[]{-1,1})
+                Column(p+new Vector3(x*1.85f,.15f,z*1.85f),1.05f,true);
+            Roof(p+Vector3.up*3.2f,new Vector3(2.65f,1.8f,2.65f),green);
+            Roof(p+Vector3.up*4.15f,new Vector3(1.55f,1.1f,1.55f),green);
+            foreach(int side in new[]{-1,1})
+            {
+                Block("Pavilion carved bench",p+new Vector3(side*1.25f,.52f,.65f),new Vector3(.45f,.20f,1.55f),dark,true);
+                Block("Bench pedestal",p+new Vector3(side*1.25f,.25f,.65f),new Vector3(.32f,.5f,1.1f),stone,true);
+            }
+        }
         private void Roof(Vector3 p,Vector3 size,Material mat)
         {
             MeshObject("Tiered Nusantara roof",roof,p,size,mat);

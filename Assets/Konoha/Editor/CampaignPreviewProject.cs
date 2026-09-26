@@ -16,7 +16,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.8.1")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.8.2")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -24,8 +24,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.0.8.1";
-            PlayerSettings.Android.bundleVersionCode = 18;
+            PlayerSettings.bundleVersion = "0.0.8.2";
+            PlayerSettings.Android.bundleVersionCode = 19;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             var network = GameObject.Find("RuntimeNetworkingProof");
@@ -40,7 +40,9 @@ namespace Konoha.Editor
             {
                 follow.offset = new Vector3(0f, 13.8f, -17.5f);
                 follow.crowdedOffset = follow.offset;
-                follow.limitFocusToArena = true;
+                follow.limitFocusToArena = false;
+                follow.allowOrbit = true;
+                follow.ResetOrbit();
                 follow.focusXLimits = new Vector2(-9f, 9f);
                 follow.focusZLimits = new Vector2(-7.5f, 7f);
             }
@@ -65,6 +67,27 @@ namespace Konoha.Editor
             layout.safeRoot = (RectTransform)safe;
             layout.joystick = (RectTransform)pad;
             layout.compactJoystick = true;
+
+            // Replace only the offline solo input driver. PvP prefabs keep their original controls.
+            var offline = UnityEngine.Object.FindFirstObjectByType<Konoha.Core.OfflineSpikeDriver>();
+            offline.enabled = false;
+            var traversal = player.gameObject.AddComponent<CampaignTraversal>();
+            traversal.motor = player;
+            traversal.joystick = pad.GetComponent<Konoha.Input.TouchJoystick>();
+            traversal.movementCamera = previewCamera.transform;
+            player.allowJump = true;
+            player.jumpHeight = 1.25f;
+            player.GetComponent<CharacterController>().stepOffset = .25f;
+
+            var dragObject = new GameObject("Camera drag surface", typeof(RectTransform), typeof(Image), typeof(CampaignCameraDrag));
+            var dragRect = (RectTransform)dragObject.transform;
+            dragRect.SetParent(safe, false);
+            dragRect.anchorMin = new Vector2(.35f, 0f);
+            dragRect.anchorMax = Vector2.one;
+            dragRect.offsetMin = dragRect.offsetMax = Vector2.zero;
+            dragRect.SetAsFirstSibling();
+            dragObject.GetComponent<Image>().color = Color.clear;
+            dragObject.GetComponent<CampaignCameraDrag>().follow = follow;
 
             var capital = CampaignCapitalArt.Build();
             var gold = capital.Gold;
@@ -130,16 +153,16 @@ namespace Konoha.Editor
             backdropRect.anchorMin = backdropRect.anchorMax = new Vector2(0.5f, 1f);
             backdropRect.pivot = new Vector2(0.5f, 1f);
             backdropRect.anchoredPosition = new Vector2(0f, -6f);
-            backdropRect.sizeDelta = new Vector2(720f, 95f);
+            backdropRect.sizeDelta = new Vector2(600f, 95f);
             headingBackdrop.GetComponent<Image>().color = new Color(0.06f, 0.09f, 0.10f, 0.84f);
             headingBackdrop.GetComponent<Image>().raycastTarget = false;
             var objective = Text("CampaignObjective", safe, new Vector2(0.5f, 1f),
-                new Vector2(0, -11), new Vector2(680, 34), 18);
+                new Vector2(0, -11), new Vector2(560, 34), 18);
             objective.alignment = TextAnchor.MiddleCenter;
             objective.color = new Color(1f, 0.89f, 0.65f);
             objective.gameObject.AddComponent<Outline>().effectColor = new Color(0.10f, 0.10f, 0.10f, 0.85f);
             var status = Text("CampaignStatus", safe, new Vector2(0.5f, 1f),
-                new Vector2(0, -47), new Vector2(680, 24), 16);
+                new Vector2(0, -47), new Vector2(560, 24), 16);
             status.alignment = TextAnchor.MiddleCenter;
             status.gameObject.AddComponent<Outline>().effectColor = Color.black;
             var progressTrack = new GameObject("ObjectiveProgressTrack", typeof(RectTransform), typeof(Image));
@@ -187,10 +210,23 @@ namespace Konoha.Editor
             skill.GetComponent<Image>().color = new Color(0.50f, 0.16f, 0.18f, 0.96f);
             sit.GetComponent<Image>().color = new Color(0.59f, 0.42f, 0.18f, 0.96f);
             heroButton.GetComponent<Image>().color = new Color(0.18f, 0.25f, 0.29f, 0.96f);
+            var jump = Button("CampaignJump", "LOMPAT", safe, new Vector2(1f, 0f),
+                new Vector2(-74, 65), new Vector2(136, 54));
+            jump.GetComponent<Image>().color = new Color(.24f,.40f,.36f,.96f);
+            traversal.jumpButton = jump;
+            var resetCamera = Button("ResetCamera", "KAMERA AWAL", safe, new Vector2(1f, 1f),
+                new Vector2(-14, -14), new Vector2(164, 44));
+            resetCamera.GetComponentInChildren<Text>().fontSize = 16;
+            var cameraReset = resetCamera.gameObject.AddComponent<CampaignCameraReset>();
+            cameraReset.follow = follow;
+            var gestureHint = Text("CameraGestureHint", safe, new Vector2(1f,0f),
+                new Vector2(-20,265), new Vector2(305,28), 13);
+            gestureHint.alignment = TextAnchor.MiddleRight;
+            gestureHint.text = "GESER LAYAR KANAN: KAMERA • CUBIT: ZOOM";
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 10), new Vector2(560, 26), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.0.8.1  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.0.8.2  •  SOLO PREVIEW";
 
             var preview = new GameObject("JalurTakhtaPreview").AddComponent<CampaignPreviewController>();
             preview.player = player;
@@ -222,6 +258,7 @@ namespace Konoha.Editor
             var arenaView = preview.gameObject.AddComponent<CampaignArenaView>();
             arenaView.follow = follow;
             arenaView.campaign = preview;
+            arenaView.traversal = traversal;
             arenaView.safeRoot = safe;
             arenaView.viewButton = viewButton;
 
@@ -234,10 +271,11 @@ namespace Konoha.Editor
         private static void GateSeal(string name, Vector3 center, bool alongZ,
             Transform parent, Material red, Material gold)
         {
-            Vector3 extent = alongZ ? new Vector3(0.26f, 1.5f, 5.1f)
-                : new Vector3(5.1f, 1.5f, 0.26f);
-            var collision = Box(name, center + Vector3.up * 0.75f, extent, red);
+            Vector3 extent = alongZ ? new Vector3(0.26f, 4f, 5.1f)
+                : new Vector3(5.1f, 4f, 0.26f);
+            var collision = Box(name, center + Vector3.up * 2f, extent, red);
             collision.transform.SetParent(parent);
+            collision.layer = 2; // Ignore Raycast: camera orbit should not zoom into invisible gate seals.
             collision.GetComponent<Renderer>().enabled = false;
             Vector3 thin = alongZ ? new Vector3(0.10f, 0.10f, 5.1f)
                 : new Vector3(5.1f, 0.10f, 0.10f);

@@ -28,6 +28,23 @@ namespace Konoha.Editor
             return Save(name, vertices, uv, triangles);
         }
 
+        internal static Mesh CampusGround(float radiusX, float radiusZ)
+        {
+            const int segments = 128;
+            var vertices = new List<Vector3> { Vector3.zero };
+            var uv = new List<Vector2> { Vector2.one * .5f };
+            var triangles = new List<int>();
+            for (int i=0;i<=segments;i++)
+            {
+                float angle=i*Mathf.PI*2f/segments;
+                float x=Mathf.Cos(angle), z=Mathf.Sin(angle);
+                vertices.Add(new Vector3(x*radiusX,0,z*radiusZ));
+                uv.Add(new Vector2(x*.5f+.5f,z*.5f+.5f));
+                if(i<segments) triangles.AddRange(new[]{0,i+2,i+1});
+            }
+            return Save("OvalCapitalGround",vertices,uv,triangles);
+        }
+
         internal static Mesh Ring(string name, float inner, float outer, int sides = 96)
         {
             return Lathe(name, new[] { new Vector2(outer, 0), new Vector2(inner, 0) }, sides);

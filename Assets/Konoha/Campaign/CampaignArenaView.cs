@@ -10,6 +10,8 @@ namespace Konoha.Campaign
     {
         public MobileCombatCamera follow;
         public CampaignPreviewController campaign;
+        public CampaignTraversal traversal;
+        private bool traversalWasEnabled;
         public Transform safeRoot;
         public Button viewButton;
         private readonly List<GameObject> hidden = new List<GameObject>();
@@ -32,7 +34,10 @@ namespace Konoha.Campaign
         public void Toggle()
         {
             if (showing) { Restore(); return; }
+            if (viewCamera == null) viewCamera = follow.GetComponent<Camera>();
             showing = true;
+            traversalWasEnabled = traversal.enabled;
+            traversal.enabled = false;
             previousTimeScale = Time.timeScale;
             Time.timeScale = 0f;
             campaignWasEnabled = campaign.enabled;
@@ -72,6 +77,7 @@ namespace Konoha.Campaign
             showing = false;
             Time.timeScale = previousTimeScale;
             if (campaign != null) campaign.enabled = campaignWasEnabled;
+            if (traversal != null) traversal.enabled = traversalWasEnabled;
             foreach (var child in hidden) if (child != null) child.SetActive(true);
             hidden.Clear();
             if (follow != null)

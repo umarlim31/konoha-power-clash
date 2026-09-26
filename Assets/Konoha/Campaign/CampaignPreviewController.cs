@@ -182,7 +182,7 @@ namespace Konoha.Campaign
                 if (health == 0)
                 {
                     run.LoseSeat();
-                    player.transform.position = new Vector3(0f, 0.1f, -8.5f);
+                    player.Teleport(new Vector3(0f, 0.1f, -8.5f));
                     health = 100;
                     Notify("Tumbang! Kembali ke Gerbang Rakyat");
                     if (run.Phase == CampaignPhase.GardaTakhta)
@@ -329,7 +329,7 @@ namespace Konoha.Campaign
         private void Restart()
         {
             run = new CampaignRunState(2, 35);
-            player.transform.position = new Vector3(0f, 0.1f, -9f);
+            player.Teleport(new Vector3(0f, 0.1f, -9f));
             health = 100;
             biroSteps = 0;
             majelisHold = 0f;
@@ -364,7 +364,7 @@ namespace Konoha.Campaign
             switch (run.Phase)
             {
                 case CampaignPhase.GerbangRakyat:
-                    objectiveText.text = "GERBANG RAKYAT  •  Menuju PLAZA di depan"; break;
+                    objectiveText.text = "GERBANG RAKYAT  •  Menuju PLAZA ASPIRASI"; break;
                 case CampaignPhase.PlazaAspirasi:
                     objectiveText.text = !run.HasSeal(CampaignSector.MajelisDaun)
                         ? "1/2  MAJELIS: tahan di lingkaran " + Mathf.CeilToInt(Mathf.Max(0f, 2.5f - majelisHold)) + " detik"
@@ -444,13 +444,20 @@ namespace Konoha.Campaign
                     : "DI LOKASI: " + label;
                 return;
             }
+            // Directions follow the current camera so rotating the view does not invert the guidance.
+            if (Camera.main != null)
+            {
+                Vector3 ahead=Camera.main.transform.forward; ahead.y=0; ahead.Normalize();
+                Vector3 right=new Vector3(ahead.z,0,-ahead.x);
+                delta=new Vector3(Vector3.Dot(delta,right),0,Vector3.Dot(delta,ahead));
+            }
             string direction;
             if (Mathf.Abs(delta.x) > Mathf.Abs(delta.z) * 1.8f)
-                direction = delta.x < 0f ? "BARAT" : "TIMUR";
+                direction = delta.x < 0f ? "KIRI" : "KANAN";
             else if (Mathf.Abs(delta.z) > Mathf.Abs(delta.x) * 1.8f)
-                direction = delta.z < 0f ? "SELATAN" : "UTARA";
-            else direction = (delta.z < 0f ? "SELATAN " : "UTARA ") +
-                    (delta.x < 0f ? "BARAT" : "TIMUR");
+                direction = delta.z < 0f ? "BELAKANG" : "DEPAN";
+            else direction = (delta.z < 0f ? "BELAKANG " : "DEPAN ") +
+                    (delta.x < 0f ? "KIRI" : "KANAN");
             waypointText.text = "ARAH " + label + ": " + direction + "  •  " + Mathf.CeilToInt(distance) + " m";
         }
 

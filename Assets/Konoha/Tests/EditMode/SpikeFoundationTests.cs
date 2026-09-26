@@ -86,6 +86,8 @@ namespace Konoha.Tests
             var driver = UnityEngine.Object.FindFirstObjectByType<OfflineSpikeDriver>();
             Assert.That(driver.motor.definition, Is.Not.Null);
             Assert.That(driver.joystick, Is.Not.Null);
+            Assert.That(driver.motor.allowJump, Is.False);
+            Assert.That(UnityEngine.Object.FindFirstObjectByType<MobileCombatCamera>().allowOrbit, Is.False);
             Assert.That(UnityEngine.Object.FindFirstObjectByType<MobileCombatCamera>().target, Is.EqualTo(driver.motor.transform));
         }
 
