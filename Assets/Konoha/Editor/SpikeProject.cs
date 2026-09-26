@@ -45,7 +45,7 @@ namespace Konoha.Editor
         // Konoha.Editor.SpikeProject.prepare.
         public static void prepare()
         {
-            Prepare();
+            CampaignPreviewProject.Prepare();
         }
 
         private static void ConfigureAndroid()
@@ -276,6 +276,9 @@ namespace Konoha.Editor
             Material prabowo = Material("HeroPrabowoAccent", new Color(0.80f, 0.34f, 0.20f));
             Material abah = Material("HeroAbahAccent", new Color(0.18f, 0.65f, 0.43f));
             Material jokowi = Material("HeroJokowiAccent", new Color(0.83f, 0.34f, 0.24f));
+            Material gold = Material("HeroOrnamentGold", new Color(0.88f, 0.62f, 0.29f));
+            Material crimson = Material("HeroCapeCrimson", new Color(0.53f, 0.09f, 0.16f));
+            Material deepGreen = Material("HeroAbahRobe", new Color(0.07f, 0.31f, 0.25f));
 
             var megaRoot = new GameObject("HeroVisual_MEGA");
             megaRoot.transform.SetParent(root.transform, false);
@@ -287,6 +290,9 @@ namespace Konoha.Editor
             ActorPrimitive("MegaKebayaPanel", PrimitiveType.Cube, megaRoot.transform, new Vector3(0f, 0.72f, 0.35f), new Vector3(0.65f, 0.85f, 0.10f), mega, Vector3.zero);
             ActorPrimitive("MegaSelendangL", PrimitiveType.Cube, megaRoot.transform, new Vector3(-0.62f, 0.84f, -0.15f), new Vector3(0.16f, 1.10f, 0.12f), mega, new Vector3(0f, 0f, -10f));
             ActorPrimitive("MegaSelendangR", PrimitiveType.Cube, megaRoot.transform, new Vector3(0.62f, 0.84f, -0.15f), new Vector3(0.16f, 1.10f, 0.12f), mega, new Vector3(0f, 0f, 10f));
+            ActorPrimitive("MegaBlackHair", PrimitiveType.Sphere, megaRoot.transform, new Vector3(0f, 2.02f, -0.19f), new Vector3(0.74f, 0.28f, 0.48f), dark, Vector3.zero);
+            ActorPrimitive("MegaKebayaSkirt", PrimitiveType.Cylinder, megaRoot.transform, new Vector3(0f, 0.44f, 0f), new Vector3(0.55f, 0.42f, 0.47f), crimson, Vector3.zero);
+            ActorPrimitive("MegaGoldBrooch", PrimitiveType.Sphere, megaRoot.transform, new Vector3(0f, 1.43f, 0.55f), new Vector3(0.24f, 0.18f, 0.08f), gold, Vector3.zero);
 
             var prabowoRoot = new GameObject("HeroVisual_GEMOY");
             prabowoRoot.transform.SetParent(root.transform, false);
@@ -296,6 +302,9 @@ namespace Konoha.Editor
             ActorPrimitive("PrabowoChest", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(0f, 1.34f, 0.48f), new Vector3(0.52f, 0.30f, 0.08f), prabowo, Vector3.zero);
             ActorPrimitive("PrabowoCrest", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(0f, 2.12f, -0.02f), new Vector3(0.11f, 0.26f, 0.11f), prabowo, new Vector3(0f, 0f, -8f));
             ActorPrimitive("GemoyCommanderCape", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(0f, 0.94f, -0.45f), new Vector3(1.08f, 1.06f, 0.10f), prabowo, new Vector3(10f, 0f, 0f));
+            ActorPrimitive("GemoyPeci", PrimitiveType.Cylinder, prabowoRoot.transform, new Vector3(0f, 2.13f, 0f), new Vector3(0.38f, 0.25f, 0.36f), dark, Vector3.zero);
+            ActorPrimitive("GemoyOfficerBelt", PrimitiveType.Cylinder, prabowoRoot.transform, new Vector3(0f, 0.96f, 0f), new Vector3(0.57f, 0.08f, 0.54f), gold, Vector3.zero);
+            ActorPrimitive("GemoyBanner", PrimitiveType.Cube, prabowoRoot.transform, new Vector3(-0.75f, 1.21f, -0.50f), new Vector3(0.48f, 1.28f, 0.09f), crimson, new Vector3(0f, 0f, -13f));
 
             var abahRoot = new GameObject("HeroVisual_ABAH");
             abahRoot.transform.SetParent(root.transform, false);
@@ -306,6 +315,9 @@ namespace Konoha.Editor
             ActorPrimitive("AbahSignal", PrimitiveType.Sphere, abahRoot.transform, new Vector3(0f, 2.17f, 0f), new Vector3(0.13f, 0.13f, 0.13f), abah, Vector3.zero);
             ActorPrimitive("AbahStaff", PrimitiveType.Cylinder, abahRoot.transform, new Vector3(0.66f, 1.10f, 0.08f), new Vector3(0.07f, 1.02f, 0.07f), metal, Vector3.zero);
             ActorPrimitive("AbahStaffGem", PrimitiveType.Sphere, abahRoot.transform, new Vector3(0.66f, 2.13f, 0.08f), new Vector3(0.20f, 0.20f, 0.20f), abah, Vector3.zero);
+            ActorPrimitive("AbahLongRobe", PrimitiveType.Cylinder, abahRoot.transform, new Vector3(0f, 0.55f, 0f), new Vector3(0.48f, 0.52f, 0.45f), deepGreen, Vector3.zero);
+            ActorPrimitive("AbahGoldenCrest", PrimitiveType.Sphere, abahRoot.transform, new Vector3(0f, 2.20f, 0.21f), new Vector3(0.13f, 0.18f, 0.09f), gold, Vector3.zero);
+            ActorPrimitive("AbahPaleScarf", PrimitiveType.Cube, abahRoot.transform, new Vector3(-0.15f, 1.35f, 0.49f), new Vector3(0.17f, 0.91f, 0.08f), light, new Vector3(0f, 0f, 7f));
 
             var jokowiRoot = new GameObject("HeroVisual_PAK_WI");
             jokowiRoot.transform.SetParent(root.transform, false);
@@ -315,6 +327,9 @@ namespace Konoha.Editor
             ActorPrimitive("JokowiToolHandle", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0.42f, 1.30f, -0.12f), new Vector3(0.10f, 0.76f, 0.10f), light, new Vector3(0f, 0f, -20f));
             ActorPrimitive("JokowiToolHead", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0.51f, 1.61f, -0.12f), new Vector3(0.34f, 0.10f, 0.13f), jokowi, new Vector3(0f, 0f, -20f));
             ActorPrimitive("PakWiDrape", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(-0.43f, 1.14f, -0.31f), new Vector3(0.16f, 1.08f, 0.12f), jokowi, new Vector3(5f, 0f, 12f));
+            ActorPrimitive("PakWiRedCape", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0f, 1.10f, -0.46f), new Vector3(0.92f, 1.17f, 0.09f), crimson, new Vector3(12f, 0f, 0f));
+            ActorPrimitive("PakWiGoldSash", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0.05f, 1.23f, 0.51f), new Vector3(0.14f, 0.70f, 0.07f), gold, new Vector3(0f, 0f, -22f));
+            ActorPrimitive("PakWiStaffGlow", PrimitiveType.Sphere, jokowiRoot.transform, new Vector3(0.53f, 1.76f, -0.12f), new Vector3(0.18f, 0.19f, 0.18f), gold, Vector3.zero);
 
             presentation.heroVisuals = new[]
             {

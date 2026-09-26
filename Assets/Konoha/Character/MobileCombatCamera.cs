@@ -10,6 +10,34 @@ namespace Konoha.Character
         public Vector3 crowdedOffset = new Vector3(0f, 16.4f, -13.4f);
         [Min(0.01f)] public float followTime = 0.17f;
         [Min(0.01f)] public float zoomTime = 0.24f;
+        // Enabled only for the solo scene. Keep the arena in frame when a player
+        // explores along the boundary; the network match keeps its original camera.
+        public bool limitFocusToArena;
+        public Vector2 focusXLimits = new Vector2(-6.5f, 6.5f);
+        public Vector2 focusZLimits = new Vector2(-6f, 5f);
+
+        // Opt-in orbit for the solo scene. Drag deltas are normalized screen distances.
+        public bool allowOrbit;
+        public float orbitYaw;
+        public float orbitPitch = 38f;
+        public float orbitDistance = 22f;
+        private readonly RaycastHit[] obstacles = new RaycastHit[48];
+
+        public void RotateOrbit(Vector2 delta)
+        {
+            if (!allowOrbit) return;
+            orbitYaw = Mathf.Repeat(orbitYaw + delta.x * 260f, 360f);
+            orbitPitch = Mathf.Clamp(orbitPitch - delta.y * 160f, 25f, 68f);
+        }
+        public void ZoomOrbit(float delta)
+        {
+            if (allowOrbit) orbitDistance = Mathf.Clamp(orbitDistance - delta * 30f, 13f, 28f);
+        }
+        public void ResetOrbit()
+        {
+            orbitYaw = 0f; orbitPitch = 38f; orbitDistance = 22f;
+            initialized = false;
+        }
 
         private Vector3 smoothVelocity;
         private Vector3 currentOffset;
@@ -29,18 +57,45 @@ namespace Konoha.Character
                 crowdFactor = EvaluateCrowding();
             }
 
-            Vector3 desiredOffset = Vector3.Lerp(offset, crowdedOffset, crowdFactor);
+            Vector3 desiredOffset = allowOrbit
+                ? Quaternion.Euler(orbitPitch, orbitYaw, 0) * Vector3.back * orbitDistance
+                : Vector3.Lerp(offset, crowdedOffset, crowdFactor);
             currentOffset = initialized
                 ? Vector3.SmoothDamp(currentOffset, desiredOffset, ref offsetVelocity, zoomTime)
                 : desiredOffset;
 
             Vector3 focus = GetFocusPoint();
+            if (allowOrbit) focus += Vector3.up * .8f;
+            if (limitFocusToArena)
+            {
+                focus.x = Mathf.Clamp(focus.x, focusXLimits.x, focusXLimits.y);
+                focus.z = Mathf.Clamp(focus.z, focusZLimits.x, focusZLimits.y);
+            }
             Vector3 destination = focus + currentOffset;
 
             transform.position = initialized
                 ? Vector3.SmoothDamp(transform.position, destination, ref smoothVelocity, followTime)
                 : destination;
 
+            if (allowOrbit)
+            {
+                Vector3 ray = transform.position - focus;
+                float distance = ray.magnitude;
+                if (distance > .01f)
+                {
+                    int count = Physics.SphereCastNonAlloc(focus, .25f, ray.normalized, obstacles,
+                        distance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+                    float clearDistance = distance;
+                    for (int i=0; i<count; i++)
+                    {
+                        var hit = obstacles[i];
+                        if (hit.collider.transform.IsChildOf(target) ||
+                            hit.collider.GetComponent<Konoha.Campaign.CampaignMonument>() != null) continue;
+                        clearDistance = Mathf.Min(clearDistance, Mathf.Max(.8f, hit.distance - .18f));
+                    }
+                    transform.position = focus + ray.normalized * clearDistance;
+                }
+            }
             initialized = true;
 
             Vector3 lookDirection = focus - transform.position;
@@ -68,6 +123,8 @@ namespace Konoha.Character
 
         private float EvaluateCrowding()
         {
+            if (limitFocusToArena || allowOrbit)
+                return 0f;
             NetworkPlayerCombat[] actors =
                 Object.FindObjectsByType<NetworkPlayerCombat>(FindObjectsSortMode.None);
 

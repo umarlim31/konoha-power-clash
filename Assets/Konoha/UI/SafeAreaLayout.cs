@@ -6,6 +6,7 @@ namespace Konoha.UI
     {
         public RectTransform safeRoot;
         public RectTransform joystick;
+        public bool compactJoystick;
         private Rect previous;
         private Vector2Int dimensions;
 
@@ -21,8 +22,11 @@ namespace Konoha.UI
             safeRoot.offsetMin = safeRoot.offsetMax = Vector2.zero;
             // Canvas scale follows the short edge; pad stays close to the grip on 4:3 tablets.
             bool tabletShape = (float)size.x / size.y < 1.6f;
-            joystick.anchoredPosition = tabletShape ? new Vector2(145f, 140f) : new Vector2(165f, 135f);
-            joystick.sizeDelta = tabletShape ? new Vector2(210f, 210f) : new Vector2(200f, 200f);
+            joystick.anchoredPosition = compactJoystick
+                ? (tabletShape ? new Vector2(118f, 116f) : new Vector2(125f, 112f))
+                : (tabletShape ? new Vector2(145f, 140f) : new Vector2(165f, 135f));
+            joystick.sizeDelta = compactJoystick ? new Vector2(170f, 170f)
+                : (tabletShape ? new Vector2(210f, 210f) : new Vector2(200f, 200f));
         }
     }
 }

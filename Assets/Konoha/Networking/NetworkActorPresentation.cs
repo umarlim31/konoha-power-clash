@@ -59,8 +59,10 @@ namespace Konoha.Networking
                     }
                 }
 
-                ApplyBodySilhouette((PrototypeHero)Mathf.Clamp(hero, 0, 3));
             }
+
+            if (force || heroChanged || knockoutChanged)
+                ApplyBodySilhouette((PrototypeHero)Mathf.Clamp(hero, 0, 3), knockedOut);
 
             if (force || teamChanged || knockoutChanged)
             {
@@ -73,7 +75,7 @@ namespace Konoha.Networking
                 ApplyHeroAccessoryColor((PrototypeHero)Mathf.Clamp(hero, 0, 3), knockedOut);
         }
 
-        private void ApplyBodySilhouette(PrototypeHero hero)
+        private void ApplyBodySilhouette(PrototypeHero hero, bool knockedOut)
         {
             if (bodyTransform == null)
                 return;
@@ -93,6 +95,19 @@ namespace Konoha.Networking
                     bodyTransform.localScale = new Vector3(0.98f, 1.00f, 0.98f);
                     break;
             }
+            // In the recorded build every fighter kept the same pale cylinder, making
+            // the ornaments disappear at match camera distance. Keep fabric colours
+            // distinct while the team allegiance remains on the ground ring.
+            Renderer body = bodyTransform.GetComponent<Renderer>();
+            if (body == null) return;
+            Color fabric = hero == PrototypeHero.Mega ? new Color(0.19f, 0.08f, 0.11f) :
+                hero == PrototypeHero.Prabowo ? new Color(0.82f, 0.75f, 0.65f) :
+                hero == PrototypeHero.Abah ? new Color(0.08f, 0.29f, 0.23f) :
+                new Color(0.84f, 0.77f, 0.67f);
+            if (knockedOut) fabric = Color.Lerp(fabric, Color.black, 0.72f);
+            var block = new MaterialPropertyBlock();
+            block.SetColor("_BaseColor", fabric);
+            body.SetPropertyBlock(block);
         }
 
         private void ApplyHeroAccessoryColor(PrototypeHero hero, bool knockedOut)
