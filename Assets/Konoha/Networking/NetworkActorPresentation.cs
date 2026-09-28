@@ -1,3 +1,4 @@
+using Konoha.Character;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -62,7 +63,10 @@ namespace Konoha.Networking
             }
 
             if (force || heroChanged || knockoutChanged)
+            {
                 ApplyBodySilhouette((PrototypeHero)Mathf.Clamp(hero, 0, 3), knockedOut);
+                ApplyModelState(hero, knockedOut);
+            }
 
             if (force || teamChanged || knockoutChanged)
             {
@@ -110,6 +114,17 @@ namespace Konoha.Networking
             body.SetPropertyBlock(block);
         }
 
+        // A rigged 3D hero (HeroVisualCatalog) replaces the capsule body. Primitive heroes
+        // keep it visible, exactly as before.
+        private void ApplyModelState(int hero, bool knockedOut)
+        {
+            GameObject visual = heroVisuals != null && hero >= 0 && hero < heroVisuals.Length ? heroVisuals[hero] : null;
+            bool usesModel = HeroAnimatorDriver.UsesModel(visual);
+            Renderer body = bodyTransform != null ? bodyTransform.GetComponent<Renderer>() : null;
+            if (body != null) body.enabled = !usesModel;
+            if (usesModel) visual.GetComponent<HeroAnimatorDriver>().SetRuntuh(knockedOut);
+        }
+
         private void ApplyHeroAccessoryColor(PrototypeHero hero, bool knockedOut)
         {
             if (heroVisuals == null)
@@ -125,6 +140,8 @@ namespace Konoha.Networking
             {
                 // Keep each generated material's original palette. Recoloring all pieces
                 // with the hero accent turned fabric, metal and ornaments into one flat hue.
+                // One property block tints every sub-mesh, so multi-material model renderers are skipped.
+                if (renderer.sharedMaterials.Length > 1) continue;
                 Material source = renderer.sharedMaterial;
                 if (source == null) continue;
                 string property = source.HasProperty("_BaseColor") ? "_BaseColor" :

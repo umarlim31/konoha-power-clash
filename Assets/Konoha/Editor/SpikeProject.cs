@@ -34,6 +34,7 @@ namespace Konoha.Editor
             Directory.CreateDirectory(Generated);
             Directory.CreateDirectory("Assets/Resources");
             AssetDatabase.Refresh();
+            HeroVisualCatalog.BeginGeneration();
             ConfigureAndroid();
             ConfigureRendering();
             CreateArena();
@@ -331,12 +332,14 @@ namespace Konoha.Editor
             ActorPrimitive("PakWiGoldSash", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0.05f, 1.23f, 0.51f), new Vector3(0.14f, 0.70f, 0.07f), gold, new Vector3(0f, 0f, -22f));
             ActorPrimitive("PakWiStaffGlow", PrimitiveType.Sphere, jokowiRoot.transform, new Vector3(0.53f, 1.76f, -0.12f), new Vector3(0.18f, 0.19f, 0.18f), gold, Vector3.zero);
 
+            // A rigged model in Assets/Konoha/Art/Heroes replaces the primitive visual;
+            // without one the primitives above are used unchanged.
             presentation.heroVisuals = new[]
             {
-                megaRoot,
-                prabowoRoot,
-                abahRoot,
-                jokowiRoot
+                HeroVisualCatalog.Resolve(0, megaRoot),
+                HeroVisualCatalog.Resolve(1, prabowoRoot),
+                HeroVisualCatalog.Resolve(2, abahRoot),
+                HeroVisualCatalog.Resolve(3, jokowiRoot)
             };
 
             return presentation;

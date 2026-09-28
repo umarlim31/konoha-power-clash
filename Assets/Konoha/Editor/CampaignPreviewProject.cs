@@ -132,7 +132,9 @@ namespace Konoha.Editor
             {
                 visuals[i] = UnityEngine.Object.Instantiate(presentation.heroVisuals[i], player.transform, false);
                 visuals[i].name = "Campaign " + new[] { "Mega", "Gemoy", "Abah", "Pak Wi" }[i];
-                visuals[i].transform.localScale = Vector3.one * 1.12f;
+                // Primitive heroes keep their 0.0.8.2 campaign scale; models are already fitted to 1.7 m.
+                if (!HeroAnimatorDriver.UsesModel(visuals[i]))
+                    visuals[i].transform.localScale = Vector3.one * 1.12f;
             }
             var placeholder = player.transform.Find("PlaceholderSilhouette");
             if (placeholder != null)
