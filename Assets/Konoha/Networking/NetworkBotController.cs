@@ -17,7 +17,7 @@ namespace Konoha.Networking
     [RequireComponent(typeof(CharacterController))]
     [RequireComponent(typeof(CharacterMotor))]
     [RequireComponent(typeof(NetworkPlayerCombat))]
-    public sealed class NetworkBotController : NetworkBehaviour
+    public sealed class NetworkBotController : NetworkBehaviour, INetworkAiActor
     {
         private NetworkVariable<int> botTeam = new NetworkVariable<int>(
             NetworkTeamUtility.CyanTeam,

@@ -14,6 +14,14 @@ namespace Konoha.Networking
         public float dodgeDistance = 2.6f;
         public float dodgeCooldown = 4f;
 
+        // Jalur Takhta: CampaignTraversal steps the motor (camera-relative joystick, jump,
+        // invisible boundary, fall recovery). This component then only applies locks,
+        // hero speed and dodge. PvP leaves both fields at their defaults.
+        public bool externalLocomotion;
+        public Transform directionCamera;
+
+        public bool LocomotionLocked { get; private set; }
+
         private CharacterController controller;
         private NetworkPlayerCombat combat;
         private NetworkHeroKit heroKit;
@@ -64,17 +72,18 @@ namespace Konoha.Networking
             if (joystick == null || motor == null || cameraFollow == null || dodgeButton == null)
                 BindLocalControls();
 
-            NetworkMatchManager match = NetworkMatchManager.Instance;
+            ICombatRules rules = CombatRules.Current;
             if (heroKit == null)
                 heroKit = GetComponent<NetworkHeroKit>();
 
             bool knockedOut = combat != null && combat.IsKnockedOut;
             bool stunned = heroKit != null && heroKit.IsStunned;
-            bool matchLocked = match == null || !match.AllowsGameplay;
-            bool ruler = match != null &&
-                         match.IsRuler(OwnerClientId) &&
+            bool matchLocked = rules == null || !rules.AllowsGameplay;
+            bool ruler = rules != null &&
+                         rules.IsRuler(OwnerClientId) &&
                          Time.unscaledTime >= ignoreChairPinUntil;
             bool movementLocked = knockedOut || stunned || matchLocked || ruler;
+            LocomotionLocked = movementLocked;
 
             UpdateDodgeButtonVisual(knockedOut, stunned, matchLocked);
 
@@ -84,7 +93,7 @@ namespace Konoha.Networking
             if (ruler)
             {
                 joystick?.ResetInput();
-                PinOwnerToChair(match);
+                PinOwnerToChair(NetworkMatchManager.Instance);
                 return;
             }
 
@@ -93,6 +102,9 @@ namespace Konoha.Networking
                 joystick?.ResetInput();
                 return;
             }
+
+            if (externalLocomotion)
+                return;
 
             if (joystick != null && motor != null)
                 motor.Step(new MoveIntent(joystick.Value), Mathf.Min(Time.deltaTime, 0.05f));
@@ -142,7 +154,7 @@ namespace Konoha.Networking
             if (!IsOwner || !IsSpawned || controller == null)
                 return;
 
-            NetworkMatchManager match = NetworkMatchManager.Instance;
+            ICombatRules rules = CombatRules.Current;
 
             if (combat != null && combat.IsKnockedOut)
                 return;
@@ -150,30 +162,46 @@ namespace Konoha.Networking
             if (heroKit != null && heroKit.IsStunned)
                 return;
 
-            if (match == null || !match.AllowsGameplay)
+            if (rules == null || !rules.AllowsGameplay)
                 return;
 
             if (Time.unscaledTime < nextDodgeTime)
                 return;
 
-            bool leavingChair = match.IsRuler(OwnerClientId);
+            bool leavingChair = rules.IsRuler(OwnerClientId);
             if (leavingChair)
             {
                 ignoreChairPinUntil = Time.unscaledTime + 0.45f;
-                match.RequestChairActionFromLocal();
+                NetworkMatchManager.Instance?.RequestChairActionFromLocal();
             }
 
             nextDodgeTime = Time.unscaledTime + dodgeCooldown;
 
             Vector3 direction = transform.forward;
             if (joystick != null && joystick.Value.sqrMagnitude > 0.01f)
-                direction = new Vector3(joystick.Value.x, 0f, joystick.Value.y).normalized;
+                direction = JoystickToWorld(joystick.Value);
 
             if (leavingChair && direction.sqrMagnitude < 0.01f)
                 direction = -Vector3.forward;
 
             controller.Move(direction.normalized * dodgeDistance);
             Debug.Log("[KONOHA MOVE] Dodge | client=" + OwnerClientId + " | leaveChair=" + leavingChair);
+        }
+
+        // PvP: joystick up is world north. With an orbit camera it follows the view.
+        private Vector3 JoystickToWorld(Vector2 axis)
+        {
+            if (directionCamera == null)
+                return new Vector3(axis.x, 0f, axis.y).normalized;
+
+            Vector3 forward = directionCamera.forward;
+            forward.y = 0f;
+            if (forward.sqrMagnitude < 0.001f)
+                forward = Vector3.forward;
+            forward.Normalize();
+            Vector3 right = new Vector3(forward.z, 0f, -forward.x);
+            Vector3 world = right * axis.x + forward * axis.y;
+            return world.sqrMagnitude > 0.0001f ? world.normalized : transform.forward;
         }
 
         public void ResetLocalInput()

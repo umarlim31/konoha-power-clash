@@ -79,6 +79,15 @@ namespace Konoha.Campaign
             return result.AsReadOnly();
         }
 
+        // In-world title of a role inside an organisation (nameplates). Uses the largest
+        // roster so every role of the faction is found; unknown pairs fall back to the role.
+        public static string TitleFor(FactionId faction, UnitRole role)
+        {
+            foreach (var spawn in Compose(faction, MaxPlayers))
+                if (spawn.Role == role) return spawn.Title;
+            return role.ToString();
+        }
+
         public static int TotalUnits(IReadOnlyList<UnitSpawn> spawns)
         {
             int total = 0;

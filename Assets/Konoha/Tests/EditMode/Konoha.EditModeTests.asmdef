@@ -1,6 +1,6 @@
 {
   "name": "Konoha.EditModeTests",
-  "references": ["Konoha.Runtime", "Konoha.Editor", "Unity.ugui", "Unity.RenderPipelines.Universal.Runtime"],
+  "references": ["Konoha.Runtime", "Konoha.Editor", "Unity.ugui", "Unity.RenderPipelines.Universal.Runtime", "Unity.Netcode.Runtime"],
   "includePlatforms": ["Editor"],
   "optionalUnityReferences": ["TestAssemblies"]
 }

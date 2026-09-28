@@ -9,10 +9,10 @@ Cara pakai:
 Urutan versi:
 | Versi | Prompt | Isi | Kapan dijalankan |
 |---|---|---|---|
-| 0.0.8.3 | Prompt 1 | Fondasi logika + pipeline hero 3D + bersih-bersih | **Sekarang**, setelah 4 file diunggah (lihat Persiapan) |
-| 0.0.8.4 | Prompt 2 | Pasang MEGA 3D | Setelah build 0.0.8.3 OK **dan** file FBX MEGA sudah diunggah |
-| 0.0.9 | Prompt 3 | Solo = host lokal + combat asli di campaign | Setelah 0.0.8.4 OK |
-| 0.0.9.1 | Prompt 4 | Tata ulang peta menjadi rute | Setelah 0.0.9 OK |
+| 0.0.8.3 | Prompt 1 | Fondasi logika + pipeline hero 3D + bersih-bersih | ✅ Selesai, lolos di tablet |
+| 0.0.9 | Prompt 3 | Solo = host lokal + combat asli di campaign | ✅ Dikerjakan lebih dulu (2026-09-29) karena file MEGA belum ada |
+| (menyusul) | Prompt 2 | Pasang MEGA 3D | Kapan saja setelah file FBX MEGA diunggah; nomor versi = versi berikutnya saat itu |
+| 0.0.9.1 | Prompt 4 | Tata ulang peta menjadi rute | Setelah 0.0.9 OK di tablet |
 | 0.0.9.2 | Prompt 5 | Faksi Majelis Daun | Setelah 0.0.9.1 OK |
 | 0.0.9.3 | Prompt 6 | Faksi Biro Prosedur | Setelah 0.0.9.2 OK |
 | 0.1.0 | Prompt 7 | Garda Takhta + Fase Memerintah + Hasil = MVP | Setelah 0.0.9.3 OK |
@@ -98,7 +98,7 @@ LAPORAN AKHIR: ikuti format di CLAUDE.md, dalam Bahasa Indonesia sederhana. Tutu
 
 ---
 
-## PROMPT 2 — 0.0.8.4 "MEGA 3D"
+## PROMPT 2 — MEGA 3D (versi menyusul)
 
 **Syarat:** build 0.0.8.3 berhasil di tablet, dan file `Mega.fbx` + minimal `Mega@Idle.fbx` + `Mega@Run.fbx` sudah diunggah ke `Assets/Konoha/Art/Heroes/Mega/` (lihat Docs/PANDUAN_MEGA_3D.md).
 
@@ -106,7 +106,7 @@ LAPORAN AKHIR: ikuti format di CLAUDE.md, dalam Bahasa Indonesia sederhana. Tutu
 === MULAI ===
 Baca CLAUDE.md, Docs/GAME_LOGIC_JALUR_TAKHTA_v1.md §12, Docs/PANDUAN_MEGA_3D.md, dan Docs/JALUR_TAKHTA_0.0.8.3.md.
 
-Mulai dari branch hasil 0.0.8.3 yang sudah di-merge ke `feat/jalur-takhta-first-playable` (verifikasi git; jika PR 0.0.8.3 belum di-merge, TANYA aku dulu). Buat branch `feat/mega-3d-0.0.8.4`.
+Mulai dari `feat/jalur-takhta-first-playable` terbaru (verifikasi git; jika PR versi terakhir belum di-merge, TANYA aku dulu). Hero campaign sudah memakai prefab jaringan yang sama dengan PvP sejak 0.0.9, jadi satu pemasangan model berlaku untuk kedua mode. Buat branch `feat/mega-3d-<versi>`.
 
 TUJUAN: MEGA tampil sebagai model 3D asli di campaign DAN PvP, memakai pipeline HeroVisualCatalog dari 0.0.8.3.
 
@@ -119,7 +119,7 @@ TUJUAN: MEGA tampil sebagai model 3D asli di campaign DAN PvP, memakai pipeline 
    - Campaign: Speed dari gerak, Attack saat BASIC, Skill saat skill, Jump saat LOMPAT, Runtuh saat tumbang.
    - PvP: Speed dari gerak (klien lokal & remote dari posisi yang di-interpolasi), Attack/Skill dari RPC FX yang sudah ada di NetworkHeroKit. Jangan tambah NetworkVariable baru kecuali perlu.
 7. Tiga hero lain TETAP primitive.
-8. Versi 0.0.8.4, bundleVersionCode 21, footer diperbarui, Docs/JALUR_TAKHTA_0.0.8.4.md dengan checklist visual (siluet dari kamera normal, tidak ada kapsul, kaki menapak, animasi lari/idle, FPS).
+8. Versi = sub-versi berikutnya dari versi campaign terbaru (cek CampaignPreviewProject.cs), bundleVersionCode +1, footer diperbarui, Docs/JALUR_TAKHTA_<versi>.md dengan checklist visual (siluet dari kamera normal, tidak ada kapsul, kaki menapak, animasi lari/idle, FPS).
 
 Validasi & laporan sesuai CLAUDE.md. Tulis BELUM DIVERIFIKASI untuk tampilan model sampai aku kirim screenshot/video.
 === SELESAI ===
@@ -132,7 +132,7 @@ Validasi & laporan sesuai CLAUDE.md. Tulis BELUM DIVERIFIKASI untuk tampilan mod
 ```
 === MULAI ===
 Baca CLAUDE.md dan Docs/GAME_LOGIC_JALUR_TAKHTA_v1.md (terutama §6, §7, §14).
-Mulai dari `feat/jalur-takhta-first-playable` terbaru (0.0.8.4). Branch baru `feat/jalur-takhta-0.0.9`.
+Mulai dari `feat/jalur-takhta-first-playable` terbaru. Branch baru `feat/jalur-takhta-0.0.9`.
 
 TUJUAN: campaign memakai combat hero yang SAMA dengan PvP. Hapus combat mainan di CampaignPreviewController.
 

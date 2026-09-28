@@ -345,7 +345,8 @@ namespace Konoha.Editor
             return presentation;
         }
 
-        private static NetworkWibawaBar CreateWorldWibawaBar(GameObject root)
+        // Also used for campaign enemies (CampaignPreviewProject).
+        internal static NetworkWibawaBar CreateWorldWibawaBar(GameObject root)
         {
             var canvasObject = new GameObject("WibawaWorldCanvas", typeof(RectTransform), typeof(Canvas));
             canvasObject.transform.SetParent(root.transform, false);
