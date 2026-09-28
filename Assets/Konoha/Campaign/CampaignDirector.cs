@@ -410,7 +410,7 @@ namespace Konoha.Campaign
                 stage = FindFirstObjectByType<CampaignStage>();
             return stage != null
                 ? stage.CheckpointPosition(Checkpoint)
-                : new Vector3(0f, 0.35f, -9f);
+                : new Vector3(0f, 0.35f, -44f);
         }
 
         public Quaternion GetRespawnRotation(NetworkObject actor)

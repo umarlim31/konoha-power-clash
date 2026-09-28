@@ -34,6 +34,7 @@ namespace Konoha.Campaign
             NetworkVariableWritePermission.Server);
 
         private static CampaignMonument monument;
+        private static CampaignStage stage;
 
         private NetworkPlayerCombat combat;
         private NetworkHeroKit heroKit;
@@ -222,6 +223,10 @@ namespace Konoha.Campaign
             flat.y = 0f;
             if (flat.sqrMagnitude >= 0.0004f)
             {
+                if (stage == null)
+                    stage = FindFirstObjectByType<CampaignStage>();
+                if (stage != null)
+                    destination = stage.Steer(transform.position, destination);
                 if (monument == null)
                     monument = FindFirstObjectByType<CampaignMonument>();
                 Vector3 next = monument != null && monument.solid != null

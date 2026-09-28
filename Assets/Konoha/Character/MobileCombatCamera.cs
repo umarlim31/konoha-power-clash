@@ -21,13 +21,17 @@ namespace Konoha.Character
         public float orbitYaw;
         public float orbitPitch = 38f;
         public float orbitDistance = 22f;
+        // KAMERA AWAL targets. Jalur Takhta lowers the pitch so the distant Istana reads.
+        public float resetPitch = 38f;
+        public float resetDistance = 22f;
+        public float minPitch = 25f;
         private readonly RaycastHit[] obstacles = new RaycastHit[48];
 
         public void RotateOrbit(Vector2 delta)
         {
             if (!allowOrbit) return;
             orbitYaw = Mathf.Repeat(orbitYaw + delta.x * 260f, 360f);
-            orbitPitch = Mathf.Clamp(orbitPitch - delta.y * 160f, 25f, 68f);
+            orbitPitch = Mathf.Clamp(orbitPitch - delta.y * 160f, minPitch, 68f);
         }
         public void ZoomOrbit(float delta)
         {
@@ -35,7 +39,7 @@ namespace Konoha.Character
         }
         public void ResetOrbit()
         {
-            orbitYaw = 0f; orbitPitch = 38f; orbitDistance = 22f;
+            orbitYaw = 0f; orbitPitch = resetPitch; orbitDistance = resetDistance;
             initialized = false;
         }
 

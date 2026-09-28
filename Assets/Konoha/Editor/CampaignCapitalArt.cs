@@ -11,12 +11,27 @@ using UnityEngine.SceneManagement;
 namespace Konoha.Editor
 {
     // Original civic architecture for the solo campaign. No PvP scene or material is edited.
+    // 0.0.9.1 route layout (Docs/GAME_LOGIC_JALUR_TAKHTA_v1.md §13), +Z = toward the seat:
+    //   Gerbang Rakyat (spawn z -44) -> boulevard -> Plaza Aspirasi hub (origin) with
+    //   Majelis Daun (x -28) and Biro Prosedur (x +28) wings -> Gerbang Dalam wall (z 17,
+    //   locked gate) -> Garda Takhta parade ground (z 28) -> ramp -> Istana Takhta terrace
+    //   (5 m high) with the Kursi at z 46.5, visible from the spawn over the monument.
     internal sealed class CampaignCapitalArt
     {
+        internal const float TerraceHeight = 5f;
+        internal const float InnerGateZ = 17f;
+        internal const float WingCorridorZ = -5f;
+        internal static readonly Vector3 ThronePosition = new Vector3(0f, TerraceHeight, 46.5f);
+        internal static readonly Vector3 SpawnPoint = new Vector3(0f, 0.1f, -44f);
+        internal static readonly Vector2 BoundaryCenter = new Vector2(0f, 4f);
+        internal static readonly Vector2 BoundaryRadii = new Vector2(34f, 58f);
+
         private Transform root;
         private Material stone, ivory, bronze, dark, red, green, leaf, paleLeaf, water, paving, flower;
+        private Material majelisCloth, majelisTrim, biroCloth, biroTrim, gardaCloth;
         private Mesh column, dome, roof, arch, feather, frond, pedestal, rim;
-        internal Transform Plaza, Majelis, Biro, Garda;
+        internal Transform Plaza, Majelis, Biro, Garda, Throne;
+        internal GameObject InnerGateClosed, InnerGateOpen;
         internal Material Gold => bronze;
         internal Material Ivory => ivory;
         internal Material Red => red;
@@ -32,34 +47,234 @@ namespace Konoha.Editor
             art.ConfigureLighting();
             art.root = new GameObject("CapitalEnvironment").transform;
             art.GroundAndStreets();
-            art.Monument(new Vector3(0, 0, 1.75f));
-            art.CivicHall(new Vector3(0, 0, 20));
-            art.Majelis = art.Institution("Majelis Daun", new Vector3(-9, 0, -6), false);
-            art.Biro = art.Institution("Biro Prosedur", new Vector3(9, 0, -6), true);
-            art.Plaza = art.Objective("Plaza Aspirasi", new Vector3(0, 0, -6.5f), 1.15f);
-            art.Garda = art.Objective("Garda Takhta", new Vector3(0, 0, 7.4f), 1.2f);
+            art.BuildGerbangRakyat();
+            art.BuildPlazaAspirasi();
+            art.Majelis = art.BuildMajelisDaun();
+            art.Biro = art.BuildBiroProsedur();
+            art.BuildGerbangDalam();
+            art.Garda = art.BuildPlazaTakhtaGarda();
+            art.Throne = art.BuildIstanaTakhta();
+            return art;
+        }
+
+        // A hero may cross the east-west wing corridor freely; solid decor stays out of it.
+        private static bool InWingCorridor(float x, float z, float halfDepth) =>
+            Mathf.Abs(x) > 4f && Mathf.Abs(z - WingCorridorZ) < halfDepth + 2.5f;
+
+        // --- Sectors ------------------------------------------------------------------------
+
+        private void BuildGerbangRakyat()
+        {
+            const float z = -37f;
             foreach (int side in new[] { -1, 1 })
             {
-                art.Canal(new Vector3(side * 10, 0, 5.8f));
-                art.Statue(new Vector3(side * 18.6f, 0, 9.8f));
+                // Pylons frame a 7.5 m opening on the boulevard axis; nothing blocks the lane.
+                Block("Gerbang Rakyat pylon", new Vector3(side * 4.4f, 2.9f, z), new Vector3(1.3f, 5.8f, 1.3f), stone, true);
+                Block("Gerbang Rakyat pylon cap", new Vector3(side * 4.4f, 5.86f, z), new Vector3(1.6f, .14f, 1.6f), bronze);
+                Block("Gerbang Rakyat relief", new Vector3(side * 4.4f, 3.2f, z - .67f), new Vector3(.5f, 3.4f, .04f), bronze);
+                Banner(new Vector3(side * 6.2f, 0, z - 1.4f), 3.8f);
                 for (int i = 0; i < 4; i++)
                 {
-                    art.Palm(new Vector3(side * 18.2f, 0, -9 + i * 7), 4.7f + i * 0.35f, i * 31);
-                    art.Planter(new Vector3(side * 14, 0, -8 + i * 5.1f), new Vector3(1.4f, 0.55f, 2.3f));
+                    Palm(new Vector3(side * 6.8f, 0, -50 + i * 9), 5.2f + (i % 2) * .5f, i * 47 + side * 20);
+                    Lamp(new Vector3(side * 4.1f, 0, -47.5f + i * 9));
+                }
+            }
+            Block("Gerbang Rakyat lintel", new Vector3(0, 6.2f, z), new Vector3(10.4f, .75f, 1.5f), ivory);
+            Roof(new Vector3(0, 6.55f, z), new Vector3(5.6f, 1.9f, 1.3f), red);
+            Sign("GERBANG RAKYAT", new Vector3(0, 7.9f, z - .8f), 0f, 1.25f);
+            Sign("MENUJU ISTANA TAKHTA", new Vector3(0, 1.9f, -49f), 0f, .7f);
+        }
+
+        private void BuildPlazaAspirasi()
+        {
+            Monument(new Vector3(0, 0, 1.75f));
+            Plaza = Objective("Plaza Aspirasi", new Vector3(0, 0, -6.5f), 1.15f);
+            foreach (int side in new[] { -1, 1 })
+            {
+                Canal(new Vector3(side * 10, 0, 5.8f));
+                Statue(new Vector3(side * 18.6f, 0, 9.8f));
+                for (int i = 0; i < 4; i++)
+                {
+                    Palm(new Vector3(side * 18.2f, 0, -9 + i * 7), 4.7f + i * 0.35f, i * 31);
+                    float planterZ = -8 + i * 5.1f;
+                    if (!InWingCorridor(side * 14, planterZ, 1.15f))
+                        Planter(new Vector3(side * 14, 0, planterZ), new Vector3(1.4f, 0.55f, 2.3f));
                 }
                 for (int i = 0; i < 3; i++)
                 {
-                    art.Palm(new Vector3(side * (5 + i * 5), 0, 15.5f), 5.1f, i * 71);
-                    art.Lamp(new Vector3(side * 3.9f, 0, -8.9f + i * 6));
+                    Palm(new Vector3(side * (5 + i * 5), 0, 15.5f), 5.1f, i * 71);
+                    Lamp(new Vector3(side * 3.9f, 0, -8.9f + i * 6));
                 }
-                art.Banner(new Vector3(side * 3.5f, 0, -10.5f), 3.1f);
-                art.Banner(new Vector3(side * 15, 0, 9.8f), 3.8f);
-                // Distant wings frame the expanded campus.
+                Banner(new Vector3(side * 3.5f, 0, -10.5f), 3.1f);
+                Banner(new Vector3(side * 15, 0, 9.8f), 3.8f);
+                // City blocks behind the parade ground frame the north.
                 for (int i = 0; i < 4; i++)
-                    art.Skyline(new Vector3(side * (13 + i * 6.5f), 0, 28 + (i % 2) * 7), 5 + i * 2);
+                    Skyline(new Vector3(side * (13 + i * 6.5f), 0, 28 + (i % 2) * 7), 5 + i * 2);
             }
-            art.ThroneTrim();
-            return art;
+            Sign("PLAZA ASPIRASI", new Vector3(0, 3.2f, -10.9f), 0f, .9f);
+        }
+
+        private Transform BuildMajelisDaun()
+        {
+            var sector = Institution("Majelis Daun", new Vector3(-28, 0, WingCorridorZ), false, majelisCloth, majelisTrim);
+            Sign("MAJELIS DAUN", new Vector3(-28, 6.2f, -2.4f), 0f, 1f);
+            Sign("< MAJELIS DAUN", new Vector3(-6.5f, 2.6f, -3.6f), 0f, .7f);
+            return sector;
+        }
+
+        private Transform BuildBiroProsedur()
+        {
+            var sector = Institution("Biro Prosedur", new Vector3(28, 0, WingCorridorZ), true, biroCloth, biroTrim);
+            Sign("BIRO PROSEDUR", new Vector3(28, 6.6f, -2.4f), 0f, 1f);
+            Sign("BIRO PROSEDUR >", new Vector3(6.5f, 2.6f, -3.6f), 0f, .7f);
+            return sector;
+        }
+
+        // The wall spans the whole campus width (the oval boundary is narrower here), so the
+        // north is reachable only through the gate. Wall pieces use the Ignore Raycast layer
+        // so the orbit camera does not collapse onto a hero standing beside it.
+        private void BuildGerbangDalam()
+        {
+            const float z = InnerGateZ;
+            foreach (int side in new[] { -1, 1 })
+            {
+                float inner = 4.25f, outer = 35f;
+                var wall = Block("Gerbang Dalam wall", new Vector3(side * (inner + outer) * .5f, 1.75f, z),
+                    new Vector3(outer - inner, 3.5f, 1f), stone, true);
+                wall.layer = 2;
+                Block("Gerbang Dalam coping", new Vector3(side * (inner + outer) * .5f, 3.56f, z),
+                    new Vector3(outer - inner, .14f, 1.2f), ivory);
+                Block("Gerbang Dalam bronze band", new Vector3(side * (inner + outer) * .5f, 2.7f, z - .52f),
+                    new Vector3(outer - inner, .12f, .04f), bronze);
+                var pylon = Block("Gerbang Dalam pylon", new Vector3(side * 3.6f, 3f, z), new Vector3(1.3f, 6f, 1.4f), ivory, true);
+                pylon.layer = 2;
+                Block("Gerbang Dalam pylon cap", new Vector3(side * 3.6f, 6.06f, z), new Vector3(1.6f, .14f, 1.7f), bronze);
+                Banner(new Vector3(side * 5.6f, 0, z - 1.3f), 3.9f, gardaCloth, ivory);
+            }
+            Block("Gerbang Dalam lintel", new Vector3(0, 6.35f, z), new Vector3(8.6f, .7f, 1.5f), ivory);
+            Roof(new Vector3(0, 6.7f, z), new Vector3(4.7f, 1.8f, 1.3f), red);
+            Sign("GERBANG DALAM", new Vector3(0, 8f, z - .8f), 0f, 1.1f);
+
+            // Closed leaves block the 5.9 m opening until the director opens the gate.
+            InnerGateClosed = new GameObject("Gerbang Dalam - locked");
+            InnerGateClosed.transform.SetParent(root);
+            InnerGateOpen = new GameObject("Gerbang Dalam - open");
+            InnerGateOpen.transform.SetParent(root);
+            foreach (int side in new[] { -1, 1 })
+            {
+                var leaf = Block("Gerbang Dalam door", new Vector3(side * 1.475f, 2.3f, z), new Vector3(2.95f, 4.6f, .3f), red, true);
+                leaf.transform.SetParent(InnerGateClosed.transform, true);
+                var stud = Block("Gerbang Dalam door medallion", new Vector3(side * 1.475f, 2.6f, z - .17f), new Vector3(.9f, .9f, .04f), bronze);
+                stud.transform.SetParent(InnerGateClosed.transform, true);
+                var open = Block("Gerbang Dalam door (open)", new Vector3(side * 3.0f, 2.3f, z + 1.65f), new Vector3(.3f, 4.6f, 2.95f), red);
+                open.transform.SetParent(InnerGateOpen.transform, true);
+            }
+            InnerGateOpen.SetActive(false);
+        }
+
+        private Transform BuildPlazaTakhtaGarda()
+        {
+            var post = new Vector3(0, 0, 28);
+            Block("Garda parade ground", new Vector3(0, .016f, 27), new Vector3(22, .025f, 14), ivory);
+            foreach (int side in new[] { -1, 1 })
+            {
+                Block("Parade bronze border", new Vector3(side * 11f, .03f, 27), new Vector3(.08f, .014f, 14), bronze);
+                // Low cover (0.9 m): readable from the camera and jumpable.
+                Block("Garda low cover", new Vector3(side * 5.5f, .45f, 24.5f), new Vector3(3.2f, .9f, .8f), stone, true);
+                Block("Garda low cover coping", new Vector3(side * 5.5f, .93f, 24.5f), new Vector3(3.4f, .1f, 1f), ivory);
+                Banner(new Vector3(side * 9f, 0, 21.5f), 3.6f, gardaCloth, bronze);
+                Banner(new Vector3(side * 9f, 0, 33f), 3.6f, gardaCloth, bronze);
+                Statue(new Vector3(side * 9.6f, 0, 36.5f));
+            }
+            Block("Takhta processional lane", new Vector3(0, .02f, 24), new Vector3(4.5f, .025f, 14), paving);
+            Sign("GARDA TAKHTA", new Vector3(0, 3.2f, 21.2f), 0f, .9f);
+            return Objective("Garda Takhta", post, 1.2f);
+        }
+
+        private Transform BuildIstanaTakhta()
+        {
+            float h = TerraceHeight;
+            // Solid terrace; the only way up is the central ramp (24 degrees, below the
+            // controllers' 45 degree slope limit, no step-height issue for enemies).
+            Block("Istana terrace", new Vector3(0, h * .5f, 52.5f), new Vector3(22, h, 21), stone, true);
+            // Only the front lip is raised; the walking surface stays flush with the collider.
+            Block("Istana terrace cornice", new Vector3(0, h - .07f, 41.95f), new Vector3(22.4f, .14f, .22f), ivory);
+            Block("Istana terrace floor", new Vector3(0, h + .012f, 49f), new Vector3(20, .02f, 12), paving);
+            for (int i = 0; i < 2; i++)
+                Block("Istana terrace relief band", new Vector3(0, 1.4f + i * 1.9f, 41.98f), new Vector3(22, .22f, .06f), bronze);
+
+            Vector3 rampStart = new Vector3(0, 0, 31f), rampEnd = new Vector3(0, h, 42f);
+            Vector3 along = rampEnd - rampStart;
+            float angle = Mathf.Atan2(along.y, along.z) * Mathf.Rad2Deg;
+            var rotation = Quaternion.Euler(-angle, 0, 0);
+            Vector3 normal = rotation * Vector3.up;
+            var ramp = Block("Istana ceremonial ramp", (rampStart + rampEnd) * .5f - normal * .2f,
+                new Vector3(8, .4f, along.magnitude), ivory, true);
+            ramp.transform.rotation = rotation;
+            for (int i = 1; i < 12; i++)
+            {
+                Vector3 point = Vector3.Lerp(rampStart, rampEnd, i / 12f);
+                var tread = Block("Ramp carved tread line", point + normal * .012f, new Vector3(7.6f, .012f, .08f), dark);
+                tread.transform.rotation = rotation;
+            }
+            foreach (int side in new[] { -1, 1 })
+            {
+                var rail = Block("Ramp bronze balustrade", (rampStart + rampEnd) * .5f + new Vector3(side * 4.1f, .9f, 0),
+                    new Vector3(.12f, .12f, along.magnitude), bronze);
+                rail.transform.rotation = rotation;
+                for (int i = 0; i < 4; i++)
+                    Column(Vector3.Lerp(rampStart, rampEnd, (i + .5f) / 4f) + new Vector3(side * 4.1f, 0, 0), .3f);
+                Banner(new Vector3(side * 9f, h, 43.2f), 3.4f);
+                Banner(new Vector3(side * 5.2f, h, 43.2f), 3.0f);
+            }
+
+            CivicHall(new Vector3(0, h, 58));
+            Sign("ISTANA TAKHTA", ThronePosition + new Vector3(0, 11.6f, 2.45f), 0f, 1.3f);
+
+            // Tall bronze-crowned pylons behind the seat read as the destination from the spawn.
+            foreach (int side in new[] { -1, 1 })
+            {
+                Column(ThronePosition + new Vector3(side * 2.8f, 0, 3f), 3.9f);
+                Block("Takhta pylon crown", ThronePosition + new Vector3(side * 2.8f, 11.2f, 3f), new Vector3(1.1f, .5f, 1.1f), bronze);
+            }
+            Block("Takhta crown lintel", ThronePosition + new Vector3(0, 11.6f, 3f), new Vector3(6.8f, .55f, .8f), bronze);
+            Roof(ThronePosition + new Vector3(0, 11.9f, 3f), new Vector3(3.5f, 2.4f, 1.1f), red);
+            MeshObject("Takhta dais ring", rim, ThronePosition + Vector3.up * .15f, Vector3.one * 2.6f, bronze);
+            Block("Takhta crimson carpet", ThronePosition + new Vector3(0, .03f, -2.3f), new Vector3(2.2f, .02f, 3.6f), red);
+
+            PlaceSpikeThrone();
+            ThroneTrim();
+            var marker = new GameObject("Istana Takhta");
+            marker.transform.SetParent(root);
+            marker.transform.position = ThronePosition;
+            return marker.transform;
+        }
+
+        // The generated PvP seat (KursiSeat, KursiBack, ...) moves onto the terrace.
+        private static void PlaceSpikeThrone()
+        {
+            foreach (string n in new[] { "KursiSeat", "KursiBack", "KursiLeftArm", "KursiRightArm", "KursiCrown" })
+                GameObject.Find(n).transform.position += ThronePosition;
+        }
+
+        private void Sign(string text, Vector3 p, float yaw, float scale)
+        {
+            var go = new GameObject("Sign " + text);
+            go.transform.SetParent(root);
+            go.transform.position = p;
+            go.transform.rotation = Quaternion.Euler(12, yaw, 0);
+            go.transform.localScale = Vector3.one * scale;
+            var label = go.AddComponent<TextMesh>();
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.fontSize = 48;
+            label.characterSize = .09f;
+            label.anchor = TextAnchor.MiddleCenter;
+            label.alignment = TextAlignment.Center;
+            label.fontStyle = FontStyle.Bold;
+            label.text = text;
+            label.color = new Color(1f, .86f, .52f);
+            if (label.font != null)
+                go.GetComponent<MeshRenderer>().sharedMaterial = label.font.material;
         }
 
         private void ClearSpikeScenery()
@@ -87,6 +302,12 @@ namespace Konoha.Editor
             flower = Surface("Bougainvillea", new Color(0.68f, 0.19f, 0.33f), 0.15f);
             water = Surface("TurquoiseWater", new Color(0.10f, 0.46f, 0.49f), 0.86f, 0.18f);
             paving = Surface("PlazaPaving", new Color(0.63f, 0.64f, 0.60f), 0.29f);
+            // Faction identities (FactionDefinition colours) for banners and trims.
+            majelisCloth = Surface("MajelisBurgundy", new Color(0.45f, 0.09f, 0.16f), 0.14f);
+            majelisTrim = Surface("MajelisGold", new Color(0.86f, 0.66f, 0.28f), 0.5f, 0.3f);
+            biroCloth = Surface("BiroArchiveBeige", new Color(0.72f, 0.68f, 0.60f), 0.2f);
+            biroTrim = Surface("BiroArchiveBlue", new Color(0.20f, 0.36f, 0.58f), 0.25f);
+            gardaCloth = Surface("GardaNavy", new Color(0.09f, 0.13f, 0.24f), 0.18f);
             foreach (var mat in new[] { stone, ivory, dark, green, paving, red, water })
             {
                 mat.SetTexture("_BaseMap", Texture(mat == paving ? "Paving" : mat == water ? "Water" : "Grain"));
@@ -151,7 +372,8 @@ namespace Konoha.Editor
             RenderSettings.ambientGroundColor = new Color(.23f, .23f, .18f);
             RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Linear;
             RenderSettings.fogColor = new Color(.65f, .77f, .79f);
-            RenderSettings.fogStartDistance = 43; RenderSettings.fogEndDistance = 105;
+            // The seat must read from the spawn ~100 m away: lighter, longer fog.
+            RenderSettings.fogStartDistance = 60; RenderSettings.fogEndDistance = 175;
             var sky = AssetDatabase.LoadAssetAtPath<Material>(CampaignCapitalMeshes.Folder + "/TropicalSky.mat");
             if (sky == null)
             {
@@ -161,7 +383,7 @@ namespace Konoha.Editor
             sky.SetFloat("_AtmosphereThickness", .8f); sky.SetFloat("_Exposure", 1.2f);
             sky.SetColor("_SkyTint", new Color(.47f,.53f,.57f));
             RenderSettings.skybox = sky; EditorUtility.SetDirty(sky);
-            Camera.main.clearFlags = CameraClearFlags.Skybox; Camera.main.farClipPlane = 140;
+            Camera.main.clearFlags = CameraClearFlags.Skybox; Camera.main.farClipPlane = 190;
         }
 
         private static void SetBool(SerializedObject data, string name, bool value)
@@ -177,17 +399,19 @@ namespace Konoha.Editor
             grass.SetTexture("_BaseMap",Texture("Grain"));
             grass.SetTextureScale("_BaseMap",new Vector2(55,55));
             EditorUtility.SetDirty(grass);
-            Block("Surrounding Konoha Landscape", new Vector3(0,-.16f,4), new Vector3(180,.3f,160), grass);
+            Block("Surrounding Konoha Landscape", new Vector3(0,-.16f,4), new Vector3(220,.3f,240), grass);
             // A continuous collision floor extends beyond the logical oval campus boundary.
             // There is no perimeter wall or rendered boundary box.
-            var floor=Block("Floor", new Vector3(0,-.35f,4), new Vector3(88,.7f,88), paving, true);
+            // Covers the whole route oval (radii 34 x 58 around z 4) with margin.
+            var floor=Block("Floor", new Vector3(0,-.35f,4), new Vector3(96,.7f,136), paving, true);
             floor.GetComponent<Renderer>().enabled=false;
             MeshObject("Oval capital promenade",CampaignCapitalMeshes.CampusGround(30,34),
                 new Vector3(0,.001f,4),Vector3.one,paving);
             paving.SetTextureScale("_BaseMap", new Vector2(44,44));
             EditorUtility.SetDirty(paving);
             Block("Civic forecourt inlay", new Vector3(0,.015f,12), new Vector3(18,.025f,5), ivory);
-            Block("South boulevard", new Vector3(0,.015f,-18), new Vector3(5,.025f,17), ivory);
+            Block("Gerbang Rakyat boulevard", new Vector3(0,.015f,-30.5f), new Vector3(6,.025f,43), ivory);
+            Block("Wing corridor", new Vector3(0,.03f,WingCorridorZ), new Vector3(62,.025f,2.7f), ivory);
             for (int side=-1;side<=1;side+=2)
             {
                 Block("Garden promenade",new Vector3(side*20,.015f,1),new Vector3(3,.025f,35),ivory);
@@ -195,9 +419,13 @@ namespace Konoha.Editor
                 Pavilion(new Vector3(side*19.5f,0,-16));
                 for(int i=0;i<4;i++)
                 {
-                    GardenIsland(new Vector3(side*24,0,-9+i*8),new Vector3(4.8f,.14f,4.3f));
-                    Palm(new Vector3(side*24,0,-9+i*8),5.4f,i*53);
-                    Lamp(new Vector3(side*18.3f,0,-9+i*8));
+                    float islandZ=-9+i*8;
+                    if(!InWingCorridor(side*24,islandZ,2.15f))
+                    {
+                        GardenIsland(new Vector3(side*24,0,islandZ),new Vector3(4.8f,.14f,4.3f));
+                        Palm(new Vector3(side*24,0,islandZ),5.4f,i*53);
+                    }
+                    Lamp(new Vector3(side*18.3f,0,islandZ));
                 }
                 GardenIsland(new Vector3(side*8.5f,0,-18.5f),new Vector3(7,.14f,5.5f));
                 Palm(new Vector3(side*8.5f,0,-18.5f),5.8f,side*42);
@@ -208,7 +436,6 @@ namespace Konoha.Editor
             }
             // Thin inlays sit above the floor and do not introduce invisible steps.
             Block("Ceremonial main lane",new Vector3(0,.015f,0),new Vector3(3.5f,.025f,23.2f),ivory);
-            Block("Institution approach",new Vector3(0,.03f,-6),new Vector3(23,.025f,2.7f),ivory);
             for(int side=-1;side<=1;side+=2)
                 Block("Processional bronze inlay",new Vector3(side*1.72f,.036f,0),new Vector3(.035f,.015f,23),bronze);
             for (int i=0;i<18;i++)
@@ -253,6 +480,15 @@ namespace Konoha.Editor
             }
             // Large lettered plaques use relief geometry; no floating debug label on the landmark.
             Block("Monument dedication plaque",p+new Vector3(0,.62f,-1.02f),new Vector3(.58f,.28f,.045f),dark);
+            // 0.85 scale keeps the sculpture below the spawn camera's sightline to the seat
+            // (§13); every piece, including the stem collider, scales about the base.
+            const float scale = .85f;
+            for (int i = firstSurface; i < root.childCount; i++)
+            {
+                Transform piece = root.GetChild(i);
+                piece.position = p + (piece.position - p) * scale;
+                piece.localScale *= scale;
+            }
             var monument = baseGo.AddComponent<CampaignMonument>();
             monument.solid = collider;
             monument.player = UnityEngine.Object.FindFirstObjectByType<CharacterMotor>().transform;
@@ -310,7 +546,7 @@ namespace Konoha.Editor
                 Block("Civic frieze lozenge",p+new Vector3(i*2.1f,5.21f,-4.43f),new Vector3(.26f,.26f,.05f),bronze).transform.rotation=Quaternion.Euler(0,0,45);
         }
 
-        private Transform Institution(string name, Vector3 p, bool archive)
+        private Transform Institution(string name, Vector3 p, bool archive, Material cloth, Material trim)
         {
             var objective=Objective(name,p,2.8f);
             Vector3 b=p+new Vector3(0,0,2.9f);
@@ -327,7 +563,9 @@ namespace Konoha.Editor
             Roof(b+new Vector3(0,3.25f,.1f),new Vector3(3.4f,2.2f,2.15f),archive?green:red);
             Roof(b+new Vector3(0,4.3f,.1f),new Vector3(2.1f,1.3f,1.3f),archive?green:red);
             if(archive) MeshObject(name+" archive crown",dome,b+new Vector3(0,4.75f,.1f),new Vector3(.72f,1,.72f),bronze);
-            Banner(b+new Vector3(-3.15f,0,-.3f),2.7f);
+            Banner(b+new Vector3(-3.15f,0,-.3f),2.7f,cloth,trim);
+            Banner(b+new Vector3(3.15f,0,-.3f),2.7f,cloth,trim);
+            Block(name+" faction band",b+new Vector3(0,2.78f,.16f),new Vector3(5.6f,.16f,.05f),trim);
             return objective;
         }
 
@@ -369,7 +607,7 @@ namespace Konoha.Editor
             foreach(string n in new[]{"KursiSeat","KursiBack","KursiLeftArm","KursiRightArm","KursiCrown"})
                 GameObject.Find(n).GetComponent<Renderer>().sharedMaterial=n=="KursiSeat"?red:bronze;
             for(int side=-1;side<=1;side+=2)
-                Column(new Vector3(side*.67f,.13f,.35f),.38f);
+                Column(ThronePosition+new Vector3(side*.67f,.13f,.35f),.38f);
         }
 
         private Transform Objective(string name, Vector3 p, float radius)
@@ -431,7 +669,9 @@ namespace Konoha.Editor
                 Block("Tower recessed arcade",p+new Vector3((i-1)*1.05f,height*.55f,-2.02f),new Vector3(.62f,height*.53f,.05f),dark);
         }
 
-        private void Banner(Vector3 p,float h)
+        private void Banner(Vector3 p,float h) => Banner(p,h,red,ivory);
+
+        private void Banner(Vector3 p,float h,Material upperCloth,Material lowerCloth)
         {
             Column(p,.20f);
             Block("Banner bronze staff",p+Vector3.up*(h*.5f),new Vector3(.07f,h,.07f),bronze);
@@ -440,9 +680,9 @@ namespace Konoha.Editor
             for(int i=0;i<5;i++)
             {
                 float x=.1f+i*.13f;
-                var upper=Block("Red civic cloth",p+new Vector3(x,h-.4f,Mathf.Sin(i*1.6f)*.045f),new Vector3(.135f,.74f,.025f),red);
+                var upper=Block("Red civic cloth",p+new Vector3(x,h-.4f,Mathf.Sin(i*1.6f)*.045f),new Vector3(.135f,.74f,.025f),upperCloth);
                 upper.transform.rotation=Quaternion.Euler(0,i%2==0?16:-16,0);
-                var lower=Block("White civic cloth",p+new Vector3(x,h-1.09f,Mathf.Sin(i*1.6f)*.045f),new Vector3(.135f,.63f,.025f),ivory);
+                var lower=Block("White civic cloth",p+new Vector3(x,h-1.09f,Mathf.Sin(i*1.6f)*.045f),new Vector3(.135f,.63f,.025f),lowerCloth);
                 lower.transform.rotation=upper.transform.rotation;
             }
         }
