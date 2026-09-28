@@ -96,7 +96,7 @@ namespace Konoha.Networking
             NetworkManager != null ? NetworkManager.ServerTime.Time : Time.realtimeSinceStartupAsDouble;
 
         private ulong DamageSourceClientId =>
-            GetComponent<NetworkBotController>() != null
+            NetworkTeamUtility.IsAiActor(this)
                 ? NetworkMatchManager.NoClient
                 : OwnerClientId;
 
@@ -120,7 +120,7 @@ namespace Konoha.Networking
             if (IsServer)
                 heroId.Value = bot != null ? (int)bot.Hero : (int)(OwnerClientId % 4UL);
 
-            if (IsOwner && bot == null)
+            if (IsOwner && !NetworkTeamUtility.IsAiActor(this))
                 BindHud();
 
             RefreshIdentityLabel();
@@ -141,7 +141,7 @@ namespace Konoha.Networking
             if (IsServer)
                 ServerTickPassive();
 
-            if (!IsOwner || GetComponent<NetworkBotController>() != null)
+            if (!IsOwner || NetworkTeamUtility.IsAiActor(this))
                 return;
 
             TickLocalPassive();
@@ -242,6 +242,16 @@ namespace Konoha.Networking
             }
 
             pengaruh.Value = Mathf.Clamp(pengaruh.Value + amount, 0, MaxPengaruh);
+        }
+
+        // Campaign Runtuh penalty (§6): keep this fraction of Pengaruh, rounded down.
+        public void ServerScalePengaruh(float keepFraction)
+        {
+            if (!IsServer)
+                return;
+
+            pengaruh.Value = Mathf.Clamp(
+                Mathf.FloorToInt(pengaruh.Value * Mathf.Clamp01(keepFraction)), 0, MaxPengaruh);
         }
 
         public void ServerResetForMatch()
@@ -437,9 +447,8 @@ namespace Konoha.Networking
             if (!IsOwner || !IsSpawned)
                 return;
 
-            NetworkMatchManager match = NetworkMatchManager.Instance;
-            if (match == null ||
-                (match.State != GreyboxMatchState.Waiting && match.State != GreyboxMatchState.Result))
+            ICombatRules rules = CombatRules.Current;
+            if (rules == null || !rules.CanSelectHero)
                 return;
 
             SelectHeroServerRpc(((int)Hero + 1) % 4);
@@ -476,16 +485,16 @@ namespace Konoha.Networking
 
         private bool CanUseHeroAbility()
         {
-            NetworkMatchManager match = NetworkMatchManager.Instance;
+            ICombatRules rules = CombatRules.Current;
             NetworkPlayerCombat combat = GetComponent<NetworkPlayerCombat>();
 
             return IsOwner &&
                    IsSpawned &&
                    combat != null &&
                    !combat.IsKnockedOut &&
-                   match != null &&
-                   match.AllowsGameplay &&
-                   !match.IsRuler(OwnerClientId) &&
+                   rules != null &&
+                   rules.AllowsGameplay &&
+                   !rules.IsRuler(OwnerClientId) &&
                    !IsSilenced &&
                    !IsStunned;
         }
@@ -493,9 +502,8 @@ namespace Konoha.Networking
         [ServerRpc]
         private void SelectHeroServerRpc(int requestedHero)
         {
-            NetworkMatchManager match = NetworkMatchManager.Instance;
-            if (match == null ||
-                (match.State != GreyboxMatchState.Waiting && match.State != GreyboxMatchState.Result))
+            ICombatRules rules = CombatRules.Current;
+            if (rules == null || !rules.CanSelectHero)
                 return;
 
             heroId.Value = Mathf.Clamp(requestedHero, 0, 3);
@@ -623,20 +631,20 @@ namespace Konoha.Networking
 
         private bool ServerCanCast()
         {
-            NetworkMatchManager match = NetworkMatchManager.Instance;
+            ICombatRules rules = CombatRules.Current;
             NetworkPlayerCombat combat = GetComponent<NetworkPlayerCombat>();
-            NetworkBotController bot = GetComponent<NetworkBotController>();
+            bool ai = NetworkTeamUtility.IsAiActor(this);
 
-            bool isRuler = match != null &&
-                           (bot != null
-                               ? match.IsRuler(NetworkObject)
-                               : match.IsRuler(OwnerClientId));
+            bool isRuler = rules != null &&
+                           (ai
+                               ? rules.IsRuler(NetworkObject)
+                               : rules.IsRuler(OwnerClientId));
 
             return IsServer &&
                    combat != null &&
                    !combat.IsKnockedOut &&
-                   match != null &&
-                   match.AllowsGameplay &&
+                   rules != null &&
+                   rules.AllowsGameplay &&
                    !isRuler &&
                    ServerClock >= silencedUntil.Value &&
                    ServerClock >= stunnedUntil.Value;
@@ -1056,9 +1064,8 @@ namespace Konoha.Networking
 
         private void RefreshHud()
         {
-            NetworkMatchManager match = NetworkMatchManager.Instance;
-            bool heroSelectable = match != null &&
-                                  (match.State == GreyboxMatchState.Waiting || match.State == GreyboxMatchState.Result);
+            ICombatRules rules = CombatRules.Current;
+            bool heroSelectable = rules != null && rules.CanSelectHero;
 
             if (heroButton != null)
                 heroButton.interactable = heroSelectable;

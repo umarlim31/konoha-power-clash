@@ -20,6 +20,12 @@ namespace Konoha.Networking
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Server);
 
+        // Per-actor ceiling. Heroes keep MaxWibawa; campaign enemies use their role value.
+        private NetworkVariable<int> maxWibawa = new NetworkVariable<int>(
+            MaxWibawa,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server);
+
         private NetworkVariable<int> shield = new NetworkVariable<int>(
             0,
             NetworkVariableReadPermission.Everyone,
@@ -48,6 +54,7 @@ namespace Konoha.Networking
         private float nextReadabilityRefresh;
 
         public int Wibawa => health.Value;
+        public int MaxWibawaValue => Mathf.Max(1, maxWibawa.Value);
         public int Shield => shield.Value;
         public bool IsKnockedOut => knockedOut.Value;
 
@@ -61,6 +68,7 @@ namespace Konoha.Networking
             cachedCamera = Camera.main;
 
             health.OnValueChanged += OnHealthChanged;
+            maxWibawa.OnValueChanged += OnShieldChanged;
             shield.OnValueChanged += OnShieldChanged;
             knockedOut.OnValueChanged += OnKnockedOutChanged;
             respawnTicket.OnValueChanged += OnRespawnTicketChanged;
@@ -68,13 +76,14 @@ namespace Konoha.Networking
             RefreshHealthLabel();
             identity?.SetKnockedOutVisual(knockedOut.Value);
 
-            if (IsOwner && GetComponent<NetworkBotController>() == null)
+            if (IsOwner && !NetworkTeamUtility.IsAiActor(this))
                 BindAttackButton();
         }
 
         public override void OnNetworkDespawn()
         {
             health.OnValueChanged -= OnHealthChanged;
+            maxWibawa.OnValueChanged -= OnShieldChanged;
             shield.OnValueChanged -= OnShieldChanged;
             knockedOut.OnValueChanged -= OnKnockedOutChanged;
             respawnTicket.OnValueChanged -= OnRespawnTicketChanged;
@@ -90,7 +99,7 @@ namespace Konoha.Networking
 
         private void Update()
         {
-            if (!IsOwner || GetComponent<NetworkBotController>() != null)
+            if (!IsOwner || NetworkTeamUtility.IsAiActor(this))
                 return;
 
             if (attackButton == null)
@@ -138,15 +147,15 @@ namespace Konoha.Networking
 
         public void TryBasicAttack()
         {
-            NetworkMatchManager match = NetworkMatchManager.Instance;
+            ICombatRules rules = CombatRules.Current;
             heroKit ??= GetComponent<NetworkHeroKit>();
 
             if (!IsOwner ||
                 !IsSpawned ||
                 knockedOut.Value ||
-                match == null ||
-                !match.AllowsGameplay ||
-                match.IsRuler(OwnerClientId) ||
+                rules == null ||
+                !rules.AllowsGameplay ||
+                rules.IsRuler(OwnerClientId) ||
                 (heroKit != null && heroKit.IsStunned))
                 return;
 
@@ -162,13 +171,13 @@ namespace Konoha.Networking
         [ServerRpc]
         private void BasicAttackServerRpc()
         {
-            NetworkMatchManager match = NetworkMatchManager.Instance;
+            ICombatRules rules = CombatRules.Current;
             heroKit ??= GetComponent<NetworkHeroKit>();
 
             if (knockedOut.Value ||
-                match == null ||
-                !match.AllowsGameplay ||
-                match.IsRuler(OwnerClientId) ||
+                rules == null ||
+                !rules.AllowsGameplay ||
+                rules.IsRuler(OwnerClientId) ||
                 (heroKit != null && heroKit.IsStunned) ||
                 NetworkManager == null ||
                 NetworkManager.SpawnManager == null)
@@ -250,12 +259,30 @@ namespace Konoha.Networking
             }
 
             serverRespawnRunning = false;
-            health.Value = MaxWibawa;
+            health.Value = maxWibawa.Value;
             shield.Value = 0;
             knockedOut.Value = false;
             heroKit ??= GetComponent<NetworkHeroKit>();
             heroKit?.ServerResetForMatch();
             respawnTicket.Value += 1;
+        }
+
+        // Campaign enemies: set the role's Wibawa ceiling and fill it. Heroes never call this.
+        public void ServerConfigureWibawa(int maximum)
+        {
+            if (!IsServer)
+                return;
+
+            maxWibawa.Value = Mathf.Max(1, maximum);
+            health.Value = maxWibawa.Value;
+        }
+
+        public void ServerHeal(int amount)
+        {
+            if (!IsServer || amount <= 0 || knockedOut.Value)
+                return;
+
+            health.Value = Mathf.Clamp(health.Value + amount, 0, maxWibawa.Value);
         }
 
         public void ServerGrantShield(int amount)
@@ -291,21 +318,23 @@ namespace Konoha.Networking
             }
 
             if (adjustedDamage > 0)
-                health.Value = Mathf.Clamp(health.Value - adjustedDamage, 0, MaxWibawa);
+                health.Value = Mathf.Clamp(health.Value - adjustedDamage, 0, maxWibawa.Value);
 
             DamageFeedbackClientRpc(adjustedDamage, absorbed, transform.position);
             attackerKit?.ServerGainPengaruh(Mathf.Clamp(damage / 2, 4, 15));
 
             if (health.Value == 0 && !serverRespawnRunning)
             {
-                NetworkMatchManager.Instance?.HandleActorKnockedOut(NetworkObject);
-
                 NetworkObject attacker = FindActorByNetworkObjectId(sourceActorNetworkObjectId);
                 if (attacker == null && sourceClientId != NetworkMatchManager.NoClient)
                     attacker = FindPlayerObjectByOwner(sourceClientId);
 
+                // PvP: clears the ruler and always respawns. Campaign enemies stay down.
+                ICombatRules rules = CombatRules.Current;
+                bool respawn = rules == null || rules.ServerOnActorKnockedOut(NetworkObject, attacker);
+
                 NetworkMatchEvents.Instance?.ServerReportKnockout(attacker, NetworkObject);
-                respawnRoutine = StartCoroutine(ServerKnockoutAndRespawn());
+                respawnRoutine = StartCoroutine(ServerKnockoutAndRespawn(respawn));
             }
         }
 
@@ -361,7 +390,7 @@ namespace Konoha.Networking
             return null;
         }
 
-        private IEnumerator ServerKnockoutAndRespawn()
+        private IEnumerator ServerKnockoutAndRespawn(bool respawn)
         {
             serverRespawnRunning = true;
             knockedOut.Value = true;
@@ -370,15 +399,25 @@ namespace Konoha.Networking
 
             Debug.Log("[KONOHA COMBAT] WIBAWA RUNTUH | player=" + OwnerClientId);
 
-            yield return new WaitForSecondsRealtime(respawnDelay);
+            if (!respawn)
+            {
+                // Stays down until the mode removes the actor; ServerResetForMatch revives it.
+                respawnRoutine = null;
+                yield break;
+            }
+
+            ICombatRules rules = CombatRules.Current;
+            float delay = rules != null ? rules.GetRespawnDelay(NetworkObject, respawnDelay) : respawnDelay;
+            yield return new WaitForSecondsRealtime(delay);
 
             respawnTicket.Value += 1;
-            health.Value = MaxWibawa;
+            health.Value = maxWibawa.Value;
             shield.Value = 0;
             knockedOut.Value = false;
             serverRespawnRunning = false;
             respawnRoutine = null;
 
+            CombatRules.Current?.ServerOnActorRespawned(NetworkObject);
             Debug.Log("[KONOHA COMBAT] RESPAWN | player=" + OwnerClientId);
         }
 
@@ -422,8 +461,13 @@ namespace Konoha.Networking
             if (controllerWasEnabled)
                 controller.enabled = false;
 
-            transform.position = NetworkTeamUtility.GetSpawnPosition(NetworkObject);
-            transform.rotation = NetworkTeamUtility.GetSpawnRotation(NetworkObject);
+            ICombatRules rules = CombatRules.Current;
+            transform.position = rules != null
+                ? rules.GetRespawnPosition(NetworkObject)
+                : NetworkTeamUtility.GetSpawnPosition(NetworkObject);
+            transform.rotation = rules != null
+                ? rules.GetRespawnRotation(NetworkObject)
+                : NetworkTeamUtility.GetSpawnRotation(NetworkObject);
 
             if (controllerWasEnabled)
                 controller.enabled = true;
@@ -441,13 +485,13 @@ namespace Konoha.Networking
                 return;
 
             heroKit ??= GetComponent<NetworkHeroKit>();
-            NetworkMatchManager match = NetworkMatchManager.Instance;
+            ICombatRules rules = CombatRules.Current;
 
             bool gameplayLocked =
                 knockedOut.Value ||
-                match == null ||
-                !match.AllowsGameplay ||
-                match.IsRuler(OwnerClientId) ||
+                rules == null ||
+                !rules.AllowsGameplay ||
+                rules.IsRuler(OwnerClientId) ||
                 (heroKit != null && heroKit.IsStunned);
 
             if (gameplayLocked)
@@ -458,7 +502,7 @@ namespace Konoha.Networking
                 {
                     if (knockedOut.Value)
                         attackButtonLabel.text = "BASIC\nRUNTUH";
-                    else if (match != null && match.IsRuler(OwnerClientId))
+                    else if (rules != null && rules.IsRuler(OwnerClientId))
                         attackButtonLabel.text = "BASIC\nPENGUASA";
                     else if (heroKit != null && heroKit.IsStunned)
                         attackButtonLabel.text = "BASIC\nSTUN";
@@ -483,8 +527,8 @@ namespace Konoha.Networking
             if (healthLabel == null)
                 return;
 
-            NetworkBotController bot = GetComponent<NetworkBotController>();
-            bool localHuman = bot == null && IsOwner;
+            bool ai = NetworkTeamUtility.IsAiActor(this);
+            bool localHuman = !ai && IsOwner;
 
             if (knockedOut.Value)
             {
@@ -498,15 +542,16 @@ namespace Konoha.Networking
             string shieldText = shield.Value > 0 ? " +" + shield.Value : "";
 
             if (localHuman)
-                healthLabel.text = "WIBAWA " + current + "/" + MaxWibawa + shieldText;
-            else if (bot != null)
+                healthLabel.text = "WIBAWA " + current + "/" + MaxWibawaValue + shieldText;
+            else if (ai)
                 healthLabel.text = current + shieldText;
             else
-                healthLabel.text = current + "/" + MaxWibawa + shieldText;
+                healthLabel.text = current + "/" + MaxWibawaValue + shieldText;
 
-            healthLabel.color = current > 50
+            // Thresholds are fractions of the ceiling (identical to 50/20 at 100 Wibawa).
+            healthLabel.color = current * 2 > MaxWibawaValue
                 ? new Color(0.55f, 1f, 0.55f)
-                : current > 20
+                : current * 5 > MaxWibawaValue
                     ? new Color(1f, 0.82f, 0.25f)
                     : new Color(1f, 0.35f, 0.30f);
 
@@ -518,16 +563,16 @@ namespace Konoha.Networking
             if (healthLabel == null || !IsSpawned)
                 return;
 
-            NetworkBotController bot = GetComponent<NetworkBotController>();
-            bool localHuman = bot == null && IsOwner;
-            NetworkMatchManager match = NetworkMatchManager.Instance;
-            bool ruler = match != null && match.IsRuler(NetworkObject);
+            bool ai = NetworkTeamUtility.IsAiActor(this);
+            bool localHuman = !ai && IsOwner;
+            ICombatRules rules = CombatRules.Current;
+            bool ruler = rules != null && rules.IsRuler(NetworkObject);
 
             float distance = GetDistanceFromLocalPlayer();
             bool visible = localHuman ||
                            knockedOut.Value ||
                            ruler ||
-                           distance <= (bot != null ? 10.5f : 12.5f);
+                           distance <= (ai ? 10.5f : 12.5f);
 
             if (healthLabel.gameObject.activeSelf != visible)
                 healthLabel.gameObject.SetActive(visible);
