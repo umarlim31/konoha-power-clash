@@ -6,7 +6,7 @@ Game aksi mobile (Android, Unity **6000.0.60f1**, URP) berlatar **Negara Konoha*
 
 | Mode | Status |
 |---|---|
-| **JALUR TAKHTA** (solo campaign) | Preview **0.0.8.3** — fondasi logika (tuning, faksi, komposisi encounter, checkpoint) + pipeline hero 3D. Gameplay di layar sama dengan 0.0.8.2. |
+| **JALUR TAKHTA** (solo campaign) | Preview **0.0.9** — solo sebagai host Netcode lokal, combat hero asli (BASIC/S1/S2/ULT/DODGE) melawan musuh organisasi (Kroni, Garda Takhta), Runtuh → checkpoint. |
 | **REBUT KURSI** (PvP 4v4) | Prototipe jaringan (Netcode for GameObjects) tetap di-generate dari kode yang sama dan tidak diubah perilakunya. |
 | **BENTUK KOALISI** (co-op 2–4) | Direncanakan setelah MVP. |
 
@@ -16,7 +16,7 @@ Semua status compile/APK/gameplay mengikuti laporan build owner. Selama belum di
 
 1. [CLAUDE.md](CLAUDE.md) — aturan tetap proyek (branch, build, keputusan terkunci, format laporan).
 2. [Docs/GAME_LOGIC_JALUR_TAKHTA_v1.md](Docs/GAME_LOGIC_JALUR_TAKHTA_v1.md) — design authority MVP (aturan, angka awal, faksi, arsitektur).
-3. [Docs/JALUR_TAKHTA_0.0.8.3.md](Docs/JALUR_TAKHTA_0.0.8.3.md) — catatan versi terbaru, langkah build, dan checklist uji perangkat.
+3. [Docs/JALUR_TAKHTA_0.0.9.md](Docs/JALUR_TAKHTA_0.0.9.md) — catatan versi terbaru, langkah build, dan checklist uji perangkat.
 4. [Docs/PROMPTS_CLAUDE_CODE.md](Docs/PROMPTS_CLAUDE_CODE.md) — urutan versi berikutnya.
 5. [Docs/PANDUAN_MEGA_3D.md](Docs/PANDUAN_MEGA_3D.md) — cara menyiapkan dan mengunggah model hero 3D.
 

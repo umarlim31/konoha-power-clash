@@ -5,7 +5,8 @@ using UnityEngine;
 
 namespace Konoha.Tests
 {
-    // Guards the 0.0.8.2 slice feel after moving objective rules out of the controller.
+    // Objective rules of the solo slice. Since 0.0.9 the fights use real enemies: the
+    // director announces encounters (events) and is told when they are cleared.
     public sealed class CampaignObjectiveDirectorTests
     {
         private static readonly Vector3 Plaza = new Vector3(0, 0, -5);
@@ -18,15 +19,48 @@ namespace Konoha.Tests
         private static CampaignObjectiveDirector Create() =>
             new CampaignObjectiveDirector(new CampaignObjectiveLayout(Plaza, Majelis, Biro, Garda, Chair));
 
+        // Gerbang Rakyat defenders already down.
+        private static CampaignObjectiveDirector Cleared()
+        {
+            var director = Create();
+            director.MarkGateCleared();
+            return director;
+        }
+
         private static void Hold(CampaignObjectiveDirector director, Vector3 position, float seconds)
         {
             for (float t = 0; t < seconds; t += Frame) director.Tick(position, Frame);
         }
 
+        private static void CollectBothSeals(CampaignObjectiveDirector director)
+        {
+            director.Tick(Plaza, Frame);
+            Hold(director, Majelis, 2.6f);
+            director.Interact(Biro, 1f);
+            director.Interact(Biro, 2f);
+            director.Interact(Biro, 3f);
+            director.Tick(Plaza, Frame);
+        }
+
+        [Test]
+        public void PlazaStaysClosedUntilGateDefendersAreDown()
+        {
+            var director = Create();
+            var messages = new List<string>();
+            director.Notified += messages.Add;
+            director.Tick(Plaza, Frame);
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.GerbangRakyat));
+            director.MarkGateCleared();
+            director.MarkGateCleared();
+            Assert.That(messages.FindAll(m => m.StartsWith("Gerbang Rakyat terbuka")), Has.Count.EqualTo(1));
+            director.Tick(Plaza, Frame);
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.PlazaAspirasi));
+        }
+
         [Test]
         public void MajelisSealNeedsTwoAndHalfSecondsInsideRing()
         {
-            var director = Create();
+            var director = Cleared();
             var messages = new List<string>();
             director.Notified += messages.Add;
             director.Tick(Plaza, Frame);
@@ -41,7 +75,7 @@ namespace Konoha.Tests
         [Test]
         public void MajelisProgressDecaysSlowlyOutsideRing()
         {
-            var director = Create();
+            var director = Cleared();
             director.Tick(Plaza, Frame);
             Hold(director, Majelis, 2f);
             Hold(director, Plaza, 2f);
@@ -51,7 +85,7 @@ namespace Konoha.Tests
         [Test]
         public void BiroNeedsThreeSpacedConfirmations()
         {
-            var director = Create();
+            var director = Cleared();
             director.Tick(Plaza, Frame);
             Assert.That(director.Interact(Biro, 10f), Is.True);
             Assert.That(director.Interact(Biro, 10.3f), Is.False, "Confirmation interval is 0.65 s");
@@ -65,50 +99,57 @@ namespace Konoha.Tests
         [Test]
         public void FullSliceRouteReachesVictoryWithOneCounterattack()
         {
-            var director = Create();
-            var spawnedHealth = new List<int>();
-            director.GuardSpawned += spawnedHealth.Add;
-            director.Tick(Plaza, Frame);
-            Hold(director, Majelis, 2.6f);
-            director.Interact(Biro, 1f);
-            director.Interact(Biro, 2f);
-            director.Interact(Biro, 3f);
-            director.Tick(Plaza, Frame);
+            var director = Cleared();
+            int gardaRequests = 0, counterattacks = 0, wins = 0;
+            director.GardaRequested += () => gardaRequests++;
+            director.CounterattackRequested += () => counterattacks++;
+            director.Won += () => wins++;
+
+            CollectBothSeals(director);
             Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.GerbangDalam));
+            Assert.That(gardaRequests, Is.EqualTo(1), "Garda defenders are placed when the inner gate opens");
+            Hold(director, Plaza, 0.5f);
+            Assert.That(gardaRequests, Is.EqualTo(1));
 
             director.Tick(Garda, Frame);
             Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.GardaTakhta));
-            Assert.That(spawnedHealth, Is.EqualTo(new[] { 100 }));
+            Assert.That(director.Run.Checkpoint, Is.EqualTo(CampaignCheckpoint.GardaTakhta));
             Assert.That(director.Interact(Chair, 5f), Is.False, "Seat stays locked during the guard fight");
-            for (int i = 0; i < 4; i++) director.DamageGuard(25);
-            Assert.That(director.GuardActive, Is.False);
+            Assert.That(director.CompleteGarda(), Is.True);
             Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.KursiTerbuka));
 
             Assert.That(director.Interact(Chair, 6f), Is.True);
             Hold(director, Chair, 3.1f);
-            Assert.That(spawnedHealth, Is.EqualTo(new[] { 100, 75 }));
+            Assert.That(counterattacks, Is.EqualTo(1));
             Assert.That(director.Run.Power, Is.EqualTo(15));
             Hold(director, Chair, 5f);
             Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.Menang));
             Assert.That(director.Run.Power, Is.EqualTo(35));
-            Assert.That(director.GuardActive, Is.False, "Remaining counterattack leaves on victory");
+            Assert.That(counterattacks, Is.EqualTo(1));
+            Assert.That(wins, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void GardaClearedBeforeEngagingStillOpensTheSeat()
+        {
+            var director = Cleared();
+            CollectBothSeals(director);
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.GerbangDalam));
+            Assert.That(director.CompleteGarda(), Is.True);
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.KursiTerbuka));
+            Assert.That(director.CompleteGarda(), Is.False, "Only once");
         }
 
         [Test]
         public void LeavingSeatStopsPowerAndRuntuhIsCounted()
         {
-            var director = Create();
-            director.Tick(Plaza, Frame);
-            Hold(director, Majelis, 2.6f);
-            director.Interact(Biro, 1f);
-            director.Interact(Biro, 2f);
-            director.Interact(Biro, 3f);
-            director.Tick(Plaza, Frame);
+            var director = Cleared();
+            CollectBothSeals(director);
             director.Tick(Garda, Frame);
             director.HandleRuntuh();
             Assert.That(director.Run.RuntuhCount, Is.EqualTo(1));
-            Assert.That(director.GuardHealth, Is.EqualTo(100), "Guard is restored after a collapse in the fight");
-            director.DamageGuard(100);
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.GardaTakhta), "Defenders persist after a collapse");
+            director.CompleteGarda();
             director.Interact(Chair, 5f);
             Hold(director, Chair, 1.05f);
             int power = director.Run.Power;
@@ -121,6 +162,8 @@ namespace Konoha.Tests
             Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.GerbangRakyat));
             Assert.That(director.Run.RuntuhCount, Is.Zero);
             Assert.That(director.BiroSteps, Is.Zero);
+            Assert.That(director.GateCleared, Is.False);
+            Assert.That(director.GardaPrepared, Is.False);
         }
     }
 }

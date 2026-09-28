@@ -26,30 +26,66 @@ namespace Konoha.Tests
                 Assert.That(GameObject.Find("RuntimeNetworkingProof"), Is.Null);
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
-                Assert.That(preview.heroVisuals, Has.Length.EqualTo(4));
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.0.8.3  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.0.8.3"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(20));
-                Assert.That(preview.attackButton, Is.Not.Null);
+                    Is.EqualTo("JALUR TAKHTA 0.0.9  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.0.9"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(21));
                 Assert.That(preview.sitButton, Is.Not.Null);
-                Assert.That(preview.skillButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
                 Assert.That(preview.objectiveProgress, Is.Not.Null);
                 Assert.That(preview.chairBarrier.GetComponentsInChildren<BoxCollider>(), Has.Length.EqualTo(4));
-                Assert.That(preview.centralMonument, Is.Not.Null);
-                Assert.That(preview.centralMonument.solid, Is.Not.Null);
-                Assert.That(preview.centralMonument.transparentMaterials,
-                    Has.Length.EqualTo(preview.centralMonument.surfaces.Length));
-                foreach (var material in preview.centralMonument.transparentMaterials)
+
+                // 0.0.9: the solo scene is a local Netcode host that spawns the shared hero,
+                // a director and organisation enemies from generated prefabs.
+                var session = Object.FindFirstObjectByType<CampaignSession>();
+                Assert.That(session, Is.Not.Null);
+                Assert.That(session.GetComponent("NetworkManager"), Is.Not.Null);
+                Assert.That(session.GetComponent("UnityTransport"), Is.Not.Null);
+                foreach (var prefab in new[] { session.playerPrefab, session.directorPrefab, session.enemyPrefab })
+                {
+                    Assert.That(prefab, Is.Not.Null);
+                    Assert.That(AssetDatabase.Contains(prefab), Is.True);
+                    Assert.That(prefab.GetComponent("NetworkObject"), Is.Not.Null, prefab.name);
+                }
+                Assert.That(session.playerPrefab.GetComponent<Konoha.Networking.NetworkHeroKit>(), Is.Not.Null);
+                Assert.That(session.directorPrefab.GetComponent<CampaignDirector>().enemyPrefab, Is.SameAs(session.enemyPrefab));
+                var enemy = session.enemyPrefab.GetComponent<CampaignEnemy>();
+                Assert.That(enemy, Is.Not.Null);
+                Assert.That(enemy.visualRoot, Is.Not.Null);
+                Assert.That(enemy.bodyRenderer, Is.Not.Null);
+                Assert.That(enemy.nameplate, Is.Not.Null);
+                Assert.That(enemy.motor.definition, Is.Not.Null);
+                Assert.That(enemy.GetComponent<Konoha.Networking.NetworkPlayerCombat>(), Is.Not.Null);
+                Assert.That(enemy.GetComponent<Konoha.Networking.NetworkHeroKit>(), Is.Not.Null);
+                Assert.That(enemy.GetComponent<Konoha.Networking.NetworkWibawaBar>(), Is.Not.Null);
+                foreach (var collider in enemy.GetComponentsInChildren<Collider>(true))
+                    Assert.That(collider, Is.InstanceOf<CharacterController>(), "Decor collider on enemy: " + collider.name);
+                foreach (string control in new[] { "AttackButton", "S1Button", "S2Button", "UltimateButton",
+                    "DodgeButton", "HeroButton", "CampaignJump", "CampaignSit" })
+                    Assert.That(GameObject.Find(control).GetComponent<UnityEngine.UI.Button>(), Is.Not.Null, control);
+
+                var stage = preview.stage;
+                Assert.That(stage, Is.SameAs(session.stage));
+                Assert.That(stage.plaza, Is.Not.Null);
+                Assert.That(stage.majelis, Is.Not.Null);
+                Assert.That(stage.biro, Is.Not.Null);
+                Assert.That(stage.garda, Is.Not.Null);
+                Assert.That(stage.chair, Is.Not.Null);
+
+                var monument = Object.FindFirstObjectByType<CampaignMonument>();
+                Assert.That(session.monument, Is.SameAs(monument));
+                Assert.That(monument.solid, Is.Not.Null);
+                Assert.That(monument.transparentMaterials, Has.Length.EqualTo(monument.surfaces.Length));
+                foreach (var material in monument.transparentMaterials)
                 {
                     Assert.That(AssetDatabase.Contains(material), Is.True);
                     Assert.That(material.GetFloat("_Surface"), Is.EqualTo(1f));
                 }
                 foreach (string obsolete in new[] { "CyanSpawnBay", "CyanChevron_-3_A", "SpawnArrow_0_A",
                     "NorthWestCover_Body", "SouthEastCover_Body", "NorthWestRelay", "SouthEastRelay",
-                    "NorthBoundary", "SouthBoundary", "EastBoundary", "WestBoundary" })
+                    "NorthBoundary", "SouthBoundary", "EastBoundary", "WestBoundary",
+                    "GardaTakhta", "HeroSelector", "CampaignSkill", "CampaignBasic", "Hero Ground Marker" })
                     Assert.That(GameObject.Find(obsolete), Is.Null, obsolete);
                 foreach (string landmark in new[] { "Circular plaza stone", "Monumen Garuda Konoha",
                     "Fictional civic dome", "Bridge across reflecting pool", "Majelis Daun interaction boundary",
@@ -75,9 +111,16 @@ namespace Konoha.Tests
                 var camera = Object.FindFirstObjectByType<MobileCombatCamera>();
                 Assert.That(camera.limitFocusToArena, Is.False);
                 Assert.That(camera.allowOrbit, Is.True);
-                Assert.That(preview.player.allowJump, Is.True);
+                Assert.That(session.movementCamera, Is.EqualTo(camera.transform));
+
+                // The offline character is the editor collision probe; the session hides it at runtime.
+                var probe = session.offlineHero.GetComponent<CharacterMotor>();
+                Assert.That(probe, Is.Not.Null);
+                Assert.That(probe.allowJump, Is.True);
                 Assert.That(Object.FindFirstObjectByType<Konoha.Core.OfflineSpikeDriver>().enabled, Is.False);
-                var traversal = preview.player.GetComponent<CampaignTraversal>();
+                var traversal = Object.FindFirstObjectByType<CampaignTraversal>();
+                Assert.That(session.traversal, Is.SameAs(traversal));
+                Assert.That(traversal.motor, Is.SameAs(probe));
                 Assert.That(traversal.jumpButton, Is.Not.Null);
                 Assert.That(traversal.movementCamera, Is.EqualTo(camera.transform));
                 Assert.That(traversal.boundaryRadii.x, Is.GreaterThan(20));
@@ -97,31 +140,42 @@ namespace Konoha.Tests
                 Assert.That(traversal.enabled && camera.enabled, Is.True);
                 Assert.That(traversal.jumpButton.gameObject.activeSelf, Is.True);
 
-                // Sample actual collision along the complete campaign route, excluding the player's own capsule.
+                // Sample actual collision along the complete campaign route, excluding the probe's own capsule.
                 preview.chairBarrier.SetActive(false);
                 Physics.SyncTransforms();
-                Vector3[] route = { new Vector3(0,0,-9), preview.plaza.position, new Vector3(-9,0,-6),
-                    new Vector3(9,0,-6), new Vector3(4.4f,0,-6), new Vector3(4.4f,0,7.4f), preview.garda.position,
+                Vector3[] route = { new Vector3(0,0,-9), stage.plaza.position, new Vector3(-9,0,-6),
+                    new Vector3(9,0,-6), new Vector3(4.4f,0,-6), new Vector3(4.4f,0,7.4f), stage.garda.position,
                     new Vector3(4.4f,0,7.4f), new Vector3(4.4f,0,-3.3f), new Vector3(0,0,-3.3f), Vector3.zero };
                 for (int segment = 1; segment < route.Length; segment++)
                     for (float distance = 0; distance <= Vector3.Distance(route[segment-1],route[segment]); distance += .2f)
                     {
                         Vector3 p = Vector3.MoveTowards(route[segment-1],route[segment],distance);
-                        foreach (var hit in Physics.OverlapCapsule(p+Vector3.up*.5f,p+Vector3.up*1.5f,.42f))
-                            Assert.That(hit.transform.IsChildOf(preview.player.transform), Is.True,
-                                "Blocked campaign route at " + p + " by " + hit.name);
+                        AssertFree(p, probe.transform, "Blocked campaign route at ");
                     }
-                VerifyWaterExitsAndJump(preview.player);
+                // Enemies and revived heroes must never appear inside geometry.
+                foreach (var point in stage.gateSpawnPoints) AssertFree(point, probe.transform, "Gate spawn blocked at ");
+                foreach (var point in stage.gardaSpawnPoints) AssertFree(point, probe.transform, "Garda spawn blocked at ");
+                AssertFree(stage.counterattackSpawnPoint, probe.transform, "Counterattack spawn blocked at ");
+                foreach (CampaignCheckpoint checkpoint in System.Enum.GetValues(typeof(CampaignCheckpoint)))
+                    AssertFree(stage.CheckpointPosition(checkpoint), probe.transform, "Checkpoint " + checkpoint + " blocked at ");
+                VerifyWaterExitsAndJump(probe);
                 // New jump must not bypass the locked mission enclosure.
                 preview.chairBarrier.SetActive(true);
                 Physics.SyncTransforms();
-                preview.player.Teleport(new Vector3(0,.1f,-3.4f));
-                Settle(preview.player);
-                Assert.That(preview.player.TryJump(), Is.True);
-                for(int i=0;i<90;i++) preview.player.Step(new MoveIntent(Vector2.up),1f/60f);
-                Assert.That(preview.player.transform.position.z,Is.LessThan(-2.7f));
+                probe.Teleport(new Vector3(0,.1f,-3.4f));
+                Settle(probe);
+                Assert.That(probe.TryJump(), Is.True);
+                for(int i=0;i<90;i++) probe.Step(new MoveIntent(Vector2.up),1f/60f);
+                Assert.That(probe.transform.position.z,Is.LessThan(-2.7f));
             }
             finally { SpikeProject.Prepare(); }
+        }
+
+        private static void AssertFree(Vector3 p, Transform ignored, string message)
+        {
+            Vector3 ground = new Vector3(p.x, 0f, p.z);
+            foreach (var hit in Physics.OverlapCapsule(ground+Vector3.up*.5f,ground+Vector3.up*1.5f,.42f))
+                Assert.That(hit.transform.IsChildOf(ignored), Is.True, message + p + " by " + hit.name);
         }
 
         private static void Settle(CharacterMotor motor)
