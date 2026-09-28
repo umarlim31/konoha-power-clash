@@ -1,9 +1,12 @@
 using System;
 using Konoha.Campaign;
 using Konoha.Character;
+using Konoha.Data;
 using Konoha.Diagnostics;
 using Konoha.Networking;
 using Konoha.UI;
+using Unity.Netcode;
+using Unity.Netcode.Transports.UTP;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.SceneManagement;
@@ -16,18 +19,19 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.8.3")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.9")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
-            // prototype hero silhouettes as 4v4. Do not change its existing scene.
+            // networked hero prefab as 4v4. Do not change its existing scene or prefabs.
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.0.8.3";
-            PlayerSettings.Android.bundleVersionCode = 20;
+            PlayerSettings.bundleVersion = "0.0.9";
+            PlayerSettings.Android.bundleVersionCode = 21;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
+            // The PvP host/client panel is replaced by CampaignSession (automatic local host).
             var network = GameObject.Find("RuntimeNetworkingProof");
             if (network != null) UnityEngine.Object.DestroyImmediate(network);
             var player = UnityEngine.Object.FindFirstObjectByType<CharacterMotor>();
@@ -68,10 +72,11 @@ namespace Konoha.Editor
             layout.joystick = (RectTransform)pad;
             layout.compactJoystick = true;
 
-            // Replace only the offline solo input driver. PvP prefabs keep their original controls.
+            // The offline character stays in the scene as a collision probe for editor tests;
+            // CampaignSession hides it once the networked hero exists.
             var offline = UnityEngine.Object.FindFirstObjectByType<Konoha.Core.OfflineSpikeDriver>();
             offline.enabled = false;
-            var traversal = player.gameObject.AddComponent<CampaignTraversal>();
+            var traversal = new GameObject("CampaignLocomotion").AddComponent<CampaignTraversal>();
             traversal.motor = player;
             traversal.joystick = pad.GetComponent<Konoha.Input.TouchJoystick>();
             traversal.movementCamera = previewCamera.transform;
@@ -92,62 +97,19 @@ namespace Konoha.Editor
             var capital = CampaignCapitalArt.Build();
             var gold = capital.Gold;
             var gateColor = capital.Red;
-            var guardColor = Mat("CampaignGuard", new Color(0.24f, 0.29f, 0.36f));
-            var plaza = capital.Plaza;
-            var majelis = capital.Majelis;
-            var biro = capital.Biro;
-            var garda = capital.Garda;
             var chair = new GameObject("Kursi Kekuasaan");
             var barrier = new GameObject("Gerbang Takhta - locked");
             GateSeal("North Gate", new Vector3(0, 0, 2.35f), false, barrier.transform, gateColor, gold);
             GateSeal("South Gate", new Vector3(0, 0, -2.35f), false, barrier.transform, gateColor, gold);
             GateSeal("East Gate", new Vector3(2.35f, 0, 0), true, barrier.transform, gateColor, gold);
             GateSeal("West Gate", new Vector3(-2.35f, 0, 0), true, barrier.transform, gateColor, gold);
+            WorldLabel("GARDA TAKHTA", capital.Garda.position + new Vector3(0, 3.2f, 0));
 
-            var guard = new GameObject("GardaTakhta");
-            guard.transform.position = garda.position;
-            var guardBody = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            guardBody.name = "Guard Silhouette";
-            guardBody.transform.SetParent(guard.transform, false);
-            guardBody.transform.localPosition = Vector3.up;
-            guardBody.GetComponent<Renderer>().sharedMaterial = guardColor;
-            UnityEngine.Object.DestroyImmediate(guardBody.GetComponent<Collider>());
-            var guardCrest = Deco("Guard crest", Vector3.zero, new Vector3(0.26f, 0.30f, 0.17f), gateColor);
-            guardCrest.transform.SetParent(guard.transform, false);
-            guardCrest.transform.localPosition = new Vector3(0f, 2.07f, 0.22f);
-            var guardShield = Deco("Guard shield", Vector3.zero, new Vector3(0.75f, 0.92f, 0.15f), gold);
-            guardShield.transform.SetParent(guard.transform, false);
-            guardShield.transform.localPosition = new Vector3(-0.56f, 1.02f, 0.28f);
-            var guardCape = Deco("Guard cape", Vector3.zero, new Vector3(1.08f, 1.05f, 0.12f), gateColor);
-            guardCape.transform.SetParent(guard.transform, false);
-            guardCape.transform.localPosition = new Vector3(0f, 1.03f, -0.42f);
-            WorldLabel("GARDA", garda.position + new Vector3(0, 2.5f, 0)).transform.SetParent(guard.transform);
-
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(SpikeProject.Generated + "/NetworkPlayer.prefab");
-            var presentation = prefab != null ? prefab.GetComponent<NetworkActorPresentation>() : null;
-            if (presentation == null || presentation.heroVisuals == null || presentation.heroVisuals.Length != 4)
-                throw new InvalidOperationException("Four generated hero visuals are required for campaign preview.");
-            var visuals = new GameObject[4];
-            for (int i = 0; i < visuals.Length; i++)
-            {
-                visuals[i] = UnityEngine.Object.Instantiate(presentation.heroVisuals[i], player.transform, false);
-                visuals[i].name = "Campaign " + new[] { "Mega", "Gemoy", "Abah", "Pak Wi" }[i];
-                // Primitive heroes keep their 0.0.8.2 campaign scale; models are already fitted to 1.7 m.
-                if (!HeroAnimatorDriver.UsesModel(visuals[i]))
-                    visuals[i].transform.localScale = Vector3.one * 1.12f;
-            }
             var placeholder = player.transform.Find("PlaceholderSilhouette");
             if (placeholder != null)
                 placeholder.GetComponent<Renderer>().sharedMaterial = Mat("CampaignHeroBody", new Color(0.17f, 0.20f, 0.24f));
             var oldFacing = player.transform.Find("FacingMarker");
             if (oldFacing != null) UnityEngine.Object.DestroyImmediate(oldFacing.gameObject);
-            var selection = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            selection.name = "Hero Ground Marker";
-            selection.transform.SetParent(player.transform, false);
-            selection.transform.localPosition = new Vector3(0f, 0.015f, 0f);
-            selection.transform.localScale = new Vector3(1.65f, 0.012f, 1.65f);
-            selection.GetComponent<Renderer>().sharedMaterial = gold;
-            UnityEngine.Object.DestroyImmediate(selection.GetComponent<Collider>());
 
             var headingBackdrop = new GameObject("Objective backdrop", typeof(RectTransform), typeof(Image));
             var backdropRect = (RectTransform)headingBackdrop.transform;
@@ -198,61 +160,86 @@ namespace Konoha.Editor
             feedback.alignment = TextAnchor.MiddleCenter;
             feedback.color = new Color(1f, 0.82f, 0.42f);
             feedback.gameObject.AddComponent<Outline>().effectColor = Color.black;
-            var heroText = Text("CampaignHero", safe, new Vector2(0.5f, 0f),
-                new Vector2(0, 42), new Vector2(480, 34), 18);
-            heroText.alignment = TextAnchor.MiddleCenter;
-            var heroButton = Button("HeroSelector", "GANTI HERO", safe, new Vector2(1f, 0f),
-                new Vector2(-226, 196), new Vector2(136, 48));
-            var skill = Button("CampaignSkill", "PERISAI", safe, new Vector2(1f, 0f),
-                new Vector2(-74, 196), new Vector2(136, 48));
-            var basic = Button("CampaignBasic", "BASIC", safe, new Vector2(1f, 0f),
-                new Vector2(-74, 132), new Vector2(136, 54));
-            var sit = Button("CampaignSit", "DUDUK", safe, new Vector2(1f, 0f),
-                new Vector2(-226, 132), new Vector2(136, 54));
-            skill.GetComponent<Image>().color = new Color(0.50f, 0.16f, 0.18f, 0.96f);
-            sit.GetComponent<Image>().color = new Color(0.59f, 0.42f, 0.18f, 0.96f);
-            heroButton.GetComponent<Image>().color = new Color(0.18f, 0.25f, 0.29f, 0.96f);
+            var heroText = Text("CampaignHero", safe, new Vector2(0f, 1f),
+                new Vector2(14, -128), new Vector2(430, 28), 16);
+            heroText.alignment = TextAnchor.MiddleLeft;
+            heroText.gameObject.AddComponent<Outline>().effectColor = Color.black;
+
+            // Real hero controls. The names are the ones the networked hero components bind
+            // to (NetworkPlayerCombat, NetworkHeroKit, NetworkPlayerMovement).
+            var basic = Button("AttackButton", "BASIC", safe, new Vector2(1f, 0f),
+                new Vector2(-24, 30), new Vector2(150, 96));
+            var ultimate = Button("UltimateButton", "ULT 0%", safe, new Vector2(1f, 0f),
+                new Vector2(-24, 136), new Vector2(150, 60));
+            var s1 = Button("S1Button", "S1", safe, new Vector2(1f, 0f),
+                new Vector2(-186, 30), new Vector2(140, 60));
+            var s2 = Button("S2Button", "S2", safe, new Vector2(1f, 0f),
+                new Vector2(-186, 100), new Vector2(140, 60));
+            var dodge = Button("DodgeButton", "DODGE", safe, new Vector2(1f, 0f),
+                new Vector2(-338, 30), new Vector2(140, 60));
             var jump = Button("CampaignJump", "LOMPAT", safe, new Vector2(1f, 0f),
-                new Vector2(-74, 65), new Vector2(136, 54));
-            jump.GetComponent<Image>().color = new Color(.24f,.40f,.36f,.96f);
+                new Vector2(-338, 100), new Vector2(140, 60));
+            var sit = Button("CampaignSit", "DUDUK", safe, new Vector2(1f, 0f),
+                new Vector2(-186, 170), new Vector2(140, 56));
+            var heroButton = Button("HeroButton", "GANTI HERO", safe, new Vector2(0f, 1f),
+                new Vector2(14, -66), new Vector2(164, 52));
+            foreach (var small in new[] { ultimate, s1, s2, dodge, jump, sit, heroButton })
+                small.GetComponentInChildren<Text>().fontSize = 17;
+            basic.GetComponent<Image>().color = new Color(0.50f, 0.16f, 0.18f, 0.96f);
+            sit.GetComponent<Image>().color = new Color(0.59f, 0.42f, 0.18f, 0.96f);
+            jump.GetComponent<Image>().color = new Color(.24f, .40f, .36f, .96f);
+            dodge.GetComponent<Image>().color = new Color(0.18f, 0.25f, 0.29f, 0.96f);
+            heroButton.GetComponent<Image>().color = new Color(0.18f, 0.25f, 0.29f, 0.96f);
             traversal.jumpButton = jump;
+
             var resetCamera = Button("ResetCamera", "KAMERA AWAL", safe, new Vector2(1f, 1f),
                 new Vector2(-14, -14), new Vector2(164, 44));
             resetCamera.GetComponentInChildren<Text>().fontSize = 16;
             var cameraReset = resetCamera.gameObject.AddComponent<CampaignCameraReset>();
             cameraReset.follow = follow;
             var gestureHint = Text("CameraGestureHint", safe, new Vector2(1f,0f),
-                new Vector2(-20,265), new Vector2(305,28), 13);
+                new Vector2(-20,236), new Vector2(305,28), 13);
             gestureHint.alignment = TextAnchor.MiddleRight;
             gestureHint.text = "GESER LAYAR KANAN: KAMERA • CUBIT: ZOOM";
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
-                new Vector2(0, 10), new Vector2(560, 26), 13);
+                new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.0.8.3  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.0.9  •  SOLO PREVIEW";
+
+            var stage = new GameObject("CampaignStage").AddComponent<CampaignStage>();
+            stage.plaza = capital.Plaza;
+            stage.majelis = capital.Majelis;
+            stage.biro = capital.Biro;
+            stage.garda = capital.Garda;
+            stage.chair = chair.transform;
+
+            var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SpikeProject.Generated + "/NetworkPlayer.prefab");
+            if (playerPrefab == null)
+                throw new InvalidOperationException("NetworkPlayer.prefab is required for the campaign host.");
+            var enemyPrefab = CreateEnemyPrefab();
+            var directorPrefab = CreateDirectorPrefab(enemyPrefab);
+
+            var networkObject = new GameObject("CampaignNetwork", typeof(NetworkManager), typeof(UnityTransport), typeof(CampaignSession));
+            var session = networkObject.GetComponent<CampaignSession>();
+            session.playerPrefab = playerPrefab;
+            session.directorPrefab = directorPrefab;
+            session.enemyPrefab = enemyPrefab;
+            session.stage = stage;
+            session.traversal = traversal;
+            session.monument = UnityEngine.Object.FindFirstObjectByType<CampaignMonument>();
+            session.movementCamera = previewCamera.transform;
+            session.offlineHero = player.gameObject;
 
             var preview = new GameObject("JalurTakhtaPreview").AddComponent<CampaignPreviewController>();
-            preview.player = player;
-            preview.centralMonument = UnityEngine.Object.FindFirstObjectByType<CampaignMonument>();
-            preview.plaza = plaza;
-            preview.majelis = majelis;
-            preview.biro = biro;
-            preview.garda = garda;
-            preview.chair = chair.transform;
+            preview.stage = stage;
             preview.chairBarrier = barrier;
-            preview.guardVisual = guard;
-            preview.guardRenderer = guardBody.GetComponent<Renderer>();
-            preview.heroMarker = selection.transform;
-            preview.heroVisuals = visuals;
             preview.objectiveText = objective;
             preview.statusText = status;
             preview.waypointText = waypoint;
             preview.heroText = heroText;
             preview.feedbackText = feedback;
             preview.objectiveProgress = fillImage;
-            preview.attackButton = basic;
             preview.sitButton = sit;
-            preview.heroButton = heroButton;
-            preview.skillButton = skill;
 
             var viewButton = Button("ArenaViewButton", "LIHAT ARENA", safe, new Vector2(0f, 1f),
                 new Vector2(14f, -14f), new Vector2(164f, 44f));
@@ -268,6 +255,110 @@ namespace Konoha.Editor
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.SaveAssets();
             Debug.Log("Jalur Takhta preview prepared: " + ScenePath);
+        }
+
+        // Server-driven organisation member. Shares the hero combat components so every
+        // ability works on it; role/faction colours and scale are applied at runtime.
+        private static GameObject CreateEnemyPrefab()
+        {
+            const string path = SpikeProject.Generated + "/CampaignEnemy.prefab";
+
+            var root = new GameObject("CampaignEnemy");
+            root.AddComponent<NetworkObject>();
+            var networkTransform = root.AddComponent<OwnerNetworkTransform>();
+            networkTransform.Interpolate = true;
+
+            var controller = root.AddComponent<CharacterController>();
+            controller.height = 2f;
+            controller.center = Vector3.up;
+            controller.radius = 0.45f;
+            controller.stepOffset = 0.2f;
+            controller.slopeLimit = 45f;
+            controller.minMoveDistance = 0f;
+
+            var motor = root.AddComponent<CharacterMotor>();
+            motor.definition = AssetDatabase.LoadAssetAtPath<LocomotionDefinition>(SpikeProject.Generated + "/Locomotion.asset");
+            if (motor.definition == null)
+                throw new InvalidOperationException("Locomotion.asset is required for campaign enemies.");
+
+            root.AddComponent<NetworkHeroKit>();
+            var combat = root.AddComponent<NetworkPlayerCombat>();
+            combat.healthLabel = null;
+            var enemy = root.AddComponent<CampaignEnemy>();
+            enemy.motor = motor;
+
+            var body = Mat("CampaignEnemyBody", new Color(0.30f, 0.32f, 0.36f));
+            var accent = Mat("CampaignEnemyAccent", new Color(0.86f, 0.66f, 0.28f));
+            var ringMaterial = Mat("CampaignEnemyRing", new Color(0.62f, 0.12f, 0.16f));
+
+            var visual = new GameObject("Visual");
+            visual.transform.SetParent(root.transform, false);
+            var capsule = Part("Body", PrimitiveType.Capsule, visual.transform, Vector3.up, Vector3.one, body);
+            var sash = Part("Sash", PrimitiveType.Cube, visual.transform, new Vector3(0f, 1.18f, 0.43f),
+                new Vector3(0.52f, 0.72f, 0.08f), accent);
+            Part("Crest", PrimitiveType.Cube, visual.transform, new Vector3(0f, 2.06f, 0f),
+                new Vector3(0.34f, 0.16f, 0.34f), accent);
+            Part("ShoulderL", PrimitiveType.Cube, visual.transform, new Vector3(-0.50f, 1.50f, 0f),
+                new Vector3(0.26f, 0.14f, 0.40f), accent);
+            Part("ShoulderR", PrimitiveType.Cube, visual.transform, new Vector3(0.50f, 1.50f, 0f),
+                new Vector3(0.26f, 0.14f, 0.40f), accent);
+            Part("SistemRing", PrimitiveType.Cylinder, root.transform, new Vector3(0f, 0.03f, 0f),
+                new Vector3(1.2f, 0.012f, 1.2f), ringMaterial);
+
+            var labelObject = new GameObject("Nameplate");
+            labelObject.transform.SetParent(root.transform, false);
+            labelObject.transform.localPosition = new Vector3(0f, 3.0f, 0f);
+            var label = labelObject.AddComponent<TextMesh>();
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.text = "SISTEM";
+            label.fontSize = 32;
+            label.characterSize = 0.045f;
+            label.anchor = TextAnchor.MiddleCenter;
+            label.alignment = TextAlignment.Center;
+            label.color = Color.white;
+            var labelRenderer = labelObject.GetComponent<MeshRenderer>();
+            if (label.font != null && labelRenderer != null)
+                labelRenderer.sharedMaterial = label.font.material;
+
+            enemy.visualRoot = visual.transform;
+            enemy.bodyRenderer = capsule.GetComponent<Renderer>();
+            enemy.accentRenderer = sash.GetComponent<Renderer>();
+            enemy.nameplate = label;
+            SpikeProject.CreateWorldWibawaBar(root);
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
+            UnityEngine.Object.DestroyImmediate(root);
+            if (prefab == null)
+                throw new InvalidOperationException("Failed to create campaign enemy prefab at " + path);
+            return prefab;
+        }
+
+        private static GameObject CreateDirectorPrefab(GameObject enemyPrefab)
+        {
+            const string path = SpikeProject.Generated + "/CampaignDirector.prefab";
+
+            var root = new GameObject("CampaignDirector");
+            root.AddComponent<NetworkObject>();
+            root.AddComponent<CampaignDirector>().enemyPrefab = enemyPrefab;
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
+            UnityEngine.Object.DestroyImmediate(root);
+            if (prefab == null)
+                throw new InvalidOperationException("Failed to create campaign director prefab at " + path);
+            return prefab;
+        }
+
+        private static GameObject Part(string name, PrimitiveType primitive, Transform parent,
+            Vector3 localPosition, Vector3 localScale, Material material)
+        {
+            var part = GameObject.CreatePrimitive(primitive);
+            part.name = name;
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = localPosition;
+            part.transform.localScale = localScale;
+            part.GetComponent<Renderer>().sharedMaterial = material;
+            UnityEngine.Object.DestroyImmediate(part.GetComponent<Collider>());
+            return part;
         }
 
         private static void GateSeal(string name, Vector3 center, bool alongZ,

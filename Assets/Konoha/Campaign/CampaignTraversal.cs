@@ -1,14 +1,20 @@
 using Konoha.Character;
 using Konoha.Input;
+using Konoha.Networking;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Konoha.Campaign
 {
-    // Solo-only input driver. Network movement still uses the original motor defaults.
+    // Solo input driver: camera-relative joystick, jump, invisible oval boundary and fall
+    // recovery. Since 0.0.9 it drives the networked hero (CampaignSession.Bind); the hero's
+    // NetworkPlayerMovement then only supplies locks (Runtuh, stun), speed and dodge.
+    // PvP network movement keeps its original behaviour.
     public sealed class CampaignTraversal : MonoBehaviour
     {
         public CharacterMotor motor;
+        // Optional lock source; null while driving the offline character.
+        public NetworkPlayerMovement gate;
         public TouchJoystick joystick;
         public Transform movementCamera;
         public Button jumpButton;
@@ -20,9 +26,20 @@ namespace Konoha.Campaign
 
         private void Start() => jumpButton.onClick.AddListener(Jump);
 
+        public void Bind(CharacterMotor newMotor, NetworkPlayerMovement newGate)
+        {
+            motor = newMotor;
+            gate = newGate;
+            if (motor != null)
+                lastSafe = motor.transform.position + Vector3.up * .08f;
+            joystick?.ResetInput();
+        }
+
+        private bool Locked => gate != null && gate.LocomotionLocked;
+
         private void Update()
         {
-            if (!focused || paused || Time.timeScale <= 0f) return;
+            if (!focused || paused || Time.timeScale <= 0f || motor == null || Locked) return;
             float dt = Mathf.Min(Time.deltaTime, .05f);
             Vector2 axis = CameraRelative(joystick.Value, movementCamera.forward);
             // Clip intended horizontal movement first, preserving grounding and jump at the boundary.
@@ -52,7 +69,7 @@ namespace Konoha.Campaign
 
         public void Jump()
         {
-            if (focused && !paused && Time.timeScale > 0f) motor.TryJump();
+            if (focused && !paused && Time.timeScale > 0f && motor != null && !Locked) motor.TryJump();
         }
 
         public static Vector2 CameraRelative(Vector2 axis, Vector3 forward)

@@ -22,11 +22,13 @@ namespace Konoha.Campaign
         }
     }
 
-    // Objective rules of the 0.0.8.x solo slice: Majelis hold, Biro three confirmations,
-    // inner gate, guard, seat, Power and the single counterattack. Plain C# (no
-    // MonoBehaviour); the caller supplies player position, input and clock. It is the
-    // only writer of CampaignRunState in the preview. Values come from
-    // CampaignTuning.PreviewSlice so the slice plays exactly like 0.0.8.2.
+    // Objective rules of the solo slice: Gerbang Rakyat fight, Majelis hold, Biro three
+    // confirmations, inner gate, Garda Takhta, seat, Power and the single counterattack.
+    // Plain C# (no MonoBehaviour); the caller supplies player position, input, clock and
+    // encounter outcomes. It is the only writer of CampaignRunState. Since 0.0.9 the
+    // fights use real enemies: this class only announces when an encounter must be
+    // prepared (events) and is told when it was cleared (MarkGateCleared, CompleteGarda).
+    // Majelis and Biro keep their 0.0.8.x placeholder mechanics until 0.0.9.2/0.0.9.3.
     public sealed class CampaignObjectiveDirector
     {
         private readonly CampaignObjectiveLayout layout;
@@ -35,20 +37,21 @@ namespace Konoha.Campaign
         private bool enteredMajelis;
 
         public CampaignRunState Run { get; private set; }
+        public bool GateCleared { get; private set; }
+        public bool GardaPrepared { get; private set; }
         public float MajelisHold { get; private set; }
         public int BiroSteps { get; private set; }
         public float NextBiroStep { get; private set; }
-        public bool CounterattackStarted { get; private set; }
-        public bool GuardActive { get; private set; }
-        public int GuardHealth { get; private set; }
-        public int GuardMaxHealth => CampaignTuning.PreviewSlice.GuardHealth;
+        public bool CounterattackLaunched { get; private set; }
 
         // Raised with a player-facing message.
         public event Action<string> Notified;
-        // Raised with the guard's starting health; the caller places and shows the guard at Layout.Garda.
-        public event Action<int> GuardSpawned;
-        // Raised when the guard leaves play (defeated or the run was won).
-        public event Action GuardRemoved;
+        // The inner gate opened: place the Garda Takhta defenders.
+        public event Action GardaRequested;
+        // The ruler has held the seat long enough: send the counterattack.
+        public event Action CounterattackRequested;
+        // Power reached its target.
+        public event Action Won;
 
         public CampaignObjectiveLayout Layout => layout;
 
@@ -61,19 +64,38 @@ namespace Konoha.Campaign
         public void Restart()
         {
             Run = NewRun();
+            GateCleared = false;
+            GardaPrepared = false;
             BiroSteps = 0;
             MajelisHold = 0f;
             enteredMajelis = false;
             NextBiroStep = 0f;
             powerClock = 0f;
             counterattackClock = 0f;
-            CounterattackStarted = false;
-            GuardActive = false;
+            CounterattackLaunched = false;
+        }
+
+        // The Gerbang Rakyat defenders are down; the plaza may now be reached.
+        public void MarkGateCleared()
+        {
+            if (GateCleared) return;
+            GateCleared = true;
+            Notify("Gerbang Rakyat terbuka! Menuju PLAZA ASPIRASI");
+        }
+
+        // Every Garda Takhta defender is down.
+        public bool CompleteGarda()
+        {
+            if (Run.Phase == CampaignPhase.GerbangDalam)
+                Run.TryStartGuard();
+            if (!Run.DefeatGuard()) return false;
+            Notify("Garda tumbang! Kursi terbuka");
+            return true;
         }
 
         public void Tick(Vector3 player, float deltaTime)
         {
-            if (Run.Phase == CampaignPhase.GerbangRakyat &&
+            if (Run.Phase == CampaignPhase.GerbangRakyat && GateCleared &&
                 Near(player, layout.Plaza, CampaignTuning.PreviewSlice.PlazaRadius))
                 Run.ReachPlaza();
 
@@ -96,14 +118,19 @@ namespace Konoha.Campaign
                         Run.AwardSeal(CampaignSector.MajelisDaun))
                         Notify("Segel Majelis Daun diperoleh");
                 }
-                Run.TryOpenInnerGate();
+                if (Run.TryOpenInnerGate())
+                    Notify("Gerbang Dalam terbuka! Hadapi GARDA TAKHTA");
+            }
+
+            if (Run.Phase == CampaignPhase.GerbangDalam && !GardaPrepared)
+            {
+                GardaPrepared = true;
+                GardaRequested?.Invoke();
             }
 
             if (Run.Phase == CampaignPhase.GerbangDalam &&
-                Near(player, layout.Garda, CampaignTuning.PreviewSlice.GardaTriggerRadius))
-            {
-                if (Run.TryStartGuard()) SpawnGuard(CampaignTuning.PreviewSlice.GuardHealth);
-            }
+                Near(player, layout.Garda, CampaignTuning.Encounters.GardaEngageRadius))
+                Run.TryStartGuard();
 
             if (Run.Phase == CampaignPhase.Memerintah)
             {
@@ -119,22 +146,24 @@ namespace Konoha.Campaign
                     {
                         powerClock -= CampaignTuning.PreviewSlice.PowerTickSeconds;
                         Run.GainPower(CampaignTuning.PreviewSlice.PowerPerTick);
+                        if (Run.Phase == CampaignPhase.Menang)
+                        {
+                            Notify("TAKHTA DIKUASAI!");
+                            Won?.Invoke();
+                        }
                     }
-                    if (!CounterattackStarted)
+                    if (!CounterattackLaunched && Run.Phase == CampaignPhase.Memerintah)
                     {
                         counterattackClock += deltaTime;
-                        if (counterattackClock >= CampaignTuning.PreviewSlice.CounterattackDelaySeconds &&
-                            Run.Phase != CampaignPhase.Menang)
+                        if (counterattackClock >= CampaignTuning.Encounters.CounterattackDelaySeconds)
                         {
-                            CounterattackStarted = true;
-                            SpawnGuard(CampaignTuning.PreviewSlice.CounterattackGuardHealth);
+                            CounterattackLaunched = true;
+                            Notify("Serangan balik! Pertahankan Kursi");
+                            CounterattackRequested?.Invoke();
                         }
                     }
                 }
             }
-
-            if (Run.Phase == CampaignPhase.Menang && GuardActive)
-                RemoveGuard();
         }
 
         public bool IsAtBiro(Vector3 player) =>
@@ -169,43 +198,12 @@ namespace Konoha.Campaign
             return false;
         }
 
-        // Returns true when the hit landed on an active guard.
-        public bool DamageGuard(int damage)
-        {
-            if (!GuardActive) return false;
-            GuardHealth -= damage;
-            Notify("Garda terkena " + damage + "  •  sisa " + Mathf.Max(0, GuardHealth) + " HP");
-            if (GuardHealth > 0) return true;
-            RemoveGuard();
-            if (Run.Phase == CampaignPhase.GardaTakhta)
-            {
-                Run.DefeatGuard();
-                Notify("Garda tumbang! Kursi terbuka");
-            }
-            return true;
-        }
-
-        // The hero collapsed. The caller restores health and position (preview: Gerbang Rakyat).
+        // The hero collapsed. The caller revives it at the current checkpoint.
         public void HandleRuntuh()
         {
             Run.LoseSeat();
             Run.RecordRuntuh();
-            Notify("Tumbang! Kembali ke Gerbang Rakyat");
-            if (Run.Phase == CampaignPhase.GardaTakhta)
-                SpawnGuard(CampaignTuning.PreviewSlice.GuardHealth);
-        }
-
-        private void SpawnGuard(int health)
-        {
-            GuardHealth = health;
-            GuardActive = true;
-            GuardSpawned?.Invoke(health);
-        }
-
-        private void RemoveGuard()
-        {
-            GuardActive = false;
-            GuardRemoved?.Invoke();
+            Notify("Tumbang! Bangkit di checkpoint terakhir");
         }
 
         private void Notify(string message) => Notified?.Invoke(message);

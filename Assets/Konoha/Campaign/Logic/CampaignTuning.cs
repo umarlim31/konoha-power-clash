@@ -94,6 +94,20 @@ namespace Konoha.Campaign
             public const int KudetaRuntuhLimit = 3;
         }
 
+        // 0.0.9 encounters that already use real hero combat (host-authoritative). Role
+        // stats come from UnitRoleStats (§7); these are the shared behaviour numbers.
+        public static class Encounters
+        {
+            public const int GateKroni = 3;                  // Gerbang Rakyat tutorial fight.
+            public const float GardaEngageRadius = 9f;       // Entering this ring starts the Garda phase.
+            public const float EnemyAggroRadius = 10f;
+            public const float EnemyAttackReach = 1.8f;
+            public const float EnemyAttackIntervalSeconds = 1.6f; // Tuning assumption, not in §7.
+            public const float EnemyFirstAttackDelaySeconds = 0.8f;
+            public const float EnemyDespawnSeconds = 1.4f;   // Collapsed enemies stay visible briefly.
+            public const float CounterattackDelaySeconds = PreviewSlice.CounterattackDelaySeconds;
+        }
+
         // Values of the 0.0.8.x solo preview slice. They intentionally differ from the MVP
         // rules above so the current build keeps its exact feel until the real encounters
         // replace this slice (0.0.9+). Do not "correct" them to the MVP numbers here.
