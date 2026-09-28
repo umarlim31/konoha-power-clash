@@ -9,6 +9,21 @@ root = Path(__file__).resolve().parents[1]
 manifest = json.loads((root / 'Packages/manifest.json').read_text())
 assert manifest['dependencies']['com.unity.render-pipelines.universal'] == '17.0.3'
 assert '6000.0.60f1' in (root / 'ProjectSettings/ProjectVersion.txt').read_text()
+
+# Built-in engine modules are opt-in in this manifest. A script that uses a module's
+# types compiles only if that module is listed (0.0.8.3 build #35 failed on Animator).
+module_markers = {
+    'com.unity.modules.animation': r'\b(Animator|AnimatorController\w*|RuntimeAnimatorController|AnimationClip|Avatar|AvatarBuilder)\b',
+    'com.unity.modules.physics': r'\b(Rigidbody|CharacterController|Physics\.)',
+    'com.unity.modules.audio': r'\b(AudioSource|AudioClip)\b',
+    'com.unity.modules.particlesystem': r'\bParticleSystem\b',
+    'com.unity.modules.ai': r'\bNavMesh\w*\b',
+    'com.unity.modules.unitywebrequest': r'\bUnityWebRequest\b',
+}
+konoha_sources = [p.read_text(encoding='utf-8') for p in root.glob('Assets/Konoha/**/*.cs')]
+for module, pattern in module_markers.items():
+    if any(re.search(pattern, text) for text in konoha_sources):
+        assert module in manifest['dependencies'], f'{module} must be in Packages/manifest.json: scripts use its types'
 definitions = [json.loads(p.read_text()) for p in root.glob('Assets/**/*.asmdef')]
 assert len({d['name'] for d in definitions}) == len(definitions) == 3
 by_name = {d['name']: d for d in definitions}

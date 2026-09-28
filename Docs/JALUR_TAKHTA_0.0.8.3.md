@@ -15,6 +15,11 @@ Status: compile Unity, EditMode test di Unity, APK, dan gameplay **BELUM DIVERIF
 
 Jika build gagal, kirim bagian log yang mengandung `error CS` atau `Exception`.
 
+## Perbaikan build #35 (gagal compile)
+
+Build #35 (commit 8c8a0b6) gagal: `HeroAnimatorDriver.cs` memakai `Animator`, tetapi modul bawaan Unity **Animation** tidak tercantum di `Packages/manifest.json` (error CS1069). Perbaikan: `com.unity.modules.animation` ditambahkan. Tidak ada kode game yang berubah; versi tetap **0.0.8.3 / code 20** karena APK 0.0.8.3 belum pernah terbentuk.
+`scripts/source-check.py` sekarang menolak source yang memakai tipe dari modul bawaan (Animation, Physics, Audio, dll.) tanpa modul tersebut di manifest.
+
 ## Yang berubah
 
 ### 1. Lapisan logika murni — `Assets/Konoha/Campaign/Logic/` (namespace `Konoha.Campaign`)
