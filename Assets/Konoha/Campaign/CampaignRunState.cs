@@ -22,18 +22,42 @@ namespace Konoha.Campaign
         Menang
     }
 
+    // Respawn points of §3. Values are ordered along the route; the run never moves back.
+    // Majelis and Biro may be cleared in either order, so reaching a lower-numbered
+    // sector after a higher one keeps the later checkpoint.
+    public enum CampaignCheckpoint
+    {
+        GerbangRakyat = 1,
+        PlazaAspirasi = 2,
+        MajelisDaun = 3,
+        BiroProsedur = 4,
+        GardaTakhta = 5
+    }
+
+    public enum SectorState
+    {
+        Terkunci,
+        Tersedia,
+        Berlangsung,
+        Selesai
+    }
+
     // Local run state for the solo campaign prototype. Callers must award seals only
     // after a validated encounter; co-op will need one host-owned source of truth.
     public sealed class CampaignRunState
     {
-        private readonly bool[] seals = new bool[5];
+        private readonly bool[] seals = new bool[CampaignTuning.Seals.SectorCount];
+        private readonly SectorState[] sectors = new SectorState[CampaignTuning.Seals.SectorCount];
         public CampaignPhase Phase { get; private set; } = CampaignPhase.GerbangRakyat;
+        public CampaignCheckpoint Checkpoint { get; private set; } = CampaignCheckpoint.GerbangRakyat;
+        public int RuntuhCount { get; private set; }
         public int RequiredSeals { get; }
         public int SealCount { get; private set; }
         public int Power { get; private set; }
         public int TargetPower { get; }
 
-        public CampaignRunState(int requiredSeals = 2, int targetPower = 100)
+        public CampaignRunState(int requiredSeals = CampaignTuning.Seals.Required,
+            int targetPower = CampaignTuning.Memerintah.TargetPower)
         {
             if (requiredSeals < 1 || requiredSeals > seals.Length)
                 throw new ArgumentOutOfRangeException(nameof(requiredSeals));
@@ -45,9 +69,42 @@ namespace Konoha.Campaign
 
         public void ReachPlaza()
         {
-            if (Phase == CampaignPhase.GerbangRakyat)
-                Phase = CampaignPhase.PlazaAspirasi;
+            if (Phase != CampaignPhase.GerbangRakyat) return;
+            Phase = CampaignPhase.PlazaAspirasi;
+            ReachCheckpoint(CampaignCheckpoint.PlazaAspirasi);
+            for (int i = 0; i < sectors.Length; i++)
+                if (sectors[i] == SectorState.Terkunci) sectors[i] = SectorState.Tersedia;
         }
+
+        public SectorState GetSectorState(CampaignSector sector)
+        {
+            int index = (int)sector;
+            return index >= 0 && index < sectors.Length ? sectors[index] : SectorState.Terkunci;
+        }
+
+        // Marks an available sector as in progress; its checkpoint (if any) is recorded.
+        public bool BeginSector(CampaignSector sector)
+        {
+            int index = (int)sector;
+            if (Phase != CampaignPhase.PlazaAspirasi || index < 0 || index >= sectors.Length ||
+                sectors[index] != SectorState.Tersedia)
+                return false;
+            sectors[index] = SectorState.Berlangsung;
+            RecordSectorCheckpoint(sector);
+            return true;
+        }
+
+        // Moves the checkpoint forward only; returns false for the same or an earlier one.
+        public bool ReachCheckpoint(CampaignCheckpoint checkpoint)
+        {
+            if (checkpoint <= Checkpoint) return false;
+            Checkpoint = checkpoint;
+            return true;
+        }
+
+        // Counts a hero collapse for the result screen. Position/seat handling stays with
+        // the caller (LoseSeat), so the existing slice behaviour is unchanged.
+        public void RecordRuntuh() => RuntuhCount++;
 
         public bool HasSeal(CampaignSector sector)
         {
@@ -61,7 +118,9 @@ namespace Konoha.Campaign
             if (Phase != CampaignPhase.PlazaAspirasi || index < 0 || index >= seals.Length || seals[index])
                 return false;
             seals[index] = true;
+            sectors[index] = SectorState.Selesai;
             SealCount++;
+            RecordSectorCheckpoint(sector);
             return true;
         }
 
@@ -77,6 +136,7 @@ namespace Konoha.Campaign
         {
             if (Phase != CampaignPhase.GerbangDalam) return false;
             Phase = CampaignPhase.GardaTakhta;
+            ReachCheckpoint(CampaignCheckpoint.GardaTakhta);
             return true;
         }
 
@@ -107,6 +167,12 @@ namespace Konoha.Campaign
             if (Power == TargetPower)
                 Phase = CampaignPhase.Menang;
             return true;
+        }
+
+        private void RecordSectorCheckpoint(CampaignSector sector)
+        {
+            if (sector == CampaignSector.MajelisDaun) ReachCheckpoint(CampaignCheckpoint.MajelisDaun);
+            else if (sector == CampaignSector.BiroProsedur) ReachCheckpoint(CampaignCheckpoint.BiroProsedur);
         }
     }
 }
