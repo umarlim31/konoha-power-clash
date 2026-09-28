@@ -1,4 +1,4 @@
-name: KONOHA Android 0.0.1
+name: LEGACY - KONOHA Android 0.0.1 (usang, jangan dipakai; build via Unity Build Automation)
 on:
   workflow_dispatch:
 permissions:

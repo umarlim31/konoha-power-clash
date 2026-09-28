@@ -34,6 +34,7 @@ namespace Konoha.Editor
             Directory.CreateDirectory(Generated);
             Directory.CreateDirectory("Assets/Resources");
             AssetDatabase.Refresh();
+            HeroVisualCatalog.BeginGeneration();
             ConfigureAndroid();
             ConfigureRendering();
             CreateArena();
@@ -273,9 +274,9 @@ namespace Konoha.Editor
             Material metal = Material("HeroShellMetal", new Color(0.36f, 0.40f, 0.45f));
             Material light = Material("HeroShellLight", new Color(0.76f, 0.80f, 0.84f));
             Material mega = Material("HeroMegaAccent", new Color(0.82f, 0.16f, 0.20f));
-            Material prabowo = Material("HeroPrabowoAccent", new Color(0.80f, 0.34f, 0.20f));
+            Material prabowo = Material("HeroGemoyAccent", new Color(0.80f, 0.34f, 0.20f));
             Material abah = Material("HeroAbahAccent", new Color(0.18f, 0.65f, 0.43f));
-            Material jokowi = Material("HeroJokowiAccent", new Color(0.83f, 0.34f, 0.24f));
+            Material jokowi = Material("HeroPakWiAccent", new Color(0.83f, 0.34f, 0.24f));
             Material gold = Material("HeroOrnamentGold", new Color(0.88f, 0.62f, 0.29f));
             Material crimson = Material("HeroCapeCrimson", new Color(0.53f, 0.09f, 0.16f));
             Material deepGreen = Material("HeroAbahRobe", new Color(0.07f, 0.31f, 0.25f));
@@ -331,12 +332,14 @@ namespace Konoha.Editor
             ActorPrimitive("PakWiGoldSash", PrimitiveType.Cube, jokowiRoot.transform, new Vector3(0.05f, 1.23f, 0.51f), new Vector3(0.14f, 0.70f, 0.07f), gold, new Vector3(0f, 0f, -22f));
             ActorPrimitive("PakWiStaffGlow", PrimitiveType.Sphere, jokowiRoot.transform, new Vector3(0.53f, 1.76f, -0.12f), new Vector3(0.18f, 0.19f, 0.18f), gold, Vector3.zero);
 
+            // A rigged model in Assets/Konoha/Art/Heroes replaces the primitive visual;
+            // without one the primitives above are used unchanged.
             presentation.heroVisuals = new[]
             {
-                megaRoot,
-                prabowoRoot,
-                abahRoot,
-                jokowiRoot
+                HeroVisualCatalog.Resolve(0, megaRoot),
+                HeroVisualCatalog.Resolve(1, prabowoRoot),
+                HeroVisualCatalog.Resolve(2, abahRoot),
+                HeroVisualCatalog.Resolve(3, jokowiRoot)
             };
 
             return presentation;
