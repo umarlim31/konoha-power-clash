@@ -6,6 +6,8 @@ using UnityEngine.UI;
 
 namespace Konoha.Networking
 {
+    // Internal identifiers kept for serialized/network compatibility. Player-facing UI
+    // always uses the fictional names MEGA, GEMOY, ABAH and PAK WI (GetHeroName).
     public enum PrototypeHero
     {
         Mega = 0,
@@ -1184,7 +1186,7 @@ namespace Konoha.Networking
         {
             switch (Hero)
             {
-                case PrototypeHero.Mega: return "BANTENG\nCHARGE";
+                case PrototypeHero.Mega: return "SERUAN\nIBU";
                 case PrototypeHero.Prabowo: return "CMD\nLEAP";
                 case PrototypeHero.Abah: return "NARASI";
                 case PrototypeHero.Jokowi: return "INFRA\nSTRUKTUR";
@@ -1196,7 +1198,7 @@ namespace Konoha.Networking
         {
             switch (Hero)
             {
-                case PrototypeHero.Mega: return "KADER!";
+                case PrototypeHero.Mega: return "PERISAI\nRAKYAT";
                 case PrototypeHero.Prabowo: return "BARIS!";
                 case PrototypeHero.Abah: return "ELECTRIC\nDASH";
                 case PrototypeHero.Jokowi: return "BLUSUKAN";

@@ -16,7 +16,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.8.2")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.8.3")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -24,8 +24,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.0.8.2";
-            PlayerSettings.Android.bundleVersionCode = 19;
+            PlayerSettings.bundleVersion = "0.0.8.3";
+            PlayerSettings.Android.bundleVersionCode = 20;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             var network = GameObject.Find("RuntimeNetworkingProof");
@@ -228,7 +228,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 10), new Vector2(560, 26), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.0.8.2  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.0.8.3  •  SOLO PREVIEW";
 
             var preview = new GameObject("JalurTakhtaPreview").AddComponent<CampaignPreviewController>();
             preview.player = player;

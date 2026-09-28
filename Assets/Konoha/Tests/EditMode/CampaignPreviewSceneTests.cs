@@ -27,6 +27,10 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(preview.heroVisuals, Has.Length.EqualTo(4));
+                Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
+                    Is.EqualTo("JALUR TAKHTA 0.0.8.3  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.0.8.3"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(20));
                 Assert.That(preview.attackButton, Is.Not.Null);
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.skillButton, Is.Not.Null);

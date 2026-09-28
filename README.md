@@ -1,58 +1,44 @@
-# KONOHA: POWER CLASH - Android Technical Spike 0.1
+# NEGARA KONOHA: POWER CLASH
 
-> **Playable Jalur Takhta 0.0.7.2 preview:** On branch `feat/jalur-takhta-first-playable`, follow [Docs/JALUR_TAKHTA_FIRST_PLAYABLE_007.md](Docs/JALUR_TAKHTA_FIRST_PLAYABLE_007.md) to trigger the Android build manually. This iteration responds to the 0.0.7.1 tablet recording with a bounded solo camera, clearer wayfinding and a garden around the arena. The 4v4 source remains available; the older instructions below describe the archived 0.0.1 spike.
+Game aksi mobile (Android, Unity **6000.0.60f1**, URP) berlatar **Negara Konoha** — dunia, institusi, dan tokohnya fiksi dan satir. Hero di UI: MEGA, GEMOY, ABAH, PAK WI.
 
-> **Current development is on feature branches.** `main` and much of this README describe the old 0.0.1 spike. The 4v4 prototype lives on `feature/v0.0.6a2-hero-greybox-polish`; character concept alignment is on `feat/hero-concept-alignment-006a3`. For manual Unity Build Automation from a phone/tablet, read [Docs/MOBILE_MANUAL_BUILD_006A3.md](Docs/MOBILE_MANUAL_BUILD_006A3.md). The new solo-first PvE campaign is scoped separately in [Docs/GAME_BIBLE_V2_IMPLEMENTATION.md](Docs/GAME_BIBLE_V2_IMPLEMENTATION.md).
+## Status saat ini
 
-Current build: **0.0.1**. Status: **PARTIAL - source prepared; Unity compilation and device validation pending**.
-Engine: **CANDIDATE LOCK**, not Final Freeze.
+| Mode | Status |
+|---|---|
+| **JALUR TAKHTA** (solo campaign) | Preview **0.0.8.3** — fondasi logika (tuning, faksi, komposisi encounter, checkpoint) + pipeline hero 3D. Gameplay di layar sama dengan 0.0.8.2. |
+| **REBUT KURSI** (PvP 4v4) | Prototipe jaringan (Netcode for GameObjects) tetap di-generate dari kode yang sama dan tidak diubah perilakunya. |
+| **BENTUK KOALISI** (co-op 2–4) | Direncanakan setelah MVP. |
 
-This repository contains one offline movement greybox. It does not prove multiplayer combat.
-Do not start 0.0.2 until the real-device 0.0.1 gate is recorded and the owner approves continuation.
+Semua status compile/APK/gameplay mengikuti laporan build owner. Selama belum dilaporkan: **BELUM DIVERIFIKASI**.
 
-## Start here from a phone or tablet
+## Baca dulu
 
-1. Place this source in a private Git repository. A `repository.bundle` accompanies the delivery to preserve the initial Git history; see `docs/CLOUD_BUILD.md`.
-2. Provision a remote Linux build machine with Unity **6000.0.60f1**, valid license, and the matching Android Build Support, SDK, NDK and JDK. No local Windows PC is required.
-3. Register its GitHub Actions runner using the labels and repository variable in `docs/CLOUD_BUILD.md`.
-4. From GitHub in the mobile browser: Actions -> KONOHA Android 0.0.1 -> Run workflow.
-5. Download the successful workflow artifact, extract `KONOHA_0.0.1.apk` on Android, install, and complete `docs/DEVICE_GATE.md`.
+1. [CLAUDE.md](CLAUDE.md) — aturan tetap proyek (branch, build, keputusan terkunci, format laporan).
+2. [Docs/GAME_LOGIC_JALUR_TAKHTA_v1.md](Docs/GAME_LOGIC_JALUR_TAKHTA_v1.md) — design authority MVP (aturan, angka awal, faksi, arsitektur).
+3. [Docs/JALUR_TAKHTA_0.0.8.3.md](Docs/JALUR_TAKHTA_0.0.8.3.md) — catatan versi terbaru, langkah build, dan checklist uji perangkat.
+4. [Docs/PROMPTS_CLAUDE_CODE.md](Docs/PROMPTS_CLAUDE_CODE.md) — urutan versi berikutnya.
+5. [Docs/PANDUAN_MEGA_3D.md](Docs/PANDUAN_MEGA_3D.md) — cara menyiapkan dan mengunggah model hero 3D.
 
-**This delivery contains source, not an APK. The runner has not been provisioned.** No credentials or cloud account were supplied.
+## Cara build (ringkas)
 
-## Remote editor
+- Build **hanya** lewat **Unity Build Automation**, dipicu manual oleh owner.
+- Pre-export method: `Konoha.Editor.SpikeProject.prepare` (huruf kecil). Method ini men-generate scene, material, mesh, dan prefab dari kode di `Assets/Konoha/Editor/`.
+- Scene/prefab/material **tidak** di-commit; sumber kebenaran visual adalah generator, bukan `Assets/Konoha/Generated/`.
+- Workflow GitHub Actions `android-spike.yml` adalah sisa 0.0.1 (**LEGACY**) dan tidak dipakai.
 
-Open this folder in the pinned Unity Editor. Run `Konoha > Prepare Build 0.0.1 (regenerates greybox)`.
-This generates the scene, URP renderer/pipeline, materials and locomotion asset, configures Android, and opens SpikeArena.
-Enter Play and drag the on-screen joystick to inspect. This mouse interaction is editor-only touch emulation, not a PC gameplay target.
+## Struktur kode
 
-The generated scene lives under `Assets/Konoha/Generated`; edit `SpikeProject.cs` for reproducible arena changes.
-Preparation regenerates the greybox scene; it is not intended to preserve hand edits to that generated scene.
+| Folder | Isi |
+|---|---|
+| `Assets/Konoha/Campaign/Logic/` | Logika campaign C# murni: `CampaignTuning`, `UnitRoleStats`, `FactionDefinition`, `EncounterComposer`, `CampaignObjectiveDirector` |
+| `Assets/Konoha/Campaign/` | `CampaignRunState` (state rute) + komponen Unity solo (kamera, traversal, controller preview) |
+| `Assets/Konoha/Networking/` | Mode PvP 4v4 (Netcode) |
+| `Assets/Konoha/Character/` | Motor karakter, kamera, `HeroAnimatorDriver` |
+| `Assets/Konoha/Editor/` | Generator scene/prefab, seni ibu kota, pipeline hero 3D (`HeroVisualCatalog`, `HeroModelImporter`) |
+| `Assets/Konoha/Art/Heroes/<Hero>/` | Model hero dari owner (`<Hero>.fbx`, `<Hero>@<Clip>.fbx`) |
+| `Assets/Konoha/Tests/EditMode/` | EditMode test |
 
-## Architecture
+Cek statis sebelum commit: `python3 scripts/source-check.py` (bukan pengganti compile Unity).
 
-| Module | Responsibility |
-| --- | --- |
-| Input | Touch pointer ownership, dead-zone handling, normalized MoveIntent |
-| Data | One candidate locomotion tuning asset |
-| Character | Collision motor with caller-supplied timestep; separate follow camera |
-| Core | Offline-only 0.0.1 composition driver |
-| UI | Safe-area and tablet-aspect grip layout |
-| Debug | Build identity and measured frame interval/FPS; unavailable systems explicitly N/A |
-| Editor | Reproducible scene/configuration and strict Android build entrypoint |
-| Tests | Eight Unity EditMode tests plus build artifact validators |
-
-`OfflineSpikeDriver` owns local movement only in this isolated build. It must be removed/replaced as the gameplay driver when networking begins. `CharacterMotor` is not a deterministic rollback motor and has not been validated for network prediction. Its separation prevents touch or camera code from becoming server authority.
-
-Only joystick and DEBUG are interactive. Combat controls, hero kits, data-driven AbilityDefinition/HeroState, networking, prediction, Dodge, Ring-Out and objectives are deferred to their authorized gates.
-
-## Reproducibility limits
-
-Direct dependency versions are pinned. Unity must perform the first package resolution; `packages-lock.json`, generated settings, assets and resolved package configuration must be reviewed from the CI artifact and then committed where appropriate. No fabricated lockfile or imported scene is claimed here.
-All supplied script/folder `.meta` GUIDs are stable. CI archives generated assets/settings for provenance.
-
-## Verification
-
-Run `python3 scripts/source-check.py` for source structure checks.
-Run `bash scripts/android-build.sh` only on the configured licensed remote machine from a clean Git checkout.
-See `docs/BUILD_REPORT_0.0.1.md` for evidence and remaining gates.
+Dokumen 0.0.1 lama (runner GitHub Actions, gate perangkat awal) tetap ada di `docs/` sebagai arsip.
