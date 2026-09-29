@@ -22,30 +22,32 @@ namespace Konoha.Campaign
         }
     }
 
-    // Objective rules of the solo slice: Gerbang Rakyat fight, Majelis hold, Biro three
-    // confirmations, inner gate, Garda Takhta, seat, Power and the single counterattack.
+    // Objective rules of the solo slice: Gerbang Rakyat fight, Majelis Daun sidang, Biro
+    // three confirmations, inner gate, Garda Takhta, seat, Power and the single counterattack.
     // Plain C# (no MonoBehaviour); the caller supplies player position, input, clock and
-    // encounter outcomes. It is the only writer of CampaignRunState. Since 0.0.9 the
-    // fights use real enemies: this class only announces when an encounter must be
-    // prepared (events) and is told when it was cleared (MarkGateCleared, CompleteGarda).
-    // Majelis and Biro keep their 0.0.8.x placeholder mechanics until 0.0.9.2/0.0.9.3.
+    // encounter outcomes. It is the only writer of CampaignRunState. The fights use real
+    // enemies: this class only announces when an encounter must be prepared (events) and
+    // is told when it was cleared (MarkGateCleared, CompleteMajelis, CompleteGarda).
+    // Biro keeps its 0.0.8.x placeholder mechanic until 0.0.9.3.
     public sealed class CampaignObjectiveDirector
     {
         private readonly CampaignObjectiveLayout layout;
         private float powerClock;
         private float counterattackClock;
-        private bool enteredMajelis;
 
         public CampaignRunState Run { get; private set; }
         public bool GateCleared { get; private set; }
         public bool GardaPrepared { get; private set; }
-        public float MajelisHold { get; private set; }
+        public bool MajelisPrepared { get; private set; }
+        public bool MajelisEngaged { get; private set; }
         public int BiroSteps { get; private set; }
         public float NextBiroStep { get; private set; }
         public bool CounterattackLaunched { get; private set; }
 
         // Raised with a player-facing message.
         public event Action<string> Notified;
+        // The plaza was reached: place the Majelis Daun sidang in its hall.
+        public event Action MajelisRequested;
         // The inner gate opened: place the Garda Takhta defenders.
         public event Action GardaRequested;
         // The ruler has held the seat long enough: send the counterattack.
@@ -66,9 +68,9 @@ namespace Konoha.Campaign
             Run = NewRun();
             GateCleared = false;
             GardaPrepared = false;
+            MajelisPrepared = false;
+            MajelisEngaged = false;
             BiroSteps = 0;
-            MajelisHold = 0f;
-            enteredMajelis = false;
             NextBiroStep = 0f;
             powerClock = 0f;
             counterattackClock = 0f;
@@ -81,6 +83,23 @@ namespace Konoha.Campaign
             if (GateCleared) return;
             GateCleared = true;
             Notify("Gerbang Rakyat terbuka! Menuju PLAZA ASPIRASI");
+        }
+
+        // Ketua down and no officer standing (MajelisEncounter.Cleared). Awards the seal.
+        public bool CompleteMajelis()
+        {
+            if (Run.Phase != CampaignPhase.PlazaAspirasi || Run.HasSeal(CampaignSector.MajelisDaun))
+                return false;
+            if (!MajelisEngaged)
+            {
+                MajelisEngaged = true;
+                Run.BeginSector(CampaignSector.MajelisDaun);
+            }
+            if (!Run.AwardSeal(CampaignSector.MajelisDaun)) return false;
+            Notify("SEGEL MAJELIS diperoleh!  Pengaruh +" + CampaignTuning.Majelis.SealPengaruh);
+            if (Run.TryOpenInnerGate())
+                Notify("Gerbang Dalam terbuka! Hadapi GARDA TAKHTA");
+            return true;
         }
 
         // Every Garda Takhta defender is down.
@@ -101,23 +120,20 @@ namespace Konoha.Campaign
 
             if (Run.Phase == CampaignPhase.PlazaAspirasi)
             {
-                // Majelis: listen to the people; Biro: confirm three separate files.
-                if (!Run.HasSeal(CampaignSector.MajelisDaun))
+                // Majelis: the sidang waits in its hall from the moment the plaza is reached.
+                if (!MajelisPrepared)
                 {
-                    bool insideMajelis = Near(player, layout.Majelis, CampaignTuning.PreviewSlice.SectorRadius);
-                    if (insideMajelis && !enteredMajelis)
-                    {
-                        Run.BeginSector(CampaignSector.MajelisDaun);
-                        Notify("Tetap di lingkaran Majelis sampai bar penuh");
-                    }
-                    enteredMajelis = insideMajelis;
-                    MajelisHold = insideMajelis
-                        ? Mathf.Min(CampaignTuning.PreviewSlice.MajelisHoldSeconds, MajelisHold + deltaTime)
-                        : Mathf.Max(0f, MajelisHold - deltaTime * CampaignTuning.PreviewSlice.MajelisDecayRate);
-                    if (MajelisHold >= CampaignTuning.PreviewSlice.MajelisHoldSeconds &&
-                        Run.AwardSeal(CampaignSector.MajelisDaun))
-                        Notify("Segel Majelis Daun diperoleh");
+                    MajelisPrepared = true;
+                    MajelisRequested?.Invoke();
                 }
+                if (!MajelisEngaged && !Run.HasSeal(CampaignSector.MajelisDaun) &&
+                    Near(player, layout.Majelis, CampaignTuning.Majelis.SectorEngageRadius))
+                {
+                    MajelisEngaged = true;
+                    Run.BeginSector(CampaignSector.MajelisDaun);
+                    Notify("SIDANG MAJELIS!  Blok Majelis menahan serangan: incar ANGGOTA SENIOR dulu");
+                }
+                // Biro: confirm three separate files (Interact).
                 if (Run.TryOpenInnerGate())
                     Notify("Gerbang Dalam terbuka! Hadapi GARDA TAKHTA");
             }

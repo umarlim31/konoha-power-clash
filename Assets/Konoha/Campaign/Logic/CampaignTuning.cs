@@ -52,6 +52,13 @@ namespace Konoha.Campaign
             public const float KetokPaluCooldownSeconds = 9f;
             public const float SurrenderVanishSeconds = 3f;
             public const int SealPengaruh = ResourceRules.PengaruhSeal;
+
+            // 0.0.9.2 tuning assumptions (not in §8.1), to confirm on device.
+            public const float KetokPaluForwardOffset = 1.8f;   // Circle centre in front of the Ketua.
+            public const float KetokPaluTriggerRange = 4f;      // Hero this close starts the telegraph.
+            public const float KetokPaluFirstDelaySeconds = 3f; // No hammer in the first seconds of a fight.
+            public const float SectorEngageRadius = 9f;         // Entering this ring starts the sidang.
+            public const float LeashRadius = 11f;               // Members never chase beyond this around the hall.
         }
 
         // §8.2 Biro Prosedur — "Sahkan Berkas".
@@ -125,8 +132,6 @@ namespace Konoha.Campaign
             public const float ChairRadius = 2.2f;
             public const float WaypointArrivalRadius = 2.3f;
 
-            public const float MajelisHoldSeconds = 2.5f;
-            public const float MajelisDecayRate = 0.25f; // Hold lost per second outside the ring.
             public const int BiroSteps = 3;
             public const float BiroStepIntervalSeconds = 0.65f;
 

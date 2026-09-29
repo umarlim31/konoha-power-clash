@@ -102,11 +102,19 @@ namespace Konoha.Campaign
                         : "GERBANG RAKYAT  •  Kalahkan Kroni " + (gateTotal - director.GateRemaining) + "/" + gateTotal;
                     break;
                 case CampaignPhase.PlazaAspirasi:
-                    objectiveText.text = !director.HasSeal(CampaignSector.MajelisDaun)
-                        ? "1/2  MAJELIS: tahan di lingkaran " + Mathf.CeilToInt(Mathf.Max(0f,
-                            CampaignTuning.PreviewSlice.MajelisHoldSeconds - director.MajelisHold)) + " detik"
-                        : "2/2  BIRO: masuk lingkaran, tekan SAHKAN " + (director.BiroSteps + 1) + "/" +
-                            CampaignTuning.PreviewSlice.BiroSteps;
+                    switch (PlazaFocus(director))
+                    {
+                        case PlazaTask.Majelis:
+                            objectiveText.text = MajelisObjective(director);
+                            break;
+                        case PlazaTask.Biro:
+                            objectiveText.text = "SEGEL " + (director.SealCount + 1) + "/2  BIRO: masuk lingkaran, tekan SAHKAN " +
+                                (director.BiroSteps + 1) + "/" + CampaignTuning.PreviewSlice.BiroSteps;
+                            break;
+                        default:
+                            objectiveText.text = "PLAZA ASPIRASI  •  Rebut 2 segel: MAJELIS (kiri) & BIRO (kanan)";
+                            break;
+                    }
                     break;
                 case CampaignPhase.GerbangDalam:
                     objectiveText.text = "GERBANG DALAM TERBUKA  >  Hadapi GARDA TAKHTA";
@@ -141,9 +149,12 @@ namespace Konoha.Campaign
                     fill = director.GateCleared ? 1f : (gateTotal - director.GateRemaining) / (float)gateTotal;
                     break;
                 case CampaignPhase.PlazaAspirasi:
-                    fill = director.HasSeal(CampaignSector.MajelisDaun)
-                        ? director.BiroSteps / (float)CampaignTuning.PreviewSlice.BiroSteps
-                        : director.MajelisHold / CampaignTuning.PreviewSlice.MajelisHoldSeconds;
+                    PlazaTask task = PlazaFocus(director);
+                    fill = task == PlazaTask.Majelis
+                        ? (director.MajelisTotal > 0 ? 1f - director.MajelisRemaining / (float)director.MajelisTotal : 0f)
+                        : task == PlazaTask.Biro
+                            ? director.BiroSteps / (float)CampaignTuning.PreviewSlice.BiroSteps
+                            : director.SealCount / (float)director.RequiredSeals;
                     break;
                 case CampaignPhase.GardaTakhta:
                     fill = 1f - director.GardaRemaining / (float)director.GardaTotal;
@@ -154,6 +165,38 @@ namespace Konoha.Campaign
                     break;
             }
             objectiveProgress.fillAmount = Mathf.Clamp01(fill);
+        }
+
+        private enum PlazaTask
+        {
+            Choose,
+            Majelis,
+            Biro
+        }
+
+        // Which seal the HUD guides to: the sector in progress, else the one still missing.
+        private static PlazaTask PlazaFocus(CampaignDirector director)
+        {
+            bool majelisDone = director.HasSeal(CampaignSector.MajelisDaun);
+            bool biroDone = director.HasSeal(CampaignSector.BiroProsedur);
+            if (!majelisDone && (director.MajelisStarted || biroDone))
+                return PlazaTask.Majelis;
+            if (!biroDone && (majelisDone || director.BiroSteps > 0))
+                return PlazaTask.Biro;
+            return majelisDone && biroDone ? PlazaTask.Biro : PlazaTask.Choose;
+        }
+
+        // §8.1 "Pecahkan Blok": Senior first, then the Ketua, then the remaining officers.
+        private static string MajelisObjective(CampaignDirector director)
+        {
+            string head = "SEGEL " + (director.SealCount + 1) + "/2  MAJELIS: ";
+            if (!director.MajelisStarted)
+                return head + "datangi sidang di sayap kiri (barat)";
+            if (director.MajelisBlock)
+                return head + "BLOK aktif (-40%)! Kalahkan ANGGOTA SENIOR (" + director.SeniorsAlive + " tersisa)";
+            if (!director.MajelisLeaderDown)
+                return head + "Blok pecah! Tumbangkan KETUA MAJELIS (awas KETOK PALU)";
+            return head + "Kalahkan sisa pejabat (" + director.MajelisRemaining + ")";
         }
 
         private void RefreshHero(NetworkObject hero)
@@ -221,10 +264,24 @@ namespace Konoha.Campaign
                     }
                     break;
                 case CampaignPhase.PlazaAspirasi:
-                    bool majelisDone = director.HasSeal(CampaignSector.MajelisDaun);
-                    destination = majelisDone ? stage.biro.position : stage.majelis.position;
-                    label = majelisDone ? "BIRO" : "MAJELIS";
-                    arrival = CampaignTuning.PreviewSlice.SectorRadius;
+                    PlazaTask task = PlazaFocus(director);
+                    if (task == PlazaTask.Biro)
+                    {
+                        destination = stage.biro.position;
+                        label = "BIRO";
+                        arrival = CampaignTuning.PreviewSlice.SectorRadius;
+                    }
+                    else if (director.MajelisStarted && MajelisTarget(director, hero.transform.position,
+                        out destination, out label))
+                    {
+                        // Point at the member to hit next: Senior while the block holds, then the Ketua.
+                    }
+                    else
+                    {
+                        destination = stage.majelis.position;
+                        label = "MAJELIS";
+                        arrival = CampaignTuning.PreviewSlice.SectorRadius;
+                    }
                     break;
                 case CampaignPhase.GerbangDalam:
                 case CampaignPhase.GardaTakhta:
@@ -246,9 +303,7 @@ namespace Konoha.Campaign
             float distance = new Vector2(delta.x, delta.z).magnitude;
             if (distance < arrival)
             {
-                waypointText.text = director.Phase == CampaignPhase.PlazaAspirasi
-                    ? (label == "MAJELIS" ? "DI MAJELIS: tetap di sini hingga bar penuh" : "DI BIRO: tekan SAHKAN 3 kali")
-                    : "DI LOKASI: " + label;
+                waypointText.text = label == "BIRO" ? "DI BIRO: tekan SAHKAN 3 kali" : "DI LOKASI: " + label;
                 return;
             }
 
@@ -273,13 +328,36 @@ namespace Konoha.Campaign
             waypointText.text = "ARAH " + label + ": " + direction + "  •  " + Mathf.CeilToInt(distance) + " m";
         }
 
+        private static bool MajelisTarget(CampaignDirector director, Vector3 from, out Vector3 position, out string label)
+        {
+            if (director.MajelisBlock && NearestEnemy(from, out position, FactionId.MajelisDaun, UnitRole.Senior))
+            {
+                label = "SENIOR";
+                return true;
+            }
+            if (!director.MajelisLeaderDown && NearestEnemy(from, out position, FactionId.MajelisDaun, UnitRole.Pemimpin))
+            {
+                label = "KETUA";
+                return true;
+            }
+            label = "MAJELIS";
+            return NearestEnemy(from, out position, FactionId.MajelisDaun, null);
+        }
+
         private static bool NearestEnemy(Vector3 from, out Vector3 position)
+        {
+            return NearestEnemy(from, out position, null, null);
+        }
+
+        private static bool NearestEnemy(Vector3 from, out Vector3 position, FactionId? faction, UnitRole? role)
         {
             position = Vector3.zero;
             float best = float.MaxValue;
             foreach (CampaignEnemy enemy in FindObjectsByType<CampaignEnemy>(FindObjectsSortMode.None))
             {
-                if (enemy == null || !enemy.IsSpawned || enemy.IsDown)
+                if (enemy == null || !enemy.IsSpawned || enemy.IsOutOfFight)
+                    continue;
+                if ((faction.HasValue && enemy.Faction != faction.Value) || (role.HasValue && enemy.Role != role.Value))
                     continue;
                 float distance = (enemy.transform.position - from).sqrMagnitude;
                 if (distance < best)

@@ -35,7 +35,8 @@ namespace Konoha.Tests
         private static void CollectBothSeals(CampaignObjectiveDirector director)
         {
             director.Tick(Plaza, Frame);
-            Hold(director, Majelis, 2.6f);
+            director.Tick(Majelis, Frame);
+            Assert.That(director.CompleteMajelis(), Is.True);
             director.Interact(Biro, 1f);
             director.Interact(Biro, 2f);
             director.Interact(Biro, 3f);
@@ -58,28 +59,53 @@ namespace Konoha.Tests
         }
 
         [Test]
-        public void MajelisSealNeedsTwoAndHalfSecondsInsideRing()
+        public void MajelisSidangIsPlacedOnceWhenPlazaIsReached()
+        {
+            var director = Cleared();
+            int requests = 0;
+            director.MajelisRequested += () => requests++;
+            Hold(director, Plaza, 0.5f);
+            Assert.That(requests, Is.EqualTo(1));
+            Assert.That(director.MajelisEngaged, Is.False);
+            Assert.That(director.Run.GetSectorState(CampaignSector.MajelisDaun), Is.EqualTo(SectorState.Tersedia));
+
+            director.Restart();
+            director.MarkGateCleared();
+            director.Tick(Plaza, Frame);
+            Assert.That(requests, Is.EqualTo(2), "A restarted run places a fresh sidang");
+        }
+
+        [Test]
+        public void ApproachingTheHallStartsTheSidangAndMovesTheCheckpoint()
         {
             var director = Cleared();
             var messages = new List<string>();
             director.Notified += messages.Add;
             director.Tick(Plaza, Frame);
-            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.PlazaAspirasi));
-            Hold(director, Majelis, 2.3f);
-            Assert.That(director.Run.HasSeal(CampaignSector.MajelisDaun), Is.False);
-            Hold(director, Majelis, 0.3f);
-            Assert.That(director.Run.HasSeal(CampaignSector.MajelisDaun), Is.True);
-            Assert.That(messages, Contains.Item("Segel Majelis Daun diperoleh"));
+            director.Tick(Majelis + new Vector3(CampaignTuning.Majelis.SectorEngageRadius + 1f, 0, 0), Frame);
+            Assert.That(director.MajelisEngaged, Is.False);
+            director.Tick(Majelis + new Vector3(CampaignTuning.Majelis.SectorEngageRadius - 1f, 0, 0), Frame);
+            Assert.That(director.MajelisEngaged, Is.True);
+            Assert.That(director.Run.GetSectorState(CampaignSector.MajelisDaun), Is.EqualTo(SectorState.Berlangsung));
+            Assert.That(director.Run.Checkpoint, Is.EqualTo(CampaignCheckpoint.MajelisDaun));
+            Assert.That(messages.FindAll(m => m.StartsWith("SIDANG MAJELIS")), Has.Count.EqualTo(1));
+            Hold(director, Majelis, 3f);
+            Assert.That(director.Run.HasSeal(CampaignSector.MajelisDaun), Is.False, "Standing in the hall no longer earns the seal");
         }
 
         [Test]
-        public void MajelisProgressDecaysSlowlyOutsideRing()
+        public void MajelisSealComesOnlyFromTheClearedSidang()
         {
             var director = Cleared();
+            var messages = new List<string>();
+            director.Notified += messages.Add;
+            Assert.That(director.CompleteMajelis(), Is.False, "Plaza not reached yet");
             director.Tick(Plaza, Frame);
-            Hold(director, Majelis, 2f);
-            Hold(director, Plaza, 2f);
-            Assert.That(director.MajelisHold, Is.EqualTo(1.5f).Within(0.05f));
+            director.Tick(Majelis, Frame);
+            Assert.That(director.CompleteMajelis(), Is.True);
+            Assert.That(director.Run.HasSeal(CampaignSector.MajelisDaun), Is.True);
+            Assert.That(director.CompleteMajelis(), Is.False, "Only once");
+            Assert.That(messages.FindAll(m => m.StartsWith("SEGEL MAJELIS")), Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -164,6 +190,8 @@ namespace Konoha.Tests
             Assert.That(director.BiroSteps, Is.Zero);
             Assert.That(director.GateCleared, Is.False);
             Assert.That(director.GardaPrepared, Is.False);
+            Assert.That(director.MajelisPrepared, Is.False);
+            Assert.That(director.MajelisEngaged, Is.False);
         }
     }
 }
