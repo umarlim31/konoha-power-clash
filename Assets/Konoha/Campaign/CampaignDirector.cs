@@ -26,6 +26,12 @@ namespace Konoha.Campaign
             (int)CampaignCheckpoint.GerbangRakyat, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<int> runtuhCount = new NetworkVariable<int>(
             0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        // 0.0.9.2.1: the hero is chosen before the run and locked until ULANG.
+        private NetworkVariable<bool> heroLocked = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        // RESTU RAKYAT blessing earned at the Gerbang Rakyat.
+        private NetworkVariable<bool> restu = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<bool> majelisStarted = new NetworkVariable<bool>(
             false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<bool> majelisBlock = new NetworkVariable<bool>(
@@ -73,6 +79,9 @@ namespace Konoha.Campaign
         public int TargetPower => CampaignTuning.PreviewSlice.TargetPower;
         public int RequiredSeals => CampaignTuning.PreviewSlice.RequiredSeals;
         public int RuntuhCount => runtuhCount.Value;
+        public bool HeroLocked => heroLocked.Value;
+        public bool RestuActive => restu.Value;
+
         // Majelis Daun sidang (0.0.9.2).
         public bool MajelisStarted => majelisStarted.Value;
         public bool MajelisBlock => majelisBlock.Value;
@@ -163,6 +172,13 @@ namespace Konoha.Campaign
                 SpawnMajelis();
             }
 
+            // Hero selection screen: the world waits (AllowsGameplay is false) until MULAI.
+            if (!heroLocked.Value)
+            {
+                SyncState();
+                return;
+            }
+
             float deltaTime = Mathf.Min(Time.deltaTime, CampaignTuning.PreviewSlice.MaxFrameSeconds);
             NetworkObject player = PrimaryPlayer();
             if (player != null)
@@ -173,7 +189,10 @@ namespace Konoha.Campaign
             }
 
             if (gateSpawned && !objectives.GateCleared && CountAlive(gateEnemies) == 0)
+            {
                 objectives.MarkGateCleared();
+                GrantRestu();
+            }
 
             if (majelisSpawned)
                 UpdateMajelis();
@@ -313,6 +332,28 @@ namespace Konoha.Campaign
                 GrantPlayersPengaruh(CampaignTuning.Majelis.SealPengaruh);
         }
 
+        // RESTU RAKYAT: full Wibawa, a Pengaruh head start and the run-long damage blessing.
+        private void GrantRestu()
+        {
+            if (restu.Value)
+                return;
+
+            restu.Value = true;
+            foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
+            {
+                if (networkObject == null || !networkObject.IsPlayerObject)
+                    continue;
+                NetworkPlayerCombat combat = networkObject.GetComponent<NetworkPlayerCombat>();
+                if (combat != null && !combat.IsKnockedOut)
+                    combat.ServerHeal(combat.MaxWibawaValue);
+            }
+            GrantPlayersPengaruh(CampaignTuning.Restu.PengaruhBonus);
+            OnObjectiveMessage("RESTU RAKYAT!  Damage +" +
+                Mathf.RoundToInt((CampaignTuning.Restu.HeroDamageMultiplier - 1f) * 100f) + "%, damage diterima -" +
+                Mathf.RoundToInt((1f - CampaignTuning.Restu.HeroDamageTakenMultiplier) * 100f) + "%, Pengaruh +" +
+                CampaignTuning.Restu.PengaruhBonus + ".  Menuju PLAZA");
+        }
+
         private void GrantPlayersPengaruh(int amount)
         {
             foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
@@ -435,12 +476,32 @@ namespace Konoha.Campaign
                     combat.ServerResetForMatch();
             }
 
+            // Back to the hero screen: the hero may be changed before the next run.
+            heroLocked.Value = false;
+            restu.Value = false;
             gatePending = true;
             SyncState();
-            OnObjectiveMessage("Perjalanan baru dimulai");
+            OnObjectiveMessage("Pilih hero untuk perjalanan baru");
         }
 
         // --- Player input --------------------------------------------------------------
+
+        // MULAI on the hero screen: locks the chosen hero and starts the run.
+        public void RequestStartRun()
+        {
+            if (IsSpawned && !heroLocked.Value)
+                StartRunServerRpc();
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void StartRunServerRpc()
+        {
+            if (objectives == null || heroLocked.Value)
+                return;
+
+            heroLocked.Value = true;
+            OnObjectiveMessage("Perjalanan dimulai! Kalahkan Kroni di GERBANG RAKYAT");
+        }
 
         // Contextual SAHKAN / DUDUK / ULANG button.
         public void RequestInteract()
@@ -460,6 +521,9 @@ namespace Konoha.Campaign
                 ServerRestart();
                 return;
             }
+
+            if (!heroLocked.Value)
+                return;
 
             NetworkObject player = FindPlayerObject(rpcParams.Receive.SenderClientId);
             if (player == null)
@@ -495,10 +559,11 @@ namespace Konoha.Campaign
 
         // --- ICombatRules ----------------------------------------------------------------
 
-        public bool AllowsGameplay => IsSpawned;
+        // Nothing moves or fights while the hero screen is open.
+        public bool AllowsGameplay => IsSpawned && heroLocked.Value;
 
-        // Hero changes stay open except while holding the seat.
-        public bool CanSelectHero => IsSpawned && Phase != CampaignPhase.Memerintah;
+        // The hero is chosen once per run: only on the hero screen (start and after ULANG).
+        public bool CanSelectHero => IsSpawned && !heroLocked.Value;
 
         // Campaign seating is objective state, not the PvP ruler lock: the seated hero may fight.
         public bool IsRuler(ulong clientId) => false;
@@ -538,6 +603,18 @@ namespace Konoha.Campaign
             foreach (CampaignEnemy enemy in list)
                 if (enemy != null && enemy.IsSpawned)
                     enemy.ServerRecover(CampaignTuning.Runtuh.WoundedEnemyRecoveryFraction);
+        }
+
+        // RESTU RAKYAT: blessed heroes hit the Sistem harder and take less damage.
+        public float GetDamageMultiplier(NetworkObject attacker, NetworkObject target)
+        {
+            if (!restu.Value || target == null)
+                return 1f;
+
+            bool attackerBlessed = attacker != null && attacker.IsPlayerObject &&
+                target.TryGetComponent(out CampaignEnemy _);
+            bool targetBlessed = target.IsPlayerObject;
+            return RestuRakyat.DamageMultiplier(attackerBlessed, targetBlessed);
         }
 
         public float GetRespawnDelay(NetworkObject actor, float defaultDelay) =>

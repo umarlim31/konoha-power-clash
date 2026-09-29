@@ -57,6 +57,8 @@ namespace Konoha.Campaign
         private static CampaignMonument monument;
         private static CampaignStage stage;
         private static readonly List<NetworkPlayerCombat> specialVictims = new List<NetworkPlayerCombat>();
+        // Earliest time the next basic hit may land on each hero (by NetworkObjectId).
+        private static readonly Dictionary<ulong, float> nextHitOnTarget = new Dictionary<ulong, float>();
 
         private NetworkPlayerCombat combat;
         private NetworkHeroKit heroKit;
@@ -395,6 +397,12 @@ namespace Konoha.Campaign
         {
             if (Time.time < nextAttackTime)
                 return;
+
+            // Crowd pacing: wait for a turn if another member just hit this hero.
+            ulong targetId = target.NetworkObjectId;
+            if (nextHitOnTarget.TryGetValue(targetId, out float slot) && Time.time < slot)
+                return;
+            nextHitOnTarget[targetId] = Time.time + CampaignTuning.Encounters.TargetHitSpacingSeconds;
 
             nextAttackTime = Time.time + CampaignTuning.Encounters.EnemyAttackIntervalSeconds;
             // Credited to this actor, never to a client (see INetworkAiActor).

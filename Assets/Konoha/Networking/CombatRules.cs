@@ -24,6 +24,9 @@ namespace Konoha.Networking
         Quaternion GetRespawnRotation(NetworkObject actor);
         // Server only, after Wibawa has been restored.
         void ServerOnActorRespawned(NetworkObject actor);
+        // Server only. Mode multiplier for one hit (campaign blessings); PvP returns 1.
+        // attacker may be null (unknown source).
+        float GetDamageMultiplier(NetworkObject attacker, NetworkObject target);
     }
 
     public static class CombatRules

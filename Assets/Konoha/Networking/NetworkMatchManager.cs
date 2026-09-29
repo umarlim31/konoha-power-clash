@@ -201,6 +201,12 @@ namespace Konoha.Networking
         {
         }
 
+        // PvP has no mode damage modifiers.
+        public float GetDamageMultiplier(NetworkObject attacker, NetworkObject target)
+        {
+            return 1f;
+        }
+
         private void Update()
         {
             if (!IsServer || !IsSpawned)
