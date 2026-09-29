@@ -13,7 +13,8 @@ Urutan versi:
 | 0.0.9 | Prompt 3 | Solo = host lokal + combat asli di campaign | ✅ Selesai, lolos di tablet (2026-09-29) |
 | (menyusul) | Prompt 2 | Pasang MEGA 3D | Kapan saja setelah file FBX MEGA diunggah; nomor versi = versi berikutnya saat itu |
 | 0.0.9.1 | Prompt 4 | Tata ulang peta menjadi rute | ✅ Selesai, lolos di tablet (2026-09-29) |
-| 0.0.9.2 | Prompt 5 | Faksi Majelis Daun | Dikerjakan (branch `feat/majelis-daun-0.0.9.2`), menunggu uji tablet |
+| 0.0.9.2 | Prompt 5 | Faksi Majelis Daun | Diuji di tablet: jalan, tapi terlalu sulit → perbaikan 0.0.9.2.1 |
+| 0.0.9.2.1 | (perbaikan) | Restu Rakyat, kamera stabil, pilih hero di awal | Dikerjakan (branch `feat/jalur-takhta-0.0.9.2.1`), menunggu uji tablet |
 | 0.0.9.3 | Prompt 6 | Faksi Biro Prosedur | Setelah 0.0.9.2 OK |
 | 0.1.0 | Prompt 7 | Garda Takhta + Fase Memerintah + Hasil = MVP | Setelah 0.0.9.3 OK |
 

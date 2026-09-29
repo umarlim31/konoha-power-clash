@@ -31,7 +31,7 @@ Alur pertarungan:
 3. **Senior pertama tumbang:** muncul "BLOK MAJELIS PECAH!", cincin burgundy hilang, dan damage kembali penuh. Blok tidak terbentuk lagi, termasuk setelah hero Runtuh.
 4. **KETOK PALU (Ketua):** jika hero berada dalam 4 m, Ketua berhenti dan mengangkat palu. Di tanah muncul lingkaran merah tua berjari-jari 3 m, 1,8 m di depannya, dan lingkaran oranye di dalamnya membesar selama **1 detik**. Hero yang masih di dalam lingkaran saat itu kena **22 damage**. Cooldown **9 detik**; ketukan pertama paling cepat 3 detik setelah Ketua mulai bertarung.
    - Keluar dari lingkaran (jalan atau DODGE) = aman.
-   - **Stun** Ketua saat ia mengangkat palu (misalnya skill ABAH) membatalkan ketukan.
+   - **Stun** Ketua saat ia mengangkat palu (misalnya S1 SERUAN IBU milik MEGA) membatalkan ketukan.
 5. **Ketua tumbang:** Staf Fraksi berlutut dengan warna pucat bertuliskan MENYERAH, lalu hilang setelah 3 detik. Mereka tidak bisa diserang lagi.
 6. **Sidang selesai** (Ketua tumbang dan tidak ada Senior/Pengawal tersisa): **SEGEL MAJELIS** + **Pengaruh +25**.
 
@@ -70,7 +70,7 @@ Gerbang Rakyat, Biro (masih sementara), Garda Takhta, fase Memerintah, peta 0.0.
 4. Pukul **Ketua** dulu saat blok aktif: angka damage harus terasa lebih kecil (−40%). Screenshot papan nama "• BLOK" dan cincin burgundy.
 5. Jatuhkan satu **Senior**: harus muncul "BLOK MAJELIS PECAH!" dan cincin burgundy hilang.
 6. Dekati Ketua: palu terangkat dan lingkaran merah muncul. Coba (a) keluar dari lingkaran → tidak kena; (b) diam di dalam → Wibawa berkurang 22.
-7. (Opsional) Pakai **ABAH**, stun Ketua saat lingkaran muncul: ketukan batal.
+7. (Opsional) Pakai **MEGA**, kenai Ketua dengan S1 SERUAN IBU (stun) saat lingkaran muncul: ketukan batal.
 8. Tumbangkan Ketua: Staf Fraksi tersisa berlutut "MENYERAH" lalu hilang. Kalahkan sisa Senior/Pengawal → "SEGEL MAJELIS diperoleh! Pengaruh +25".
 9. Lari menjauh (>11 m dari gedung) saat bertarung: anggota sidang harus kembali ke posnya, tidak mengejar ke plaza.
 10. Sengaja Runtuh di Majelis: hero bangkit di koridor (x −14), tidak di tengah sidang.

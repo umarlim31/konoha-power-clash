@@ -23,6 +23,8 @@ namespace Konoha.Campaign
         public Text feedbackText;
         public Image objectiveProgress;
         public Button sitButton;
+        // Gold ring under the local hero while RESTU RAKYAT is active (no collider).
+        public Transform restuAura;
 
         private Text sitLabel;
         private float nextWaypointRefresh;
@@ -69,8 +71,22 @@ namespace Konoha.Campaign
                 innerGateOpen.SetActive(!innerLocked);
 
             NetworkObject hero = LocalHero();
+            RefreshAura(director, hero);
+            if (!director.HeroLocked)
+            {
+                // Hero screen (CampaignHeroSelect) is open; the run has not started yet.
+                objectiveText.text = "PILIH HERO, lalu tekan MULAI";
+                if (objectiveProgress != null) objectiveProgress.fillAmount = 0f;
+                if (waypointText != null) waypointText.text = string.Empty;
+                if (sitButton != null) sitButton.gameObject.SetActive(false);
+                RefreshHero(director, hero);
+                if (feedbackText != null)
+                    feedbackText.text = Time.time < director.LastMessageUntil ? director.LastMessage : string.Empty;
+                return;
+            }
+
             RefreshObjective(director);
-            RefreshHero(hero);
+            RefreshHero(director, hero);
             RefreshAction(director, hero);
 
             if (feedbackText != null)
@@ -98,8 +114,9 @@ namespace Konoha.Campaign
             {
                 case CampaignPhase.GerbangRakyat:
                     objectiveText.text = director.GateCleared
-                        ? "GERBANG RAKYAT  •  Menuju PLAZA ASPIRASI"
-                        : "GERBANG RAKYAT  •  Kalahkan Kroni " + (gateTotal - director.GateRemaining) + "/" + gateTotal;
+                        ? "GERBANG RAKYAT • Menuju PLAZA ASPIRASI"
+                        : "GERBANG RAKYAT • Kroni " + (gateTotal - director.GateRemaining) + "/" + gateTotal +
+                            " • hadiah RESTU";
                     break;
                 case CampaignPhase.PlazaAspirasi:
                     switch (PlazaFocus(director))
@@ -108,11 +125,11 @@ namespace Konoha.Campaign
                             objectiveText.text = MajelisObjective(director);
                             break;
                         case PlazaTask.Biro:
-                            objectiveText.text = "SEGEL " + (director.SealCount + 1) + "/2  BIRO: masuk lingkaran, tekan SAHKAN " +
+                            objectiveText.text = "BIRO • Masuk lingkaran, tekan SAHKAN " +
                                 (director.BiroSteps + 1) + "/" + CampaignTuning.PreviewSlice.BiroSteps;
                             break;
                         default:
-                            objectiveText.text = "PLAZA ASPIRASI  •  Rebut 2 segel: MAJELIS (kiri) & BIRO (kanan)";
+                            objectiveText.text = "PLAZA • Rebut segel MAJELIS (kiri) & BIRO (kanan)";
                             break;
                     }
                     break;
@@ -187,19 +204,33 @@ namespace Konoha.Campaign
         }
 
         // §8.1 "Pecahkan Blok": Senior first, then the Ketua, then the remaining officers.
+        // Kept under ~46 characters: longer lines were cut off on the tablet (0.0.9.2).
         private static string MajelisObjective(CampaignDirector director)
         {
-            string head = "SEGEL " + (director.SealCount + 1) + "/2  MAJELIS: ";
+            const string head = "MAJELIS • ";
             if (!director.MajelisStarted)
-                return head + "datangi sidang di sayap kiri (barat)";
+                return head + "Datangi sidang di sayap kiri";
             if (director.MajelisBlock)
-                return head + "BLOK aktif (-40%)! Kalahkan ANGGOTA SENIOR (" + director.SeniorsAlive + " tersisa)";
+                return head + "BLOK -40%! Kalahkan SENIOR (" + director.SeniorsAlive + " lagi)";
             if (!director.MajelisLeaderDown)
-                return head + "Blok pecah! Tumbangkan KETUA MAJELIS (awas KETOK PALU)";
+                return head + "Blok pecah! Tumbangkan KETUA";
             return head + "Kalahkan sisa pejabat (" + director.MajelisRemaining + ")";
         }
 
-        private void RefreshHero(NetworkObject hero)
+        private void RefreshAura(CampaignDirector director, NetworkObject hero)
+        {
+            if (restuAura == null)
+                return;
+
+            NetworkPlayerCombat combat = hero != null ? hero.GetComponent<NetworkPlayerCombat>() : null;
+            bool show = director.RestuActive && combat != null && !combat.IsKnockedOut;
+            if (restuAura.gameObject.activeSelf != show)
+                restuAura.gameObject.SetActive(show);
+            if (show)
+                restuAura.position = hero.transform.position + Vector3.up * 0.1f;
+        }
+
+        private void RefreshHero(CampaignDirector director, NetworkObject hero)
         {
             if (heroText == null)
                 return;
@@ -216,7 +247,7 @@ namespace Konoha.Campaign
                 : kit.IsStunned ? "STUN"
                 : "WIBAWA " + combat.Wibawa + "/" + combat.MaxWibawaValue;
             heroText.text = NetworkHeroKit.GetHeroName(kit.Hero) + "  •  " + state +
-                "  •  PENGARUH " + kit.Pengaruh + "%";
+                "  •  PENGARUH " + kit.Pengaruh + "%" + (director.RestuActive ? "  •  RESTU" : string.Empty);
         }
 
         private void RefreshAction(CampaignDirector director, NetworkObject hero)

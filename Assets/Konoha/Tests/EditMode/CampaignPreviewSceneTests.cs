@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.0.9.2  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.0.9.2"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(23));
+                    Is.EqualTo("JALUR TAKHTA 0.0.9.2.1  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.0.9.2.1"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(24));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -64,6 +64,18 @@ namespace Konoha.Tests
                 foreach (string control in new[] { "AttackButton", "S1Button", "S2Button", "UltimateButton",
                     "DodgeButton", "HeroButton", "CampaignJump", "CampaignSit" })
                     Assert.That(GameObject.Find(control).GetComponent<UnityEngine.UI.Button>(), Is.Not.Null, control);
+
+                // 0.0.9.2.1 hero screen (covers the HUD until MULAI) and RESTU RAKYAT marker.
+                var heroSelect = Object.FindFirstObjectByType<CampaignHeroSelect>(FindObjectsInactive.Include);
+                Assert.That(heroSelect, Is.Not.Null);
+                Assert.That(heroSelect.heroButtons, Has.Length.EqualTo(4));
+                foreach (var pick in heroSelect.heroButtons) Assert.That(pick, Is.Not.Null);
+                Assert.That(heroSelect.startButton, Is.Not.Null);
+                Assert.That(heroSelect.detailText, Is.Not.Null);
+                Assert.That(heroSelect.transform.GetSiblingIndex(), Is.EqualTo(heroSelect.transform.parent.childCount - 1),
+                    "Hero screen must be drawn above the HUD");
+                Assert.That(preview.restuAura, Is.Not.Null);
+                Assert.That(preview.restuAura.GetComponent<Collider>(), Is.Null);
 
                 var stage = preview.stage;
                 Assert.That(stage, Is.SameAs(session.stage));

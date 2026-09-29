@@ -19,7 +19,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.9.2")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.9.2.1")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +27,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.0.9.2";
-            PlayerSettings.Android.bundleVersionCode = 23;
+            PlayerSettings.bundleVersion = "0.0.9.2.1";
+            PlayerSettings.Android.bundleVersionCode = 24;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -165,7 +165,7 @@ namespace Konoha.Editor
             waypoint.color = new Color(1f, 0.86f, 0.58f);
             waypoint.gameObject.AddComponent<Outline>().effectColor = Color.black;
             var feedback = Text("CampaignFeedback", safe, new Vector2(0.5f, 0.5f),
-                new Vector2(0, 165), new Vector2(720, 48), 23);
+                new Vector2(0, 165), new Vector2(760, 76), 23); // Two lines: RESTU/SIDANG messages.
             feedback.alignment = TextAnchor.MiddleCenter;
             feedback.color = new Color(1f, 0.82f, 0.42f);
             feedback.gameObject.AddComponent<Outline>().effectColor = Color.black;
@@ -213,7 +213,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.0.9.2  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.0.9.2.1  •  SOLO PREVIEW";
 
             var stage = new GameObject("CampaignStage").AddComponent<CampaignStage>();
             stage.plaza = capital.Plaza;
@@ -267,10 +267,66 @@ namespace Konoha.Editor
             arenaView.viewFocus = new Vector3(0f, 2f, 4f);
             arenaView.viewOffset = new Vector3(0f, 62f, -70f);
 
+            // RESTU RAKYAT marker under the local hero (0.0.9.2.1).
+            var aura = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            aura.name = "RestuRakyatAura";
+            UnityEngine.Object.DestroyImmediate(aura.GetComponent<Collider>());
+            aura.transform.localScale = new Vector3(1.8f, 0.006f, 1.8f);
+            var auraRenderer = aura.GetComponent<Renderer>();
+            auraRenderer.sharedMaterial = Mat("CampaignRestuAura", new Color(0.95f, 0.74f, 0.26f));
+            auraRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            aura.SetActive(false);
+            preview.restuAura = aura.transform;
+
+            CreateHeroSelect(safe);
+
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.SaveAssets();
             Debug.Log("Jalur Takhta preview prepared: " + ScenePath);
+        }
+
+        // Hero screen shown before each run (0.0.9.2.1). Last sibling: covers and blocks the HUD.
+        private static void CreateHeroSelect(Transform safe)
+        {
+            var panel = new GameObject("HeroSelectPanel", typeof(RectTransform), typeof(Image));
+            var panelRect = (RectTransform)panel.transform;
+            panelRect.SetParent(safe, false);
+            panelRect.anchorMin = Vector2.zero;
+            panelRect.anchorMax = Vector2.one;
+            panelRect.offsetMin = panelRect.offsetMax = Vector2.zero;
+            panelRect.SetAsLastSibling();
+            panel.GetComponent<Image>().color = new Color(0.04f, 0.06f, 0.07f, 0.86f);
+
+            var title = Text("HeroSelectTitle", panelRect, new Vector2(0.5f, 1f), new Vector2(0, -34), new Vector2(620, 48), 30);
+            title.alignment = TextAnchor.MiddleCenter;
+            title.color = new Color(1f, 0.86f, 0.52f);
+            title.text = "PILIH HERO";
+            title.gameObject.AddComponent<Outline>().effectColor = Color.black;
+            var rule = Text("HeroSelectRule", panelRect, new Vector2(0.5f, 1f), new Vector2(0, -84), new Vector2(720, 28), 16);
+            rule.alignment = TextAnchor.MiddleCenter;
+            rule.text = "Hero terkunci selama perjalanan. Bisa diganti setelah ULANG.";
+
+            var select = panel.AddComponent<CampaignHeroSelect>();
+            select.panel = panel;
+            string[] names = { "MEGA", "GEMOY", "ABAH", "PAK WI" };
+            for (int i = 0; i < names.Length; i++)
+            {
+                var button = Button("HeroPick_" + names[i].Replace(" ", string.Empty), names[i], panelRect,
+                    new Vector2(0.5f, 0.5f), new Vector2(-300f + i * 200f, 70f), new Vector2(184, 84));
+                button.GetComponentInChildren<Text>().fontSize = 24;
+                select.heroButtons[i] = button;
+            }
+
+            var detail = Text("HeroSelectDetail", panelRect, new Vector2(0.5f, 0.5f), new Vector2(0, -52), new Vector2(680, 130), 17);
+            detail.alignment = TextAnchor.MiddleCenter;
+            detail.gameObject.AddComponent<Outline>().effectColor = Color.black;
+            select.detailText = detail;
+
+            var start = Button("HeroSelectStart", "MULAI", panelRect, new Vector2(0.5f, 0f),
+                new Vector2(0, 28), new Vector2(260, 70));
+            start.GetComponentInChildren<Text>().fontSize = 26;
+            select.startButton = start;
         }
 
         // Server-driven organisation member. Shares the hero combat components so every
