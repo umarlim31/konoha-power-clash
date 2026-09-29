@@ -37,9 +37,7 @@ namespace Konoha.Tests
             director.Tick(Plaza, Frame);
             director.Tick(Majelis, Frame);
             Assert.That(director.CompleteMajelis(), Is.True);
-            director.Interact(Biro, 1f);
-            director.Interact(Biro, 2f);
-            director.Interact(Biro, 3f);
+            Assert.That(director.CompleteBiro(), Is.True);
             director.Tick(Plaza, Frame);
         }
 
@@ -109,17 +107,38 @@ namespace Konoha.Tests
         }
 
         [Test]
-        public void BiroNeedsThreeSpacedConfirmations()
+        public void BiroHallOpensWithThePlazaAndStartsNearTheLokets()
         {
             var director = Cleared();
-            director.Tick(Plaza, Frame);
-            Assert.That(director.Interact(Biro, 10f), Is.True);
-            Assert.That(director.Interact(Biro, 10.3f), Is.False, "Confirmation interval is 0.65 s");
-            Assert.That(director.Interact(Biro, 10.7f), Is.True);
+            int requests = 0;
+            var messages = new List<string>();
+            director.BiroRequested += () => requests++;
+            director.Notified += messages.Add;
+            Hold(director, Plaza, 0.5f);
+            Assert.That(requests, Is.EqualTo(1));
+            Assert.That(director.BiroEngaged, Is.False);
+            director.Tick(Biro, Frame);
+            Assert.That(director.BiroEngaged, Is.True);
+            Assert.That(director.Run.Checkpoint, Is.EqualTo(CampaignCheckpoint.BiroProsedur));
+            Assert.That(messages.FindAll(m => m.StartsWith("BIRO PROSEDUR")), Has.Count.EqualTo(1));
+            Assert.That(director.Interact(Biro, 1f), Is.False, "No SAHKAN button any more");
             Assert.That(director.Run.HasSeal(CampaignSector.BiroProsedur), Is.False);
-            Assert.That(director.Interact(Biro, 11.4f), Is.True);
-            Assert.That(director.Run.HasSeal(CampaignSector.BiroProsedur), Is.True);
-            Assert.That(director.Interact(Plaza, 20f), Is.False);
+        }
+
+        [Test]
+        public void EitherSealOrderOpensTheInnerGate()
+        {
+            var director = Cleared();
+            int gardaRequests = 0;
+            director.GardaRequested += () => gardaRequests++;
+            director.Tick(Plaza, Frame);
+            Assert.That(director.CompleteBiro(), Is.True, "Biro first");
+            Assert.That(director.CompleteBiro(), Is.False, "Only once");
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.PlazaAspirasi));
+            Assert.That(director.CompleteMajelis(), Is.True);
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.GerbangDalam));
+            director.Tick(Plaza, Frame);
+            Assert.That(gardaRequests, Is.EqualTo(1));
         }
 
         [Test]
@@ -187,7 +206,8 @@ namespace Konoha.Tests
             director.Restart();
             Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.GerbangRakyat));
             Assert.That(director.Run.RuntuhCount, Is.Zero);
-            Assert.That(director.BiroSteps, Is.Zero);
+            Assert.That(director.BiroPrepared, Is.False);
+            Assert.That(director.BiroEngaged, Is.False);
             Assert.That(director.GateCleared, Is.False);
             Assert.That(director.GardaPrepared, Is.False);
             Assert.That(director.MajelisPrepared, Is.False);

@@ -45,6 +45,39 @@ namespace Konoha.Campaign
             new Vector3(-31.5f, 0.1f, -8f),
             new Vector3(-24f, 0.1f, -6f)
         };
+        // 0.0.9.3 Biro Prosedur loket hall (east wing, south of the hall at x 28). The
+        // Kepala Biro waits in a walled office in front of the hall until all lokets are
+        // stamped. Values match CampaignCapitalArt (booths, office walls, zone discs).
+        public Vector3[] loketPoints =
+        {
+            new Vector3(22.5f, 0.1f, -9f),
+            new Vector3(27.5f, 0.1f, -10.5f),
+            new Vector3(32f, 0.1f, -8.5f)
+        };
+        public Vector3 biroOfficeCenter = new Vector3(28f, 0.1f, -4.8f);
+        // Office walls (x 25..31, z -6.6..-1.8) with a single door in the south wall at x 28.
+        public Vector2 officeMin = new Vector2(25f, -6.6f);
+        public Vector2 officeMax = new Vector2(31f, -1.8f);
+        public Vector3 officeDoorInside = new Vector3(28f, 0.1f, -5.6f);
+        public Vector3 officeDoorOutside = new Vector3(28f, 0.1f, -7.6f);
+        public Vector3 biroLeaderPoint = new Vector3(28f, 0.1f, -4.6f);
+        public Vector3 biroSpecialistPoint = new Vector3(30f, 0.1f, -14.5f);
+        public Vector3 biroGuardPoint = new Vector3(24f, 0.1f, -7.2f);
+        public Vector3[] biroArsipPoints =
+        {
+            new Vector3(25f, 0.1f, -13.8f),
+            new Vector3(31.2f, 0.1f, -12.8f)
+        };
+
+        // Index of the loket zone containing this point, -1 when none.
+        public int LoketAt(Vector3 position)
+        {
+            for (int i = 0; i < loketPoints.Length; i++)
+                if (CampaignObjectiveDirector.Near(position, loketPoints[i], CampaignTuning.Biro.LoketRadius))
+                    return i;
+            return -1;
+        }
+
         // Checkpoints 3/4 sit on the wing corridor, outside the sector leash (11 m), so a
         // revived hero is not dropped into the middle of the sidang.
         public Vector3 majelisCheckpoint = new Vector3(-14f, 0.1f, -5f);
@@ -79,9 +112,24 @@ namespace Konoha.Campaign
             return new Vector3(point.x, Mathf.Max(point.y, 0f) + DropHeight, point.z);
         }
 
+        public bool InOffice(Vector3 point) =>
+            point.x > officeMin.x && point.x < officeMax.x && point.z > officeMin.y && point.z < officeMax.y;
+
         // Next intermediate point on the way from 'from' to 'to'; 'to' itself when direct.
         public Vector3 Steer(Vector3 from, Vector3 to)
         {
+            // The Kepala Biro office is entered and left only through its door.
+            bool fromOffice = InOffice(from);
+            if (fromOffice != InOffice(to))
+            {
+                Vector3 near = fromOffice ? officeDoorInside : officeDoorOutside;
+                Vector3 far = fromOffice ? officeDoorOutside : officeDoorInside;
+                bool inDoorway = Mathf.Abs(from.x - near.x) < 0.9f &&
+                    from.z >= Mathf.Min(near.z, far.z) - 0.4f && from.z <= Mathf.Max(near.z, far.z) + 0.4f;
+                Vector3 next = inDoorway ? far : near;
+                return new Vector3(next.x, from.y, next.z);
+            }
+
             float level = terraceHeight - 1f;
             bool fromHigh = from.y > level;
             bool toHigh = to.y > level;

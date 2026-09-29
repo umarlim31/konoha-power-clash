@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.0.9.2.1  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.0.9.2.1"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(24));
+                    Is.EqualTo("JALUR TAKHTA 0.0.9.3  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.0.9.3"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(25));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -176,7 +176,10 @@ namespace Konoha.Tests
                 Physics.SyncTransforms();
                 Vector3 seat = stage.chair.position;
                 Vector3[] route = { new Vector3(0,0,-44), new Vector3(0,0,-30), new Vector3(0,0,-8),
-                    new Vector3(-28,0,-5), new Vector3(28,0,-5), new Vector3(4.4f,0,-5), new Vector3(4.4f,0,7.4f),
+                    // 0.0.9.3: the Biro hall is walked through its loket row (the office in front
+                    // of the hall at x 25..31 is walled).
+                    new Vector3(-28,0,-5), new Vector3(22,0,-5), new Vector3(22,0,-9.5f), new Vector3(31.8f,0,-9.5f),
+                    new Vector3(22,0,-9.5f), new Vector3(22,0,-5), new Vector3(4.4f,0,-5), new Vector3(4.4f,0,7.4f),
                     new Vector3(2.5f,0,13), new Vector3(0,0,15), new Vector3(0,0,19.5f), new Vector3(0,0,28),
                     stage.rampBase + Vector3.forward, stage.rampTop - Vector3.forward, seat - Vector3.forward * 1.2f };
                 for (int segment = 1; segment < route.Length; segment++)
@@ -198,6 +201,25 @@ namespace Konoha.Tests
                     Assert.That(CampaignObjectiveDirector.Near(point, stage.majelis.position, CampaignTuning.Majelis.LeashRadius),
                         Is.True, "Majelis member outside its hall leash: " + point);
                 }
+                // 0.0.9.3 Biro Prosedur: every loket centre, member point and door waypoint is clear.
+                Assert.That(stage.loketPoints, Has.Length.EqualTo(CampaignTuning.Biro.LoketCount));
+                foreach (var point in stage.loketPoints) AssertFree(Flat(point), probe.transform, "Loket blocked at ");
+                foreach (var point in stage.biroArsipPoints) AssertFree(Flat(point), probe.transform, "Arsip spawn blocked at ");
+                foreach (var point in new[] { stage.biroLeaderPoint, stage.biroSpecialistPoint, stage.biroGuardPoint,
+                    stage.officeDoorOutside })
+                    AssertFree(Flat(point), probe.transform, "Biro point blocked at ");
+                Assert.That(stage.InOffice(stage.biroLeaderPoint), Is.True, "Kepala Biro starts in his office");
+                Assert.That(stage.InOffice(stage.officeDoorOutside), Is.False);
+                foreach (var point in stage.loketPoints)
+                    Assert.That(stage.InOffice(point), Is.False, "Loket inside the office: " + point);
+                Assert.That(preview.loketZones, Has.Length.EqualTo(stage.loketPoints.Length));
+                Assert.That(preview.loketLabels, Has.Length.EqualTo(stage.loketPoints.Length));
+                Assert.That(preview.biroDoorClosed, Is.Not.Null);
+                Assert.That(preview.debuffText, Is.Not.Null);
+                // Steering leaves the office through the door, never through a wall.
+                Vector3 exit = stage.Steer(stage.biroLeaderPoint, stage.loketPoints[0]);
+                Assert.That(Mathf.Abs(exit.x - stage.officeDoorInside.x), Is.LessThan(.01f));
+
                 Assert.That(CampaignObjectiveDirector.Near(stage.CheckpointPosition(CampaignCheckpoint.MajelisDaun),
                     stage.majelis.position, CampaignTuning.Majelis.LeashRadius + .5f), Is.False,
                     "Majelis checkpoint must lie outside the sidang leash");

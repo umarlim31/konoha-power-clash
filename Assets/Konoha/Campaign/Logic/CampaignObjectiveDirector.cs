@@ -27,8 +27,8 @@ namespace Konoha.Campaign
     // Plain C# (no MonoBehaviour); the caller supplies player position, input, clock and
     // encounter outcomes. It is the only writer of CampaignRunState. The fights use real
     // enemies: this class only announces when an encounter must be prepared (events) and
-    // is told when it was cleared (MarkGateCleared, CompleteMajelis, CompleteGarda).
-    // Biro keeps its 0.0.8.x placeholder mechanic until 0.0.9.3.
+    // is told when it was cleared (MarkGateCleared, CompleteMajelis, CompleteBiro,
+    // CompleteGarda). Majelis and Biro may be cleared in either order (§3).
     public sealed class CampaignObjectiveDirector
     {
         private readonly CampaignObjectiveLayout layout;
@@ -40,14 +40,16 @@ namespace Konoha.Campaign
         public bool GardaPrepared { get; private set; }
         public bool MajelisPrepared { get; private set; }
         public bool MajelisEngaged { get; private set; }
-        public int BiroSteps { get; private set; }
-        public float NextBiroStep { get; private set; }
+        public bool BiroPrepared { get; private set; }
+        public bool BiroEngaged { get; private set; }
         public bool CounterattackLaunched { get; private set; }
 
         // Raised with a player-facing message.
         public event Action<string> Notified;
         // The plaza was reached: place the Majelis Daun sidang in its hall.
         public event Action MajelisRequested;
+        // The plaza was reached: open the Biro Prosedur loket hall.
+        public event Action BiroRequested;
         // The inner gate opened: place the Garda Takhta defenders.
         public event Action GardaRequested;
         // The ruler has held the seat long enough: send the counterattack.
@@ -70,8 +72,8 @@ namespace Konoha.Campaign
             GardaPrepared = false;
             MajelisPrepared = false;
             MajelisEngaged = false;
-            BiroSteps = 0;
-            NextBiroStep = 0f;
+            BiroPrepared = false;
+            BiroEngaged = false;
             powerClock = 0f;
             counterattackClock = 0f;
             CounterattackLaunched = false;
@@ -97,6 +99,23 @@ namespace Konoha.Campaign
             }
             if (!Run.AwardSeal(CampaignSector.MajelisDaun)) return false;
             Notify("SEGEL MAJELIS diperoleh!  Pengaruh +" + CampaignTuning.Majelis.SealPengaruh);
+            if (Run.TryOpenInnerGate())
+                Notify("Gerbang Dalam terbuka! Hadapi GARDA TAKHTA");
+            return true;
+        }
+
+        // Every loket stamped and the Kepala Biro down (BiroEncounter.Cleared). Awards the seal.
+        public bool CompleteBiro()
+        {
+            if (Run.Phase != CampaignPhase.PlazaAspirasi || Run.HasSeal(CampaignSector.BiroProsedur))
+                return false;
+            if (!BiroEngaged)
+            {
+                BiroEngaged = true;
+                Run.BeginSector(CampaignSector.BiroProsedur);
+            }
+            if (!Run.AwardSeal(CampaignSector.BiroProsedur)) return false;
+            Notify("SEGEL BIRO diperoleh!  Pengaruh +" + CampaignTuning.Biro.SealPengaruh);
             if (Run.TryOpenInnerGate())
                 Notify("Gerbang Dalam terbuka! Hadapi GARDA TAKHTA");
             return true;
@@ -133,7 +152,19 @@ namespace Konoha.Campaign
                     Run.BeginSector(CampaignSector.MajelisDaun);
                     Notify("SIDANG MAJELIS!  Blok Majelis menahan serangan: incar ANGGOTA SENIOR dulu");
                 }
-                // Biro: confirm three separate files (Interact).
+                // Biro: the loket hall opens together with the plaza.
+                if (!BiroPrepared)
+                {
+                    BiroPrepared = true;
+                    BiroRequested?.Invoke();
+                }
+                if (!BiroEngaged && !Run.HasSeal(CampaignSector.BiroProsedur) &&
+                    Near(player, layout.Biro, CampaignTuning.Biro.SectorEngageRadius))
+                {
+                    BiroEngaged = true;
+                    Run.BeginSector(CampaignSector.BiroProsedur);
+                    Notify("BIRO PROSEDUR!  Cap 3 LOKET, usir petugas dari antrian, awas PENGAWAS");
+                }
                 if (Run.TryOpenInnerGate())
                     Notify("Gerbang Dalam terbuka! Hadapi GARDA TAKHTA");
             }
@@ -182,30 +213,14 @@ namespace Konoha.Campaign
             }
         }
 
-        public bool IsAtBiro(Vector3 player) =>
-            Run.Phase == CampaignPhase.PlazaAspirasi &&
-            !Run.HasSeal(CampaignSector.BiroProsedur) &&
-            Near(player, layout.Biro, CampaignTuning.PreviewSlice.SectorRadius);
-
-        public bool CanConfirmBiro(Vector3 player, float now) => IsAtBiro(player) && now >= NextBiroStep;
-
         public bool CanSit(Vector3 player) =>
             Run.Phase == CampaignPhase.KursiTerbuka &&
             Near(player, layout.Chair, CampaignTuning.PreviewSlice.ChairRadius);
 
-        // Contextual action button (SAHKAN / DUDUK). Returns true when something happened.
+        // Contextual action button (DUDUK). Returns true when something happened. The Biro
+        // lokets are zones since 0.0.9.3, so there is no SAHKAN any more.
         public bool Interact(Vector3 player, float now)
         {
-            if (CanConfirmBiro(player, now))
-            {
-                if (BiroSteps == 0) Run.BeginSector(CampaignSector.BiroProsedur);
-                NextBiroStep = now + CampaignTuning.PreviewSlice.BiroStepIntervalSeconds;
-                BiroSteps++;
-                if (BiroSteps >= CampaignTuning.PreviewSlice.BiroSteps && Run.AwardSeal(CampaignSector.BiroProsedur))
-                    Notify("Segel Biro Prosedur diperoleh");
-                else Notify("Berkas disahkan: " + BiroSteps + "/" + CampaignTuning.PreviewSlice.BiroSteps);
-                return true;
-            }
             if (CanSit(player) && Run.TrySit())
             {
                 Notify("Bertahan di Kursi untuk mengumpulkan Kuasa");
