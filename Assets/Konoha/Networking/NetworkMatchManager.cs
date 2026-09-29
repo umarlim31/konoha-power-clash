@@ -207,6 +207,11 @@ namespace Konoha.Networking
             return 1f;
         }
 
+        public float GetCooldownMultiplier(NetworkObject actor)
+        {
+            return 1f;
+        }
+
         private void Update()
         {
             if (!IsServer || !IsSpawned)

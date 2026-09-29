@@ -19,7 +19,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.9.2.1")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.9.3")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +27,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.0.9.2.1";
-            PlayerSettings.Android.bundleVersionCode = 24;
+            PlayerSettings.bundleVersion = "0.0.9.3";
+            PlayerSettings.Android.bundleVersionCode = 25;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -173,6 +173,12 @@ namespace Konoha.Editor
                 new Vector2(14, -128), new Vector2(430, 28), 16);
             heroText.alignment = TextAnchor.MiddleLeft;
             heroText.gameObject.AddComponent<Outline>().effectColor = Color.black;
+            // STEMPEL TUNDA debuff line (0.0.9.3), empty when not slowed.
+            var debuff = Text("CampaignDebuff", safe, new Vector2(0f, 1f),
+                new Vector2(14, -154), new Vector2(430, 26), 15);
+            debuff.alignment = TextAnchor.MiddleLeft;
+            debuff.color = new Color(1f, 0.55f, 0.45f);
+            debuff.gameObject.AddComponent<Outline>().effectColor = Color.black;
 
             // Real hero controls. The names are the ones the networked hero components bind
             // to (NetworkPlayerCombat, NetworkHeroKit, NetworkPlayerMovement).
@@ -213,7 +219,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.0.9.2.1  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.0.9.3  •  SOLO PREVIEW";
 
             var stage = new GameObject("CampaignStage").AddComponent<CampaignStage>();
             stage.plaza = capital.Plaza;
@@ -224,6 +230,11 @@ namespace Konoha.Editor
             stage.startPoint = CampaignCapitalArt.SpawnPoint;
             stage.terraceHeight = CampaignCapitalArt.TerraceHeight;
             stage.innerGateZ = CampaignCapitalArt.InnerGateZ;
+            stage.loketPoints = new Vector3[CampaignCapitalArt.LoketCenters.Length];
+            for (int i = 0; i < stage.loketPoints.Length; i++)
+                stage.loketPoints[i] = CampaignCapitalArt.LoketCenters[i] + Vector3.up * 0.1f;
+            stage.officeMin = new Vector2(CampaignCapitalArt.OfficeWestX, CampaignCapitalArt.OfficeSouthZ);
+            stage.officeMax = new Vector2(CampaignCapitalArt.OfficeEastX, CampaignCapitalArt.OfficeNorthZ);
 
             var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SpikeProject.Generated + "/NetworkPlayer.prefab");
             if (playerPrefab == null)
@@ -254,6 +265,11 @@ namespace Konoha.Editor
             preview.feedbackText = feedback;
             preview.objectiveProgress = fillImage;
             preview.sitButton = sit;
+            preview.biroDoorClosed = capital.BiroDoorClosed;
+            preview.biroDoorOpen = capital.BiroDoorOpen;
+            preview.loketZones = capital.LoketZones;
+            preview.loketLabels = capital.LoketLabels;
+            preview.debuffText = debuff;
 
             var viewButton = Button("ArenaViewButton", "LIHAT ARENA", safe, new Vector2(0f, 1f),
                 new Vector2(14f, -14f), new Vector2(164f, 44f));
@@ -411,6 +427,13 @@ namespace Konoha.Editor
             telegraphOuter.SetActive(false);
             telegraphFill.SetActive(false);
 
+            // STEMPEL TUNDA radius (8 m) under a Biro Pengawas (0.0.9.3).
+            float stempel = CampaignTuning.Biro.StempelTundaRadius * 2f;
+            var stempelAura = Part("StempelTundaArea", PrimitiveType.Cylinder, root.transform, new Vector3(0f, 0.04f, 0f),
+                new Vector3(stempel, 0.004f, stempel), Mat("CampaignStempelAura", new Color(0.30f, 0.38f, 0.52f)));
+            stempelAura.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            stempelAura.SetActive(false);
+
             var labelObject = new GameObject("Nameplate");
             labelObject.transform.SetParent(root.transform, false);
             labelObject.transform.localPosition = new Vector3(0f, 3.0f, 0f);
@@ -435,6 +458,7 @@ namespace Konoha.Editor
             enemy.gavelPivot = gavelPivot.transform;
             enemy.telegraphOuter = telegraphOuter.transform;
             enemy.telegraphFill = telegraphFill.transform;
+            enemy.stempelAura = stempelAura;
             SpikeProject.CreateWorldWibawaBar(root);
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);

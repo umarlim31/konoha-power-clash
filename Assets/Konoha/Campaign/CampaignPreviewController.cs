@@ -6,7 +6,7 @@ using UnityEngine.UI;
 namespace Konoha.Campaign
 {
     // Jalur Takhta HUD bridge (every peer). Reads the replicated CampaignDirector state and
-    // the local hero; sends the contextual SAHKAN / DUDUK / ULANG action to the host.
+    // the local hero; sends the contextual DUDUK / ULANG action to the host.
     // Combat, hero abilities and enemies are the shared networked systems since 0.0.9;
     // the old prototype guard and single-button skills are gone.
     public sealed class CampaignPreviewController : MonoBehaviour
@@ -25,6 +25,19 @@ namespace Konoha.Campaign
         public Button sitButton;
         // Gold ring under the local hero while RESTU RAKYAT is active (no collider).
         public Transform restuAura;
+        // Biro Prosedur (0.0.9.3): office door, loket zone discs and labels, debuff line.
+        public GameObject biroDoorClosed;
+        public GameObject biroDoorOpen;
+        public Renderer[] loketZones = new Renderer[0];
+        public TextMesh[] loketLabels = new TextMesh[0];
+        public Text debuffText;
+
+        private static readonly Color LoketIdle = new Color(0.22f, 0.34f, 0.52f);
+        private static readonly Color LoketFull = new Color(0.95f, 0.74f, 0.26f);
+        private static readonly Color LoketQueue = new Color(0.78f, 0.16f, 0.14f);
+        private static readonly Color LoketDone = new Color(0.30f, 0.66f, 0.36f);
+        private MaterialPropertyBlock loketBlock;
+        private int[] loketLabelState;
 
         private Text sitLabel;
         private float nextWaypointRefresh;
@@ -70,8 +83,16 @@ namespace Konoha.Campaign
             if (innerGateOpen != null && innerGateOpen.activeSelf == innerLocked)
                 innerGateOpen.SetActive(!innerLocked);
 
+            bool officeLocked = !director.BiroDoorOpen;
+            if (biroDoorClosed != null && biroDoorClosed.activeSelf != officeLocked)
+                biroDoorClosed.SetActive(officeLocked);
+            if (biroDoorOpen != null && biroDoorOpen.activeSelf == officeLocked)
+                biroDoorOpen.SetActive(!officeLocked);
+            RefreshLokets(director);
+
             NetworkObject hero = LocalHero();
             RefreshAura(director, hero);
+            RefreshDebuff(hero);
             if (!director.HeroLocked)
             {
                 // Hero screen (CampaignHeroSelect) is open; the run has not started yet.
@@ -125,8 +146,7 @@ namespace Konoha.Campaign
                             objectiveText.text = MajelisObjective(director);
                             break;
                         case PlazaTask.Biro:
-                            objectiveText.text = "BIRO • Masuk lingkaran, tekan SAHKAN " +
-                                (director.BiroSteps + 1) + "/" + CampaignTuning.PreviewSlice.BiroSteps;
+                            objectiveText.text = BiroObjective(director);
                             break;
                         default:
                             objectiveText.text = "PLAZA • Rebut segel MAJELIS (kiri) & BIRO (kanan)";
@@ -170,7 +190,7 @@ namespace Konoha.Campaign
                     fill = task == PlazaTask.Majelis
                         ? (director.MajelisTotal > 0 ? 1f - director.MajelisRemaining / (float)director.MajelisTotal : 0f)
                         : task == PlazaTask.Biro
-                            ? director.BiroSteps / (float)CampaignTuning.PreviewSlice.BiroSteps
+                            ? BiroFill(director)
                             : director.SealCount / (float)director.RequiredSeals;
                     break;
                 case CampaignPhase.GardaTakhta:
@@ -198,7 +218,7 @@ namespace Konoha.Campaign
             bool biroDone = director.HasSeal(CampaignSector.BiroProsedur);
             if (!majelisDone && (director.MajelisStarted || biroDone))
                 return PlazaTask.Majelis;
-            if (!biroDone && (majelisDone || director.BiroSteps > 0))
+            if (!biroDone && (majelisDone || director.BiroStarted))
                 return PlazaTask.Biro;
             return majelisDone && biroDone ? PlazaTask.Biro : PlazaTask.Choose;
         }
@@ -215,6 +235,80 @@ namespace Konoha.Campaign
             if (!director.MajelisLeaderDown)
                 return head + "Blok pecah! Tumbangkan KETUA";
             return head + "Kalahkan sisa pejabat (" + director.MajelisRemaining + ")";
+        }
+
+        // §8.2 "Sahkan Berkas": lokets first, then the Kepala Biro. Kept under ~46 characters.
+        private static string BiroObjective(CampaignDirector director)
+        {
+            const string head = "BIRO • ";
+            int stamped = director.LoketStampedCount;
+            if (!director.BiroStarted)
+                return head + "Datangi loket di sayap kanan";
+            if (!director.BiroDoorOpen)
+            {
+                for (int i = 0; i < director.LoketCount; i++)
+                    if (director.LoketContested(i) && !director.LoketStamped(i))
+                        return head + "Cap LOKET " + stamped + "/3 • usir ANTRIAN";
+                return head + "Berdiri di LOKET untuk cap (" + stamped + "/3)";
+            }
+            return director.BiroLeaderDown
+                ? head + "Selesaikan loket (" + stamped + "/3)"
+                : head + "Pintu terbuka! Tumbangkan KEPALA BIRO";
+        }
+
+        private static float BiroFill(CampaignDirector director)
+        {
+            if (director.BiroDoorOpen)
+                return 1f;
+            float total = 0f;
+            for (int i = 0; i < director.LoketCount; i++)
+                total += director.LoketStamped(i) ? 1f : director.LoketProgress(i);
+            return total / director.LoketCount;
+        }
+
+        // Loket discs: blue idle, gold while filling, red with a queue, green once stamped.
+        private void RefreshLokets(CampaignDirector director)
+        {
+            loketBlock ??= new MaterialPropertyBlock();
+            for (int i = 0; i < loketZones.Length && i < director.LoketCount; i++)
+            {
+                bool stamped = director.LoketStamped(i);
+                bool queue = !stamped && director.LoketContested(i);
+                float progress = director.LoketProgress(i);
+                Color color = stamped ? LoketDone : queue ? LoketQueue : Color.Lerp(LoketIdle, LoketFull, progress);
+
+                if (loketZones[i] != null)
+                {
+                    loketZones[i].GetPropertyBlock(loketBlock);
+                    loketBlock.SetColor("_BaseColor", color);
+                    loketZones[i].SetPropertyBlock(loketBlock);
+                }
+
+                if (i < loketLabels.Length && loketLabels[i] != null)
+                {
+                    // Rebuilt only when the shown state changes (no per-frame string garbage).
+                    int state = stamped ? 1000 : queue ? 1001 : Mathf.FloorToInt(progress * 100f);
+                    if (loketLabelState == null || loketLabelState.Length != loketLabels.Length)
+                        loketLabelState = new int[loketLabels.Length];
+                    if (loketLabelState[i] != state + 1)
+                    {
+                        loketLabelState[i] = state + 1;
+                        loketLabels[i].text = "LOKET " + (i + 1) + "\n" + (stamped ? "TERCAP"
+                            : queue ? "ANTRIAN"
+                            : state > 0 ? state + "%"
+                            : "BERDIRI DI SINI");
+                    }
+                    loketLabels[i].color = stamped ? new Color(0.62f, 1f, 0.66f) : queue ? new Color(1f, 0.45f, 0.40f) : Color.white;
+                }
+            }
+        }
+
+        private void RefreshDebuff(NetworkObject hero)
+        {
+            if (debuffText == null)
+                return;
+            bool slowed = hero != null && CampaignEnemy.InsideStempelTunda(hero.transform.position);
+            debuffText.text = slowed ? "STEMPEL TUNDA: cooldown skill +30%" : string.Empty;
         }
 
         private void RefreshAura(CampaignDirector director, NetworkObject hero)
@@ -256,18 +350,13 @@ namespace Konoha.Campaign
                 return;
 
             Vector3 position = hero != null ? hero.transform.position : Vector3.one * 999f;
-            bool atBiro = director.Phase == CampaignPhase.PlazaAspirasi &&
-                !director.HasSeal(CampaignSector.BiroProsedur) &&
-                CampaignObjectiveDirector.Near(position, stage.biro.position, CampaignTuning.PreviewSlice.SectorRadius);
             bool canSit = director.Phase == CampaignPhase.KursiTerbuka &&
                 CampaignObjectiveDirector.Near(position, stage.chair.position, CampaignTuning.PreviewSlice.ChairRadius);
             bool won = director.Phase == CampaignPhase.Menang;
 
-            sitButton.gameObject.SetActive(atBiro || canSit || won);
+            sitButton.gameObject.SetActive(canSit || won);
             if (sitLabel != null)
-                sitLabel.text = won ? "ULANG"
-                    : atBiro ? "SAHKAN " + (director.BiroSteps + 1) + "/" + CampaignTuning.PreviewSlice.BiroSteps
-                    : "DUDUK";
+                sitLabel.text = won ? "ULANG" : "DUDUK";
         }
 
         private void RefreshWaypoint(CampaignDirector director, NetworkObject hero)
@@ -298,9 +387,12 @@ namespace Konoha.Campaign
                     PlazaTask task = PlazaFocus(director);
                     if (task == PlazaTask.Biro)
                     {
-                        destination = stage.biro.position;
-                        label = "BIRO";
-                        arrival = CampaignTuning.PreviewSlice.SectorRadius;
+                        if (!BiroTarget(director, hero.transform.position, out destination, out label, out arrival))
+                        {
+                            destination = stage.biro.position;
+                            label = "BIRO";
+                            arrival = CampaignTuning.PreviewSlice.SectorRadius;
+                        }
                     }
                     else if (director.MajelisStarted && MajelisTarget(director, hero.transform.position,
                         out destination, out label))
@@ -334,7 +426,9 @@ namespace Konoha.Campaign
             float distance = new Vector2(delta.x, delta.z).magnitude;
             if (distance < arrival)
             {
-                waypointText.text = label == "BIRO" ? "DI BIRO: tekan SAHKAN 3 kali" : "DI LOKASI: " + label;
+                waypointText.text = label.StartsWith("LOKET")
+                    ? "DI " + label + ": tetap berdiri sampai tercap"
+                    : "DI LOKASI: " + label;
                 return;
             }
 
@@ -357,6 +451,45 @@ namespace Konoha.Campaign
             else
                 direction = (delta.z < 0f ? "BELAKANG " : "DEPAN ") + (delta.x < 0f ? "KIRI" : "KANAN");
             waypointText.text = "ARAH " + label + ": " + direction + "  •  " + Mathf.CeilToInt(distance) + " m";
+        }
+
+        // Nearest unstamped loket, then the Kepala Biro once his door is open.
+        private bool BiroTarget(CampaignDirector director, Vector3 from, out Vector3 position, out string label,
+            out float arrival)
+        {
+            arrival = CampaignTuning.Biro.LoketRadius * 0.8f;
+            if (!director.BiroStarted)
+            {
+                position = stage.biro.position;
+                label = "BIRO";
+                arrival = CampaignTuning.PreviewSlice.SectorRadius;
+                return true;
+            }
+
+            if (director.BiroDoorOpen && !director.BiroLeaderDown &&
+                NearestEnemy(from, out position, FactionId.BiroProsedur, UnitRole.Pemimpin))
+            {
+                label = "KEPALA BIRO";
+                arrival = CampaignTuning.PreviewSlice.WaypointArrivalRadius;
+                return true;
+            }
+
+            position = Vector3.zero;
+            label = "BIRO";
+            float best = float.MaxValue;
+            for (int i = 0; i < stage.loketPoints.Length && i < director.LoketCount; i++)
+            {
+                if (director.LoketStamped(i))
+                    continue;
+                float distance = (stage.loketPoints[i] - from).sqrMagnitude;
+                if (distance < best)
+                {
+                    best = distance;
+                    position = stage.loketPoints[i];
+                    label = "LOKET " + (i + 1);
+                }
+            }
+            return best < float.MaxValue;
         }
 
         private static bool MajelisTarget(CampaignDirector director, Vector3 from, out Vector3 position, out string label)
@@ -384,7 +517,7 @@ namespace Konoha.Campaign
         {
             position = Vector3.zero;
             float best = float.MaxValue;
-            foreach (CampaignEnemy enemy in FindObjectsByType<CampaignEnemy>(FindObjectsSortMode.None))
+            foreach (CampaignEnemy enemy in CampaignEnemy.Active)
             {
                 if (enemy == null || !enemy.IsSpawned || enemy.IsOutOfFight)
                     continue;

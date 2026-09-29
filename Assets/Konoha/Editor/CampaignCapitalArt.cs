@@ -32,6 +32,18 @@ namespace Konoha.Editor
         private Mesh column, dome, roof, arch, feather, frond, pedestal, rim;
         internal Transform Plaza, Majelis, Biro, Garda, Throne;
         internal GameObject InnerGateClosed, InnerGateOpen;
+        // 0.0.9.3 Biro Prosedur loket hall.
+        internal GameObject BiroDoorClosed, BiroDoorOpen;
+        internal Renderer[] LoketZones;
+        internal TextMesh[] LoketLabels;
+        // Loket centres on the ground; CampaignStage.loketPoints carries the same values.
+        internal static readonly Vector3[] LoketCenters =
+        {
+            new Vector3(22.5f, 0f, -9f), new Vector3(27.5f, 0f, -10.5f), new Vector3(32f, 0f, -8.5f)
+        };
+        // Kepala Biro office in front of the hall: walls x 25..31, south wall z -6.6, door 2.2 m.
+        internal const float OfficeWestX = 25f, OfficeEastX = 31f, OfficeSouthZ = -6.6f, OfficeNorthZ = -1.8f;
+        internal const float OfficeDoorHalfWidth = 1.1f;
         internal Material Gold => bronze;
         internal Material Ivory => ivory;
         internal Material Red => red;
@@ -128,7 +140,84 @@ namespace Konoha.Editor
             var sector = Institution("Biro Prosedur", new Vector3(28, 0, WingCorridorZ), true, biroCloth, biroTrim);
             Sign("BIRO PROSEDUR", new Vector3(28, 6.6f, -2.4f), 0f, 1f);
             Sign("BIRO PROSEDUR >", new Vector3(6.5f, 2.6f, -3.6f), 0f, .7f);
+            BuildBiroOffice();
+            BuildLokets();
             return sector;
+        }
+
+        // Walled office of the Kepala Biro (§8.2 "pintu berlapis"). Walls are 2.4 m (jump
+        // height 1.25 m cannot clear them) and on Ignore Raycast so the orbit camera ignores them.
+        private void BuildBiroOffice()
+        {
+            float centerX = (OfficeWestX + OfficeEastX) * .5f;
+            float depth = OfficeNorthZ - OfficeSouthZ;
+            foreach (float x in new[] { OfficeWestX, OfficeEastX })
+            {
+                var side = Block("Kantor Kepala Biro wall", new Vector3(x, 1.2f, OfficeSouthZ + depth * .5f),
+                    new Vector3(.25f, 2.4f, depth), biroCloth, true);
+                side.layer = 2;
+                Block("Kantor Kepala Biro coping", new Vector3(x, 2.46f, OfficeSouthZ + depth * .5f),
+                    new Vector3(.36f, .12f, depth), biroTrim);
+            }
+            float doorWest = centerX - OfficeDoorHalfWidth, doorEast = centerX + OfficeDoorHalfWidth;
+            foreach (var span in new[] { new Vector2(OfficeWestX, doorWest), new Vector2(doorEast, OfficeEastX) })
+            {
+                float width = span.y - span.x;
+                var front = Block("Kantor Kepala Biro wall", new Vector3(span.x + width * .5f, 1.2f, OfficeSouthZ),
+                    new Vector3(width + .25f, 2.4f, .25f), biroCloth, true);
+                front.layer = 2;
+                Block("Kantor Kepala Biro coping", new Vector3(span.x + width * .5f, 2.46f, OfficeSouthZ),
+                    new Vector3(width + .36f, .12f, .36f), biroTrim);
+            }
+            Sign("KANTOR KEPALA BIRO", new Vector3(centerX, 3.0f, OfficeSouthZ - .2f), 0f, .55f);
+
+            // The door: solid until every loket is stamped, then two leaves fold outward (decor only).
+            BiroDoorClosed = new GameObject("Pintu Kepala Biro - locked");
+            BiroDoorClosed.transform.SetParent(root);
+            BiroDoorOpen = new GameObject("Pintu Kepala Biro - open");
+            BiroDoorOpen.transform.SetParent(root);
+            var door = Block("Pintu Kepala Biro", new Vector3(centerX, 1.2f, OfficeSouthZ),
+                new Vector3(OfficeDoorHalfWidth * 2f, 2.4f, .2f), biroTrim, true);
+            door.layer = 2;
+            door.transform.SetParent(BiroDoorClosed.transform, true);
+            var stamp = Block("Pintu Kepala Biro stamp seal", new Vector3(centerX, 1.4f, OfficeSouthZ - .12f),
+                new Vector3(.7f, .7f, .04f), red);
+            stamp.transform.SetParent(BiroDoorClosed.transform, true);
+            foreach (int side in new[] { -1, 1 })
+            {
+                var leaf = Block("Pintu Kepala Biro (open)",
+                    new Vector3(centerX + side * (OfficeDoorHalfWidth + .1f), 1.2f, OfficeSouthZ - .55f),
+                    new Vector3(.12f, 2.4f, 1.1f), biroTrim);
+                leaf.transform.SetParent(BiroDoorOpen.transform, true);
+            }
+            BiroDoorOpen.SetActive(false);
+        }
+
+        // Three loket zones (radius 2 m) with a counter behind each. Zone discs and labels are
+        // dynamic (colour/text change at runtime), so they are not batching-static.
+        private void BuildLokets()
+        {
+            var zoneMaterial = Surface("BiroLoketZone", new Color(0.22f, 0.34f, 0.52f), 0.1f);
+            LoketZones = new Renderer[LoketCenters.Length];
+            LoketLabels = new TextMesh[LoketCenters.Length];
+            for (int i = 0; i < LoketCenters.Length; i++)
+            {
+                Vector3 c = LoketCenters[i];
+                var zone = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                Configure(zone, "Loket " + (i + 1) + " zone", c + Vector3.up * .05f,
+                    new Vector3(CampaignTuning.Biro.LoketRadius * 2f, .01f, CampaignTuning.Biro.LoketRadius * 2f), zoneMaterial);
+                UnityEngine.Object.DestroyImmediate(zone.GetComponent<Collider>());
+                GameObjectUtility.SetStaticEditorFlags(zone, 0);
+                zone.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+                LoketZones[i] = zone.GetComponent<Renderer>();
+
+                Vector3 counter = c + new Vector3(0f, 0f, -2.4f);
+                Block("Loket counter", counter + Vector3.up * .55f, new Vector3(1.8f, 1.1f, .6f), biroCloth, true);
+                Block("Loket counter top", counter + Vector3.up * 1.14f, new Vector3(1.95f, .08f, .72f), biroTrim);
+                Block("Loket window", counter + new Vector3(0f, 1.7f, .05f), new Vector3(1.4f, 1f, .06f), dark);
+                Block("Loket window frame", counter + new Vector3(0f, 2.24f, .05f), new Vector3(1.6f, .1f, .1f), biroTrim);
+                LoketLabels[i] = Sign("LOKET " + (i + 1), counter + new Vector3(0f, 2.8f, 0f), 0f, .5f);
+            }
         }
 
         // The wall spans the whole campus width (the oval boundary is narrower here), so the
@@ -258,7 +347,7 @@ namespace Konoha.Editor
                 GameObject.Find(n).transform.position += ThronePosition;
         }
 
-        private void Sign(string text, Vector3 p, float yaw, float scale)
+        private TextMesh Sign(string text, Vector3 p, float yaw, float scale)
         {
             var go = new GameObject("Sign " + text);
             go.transform.SetParent(root);
@@ -276,6 +365,7 @@ namespace Konoha.Editor
             label.color = new Color(1f, .86f, .52f);
             if (label.font != null)
                 go.GetComponent<MeshRenderer>().sharedMaterial = label.font.material;
+            return label;
         }
 
         private void ClearSpikeScenery()

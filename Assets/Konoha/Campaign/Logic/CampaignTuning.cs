@@ -75,6 +75,14 @@ namespace Konoha.Campaign
             public const float SalahLoketTelegraphSeconds = 1f;
             public const float SalahLoketCooldownSeconds = 12f;
             public const int SealPengaruh = ResourceRules.PengaruhSeal;
+
+            // 0.0.9.3 tuning assumptions (not in §8.2), to confirm on device.
+            public const float SalahLoketRadius = 2.5f;          // Warning circle on the hero.
+            public const float SalahLoketTriggerRange = 7f;      // Kepala Biro casts within this range.
+            public const float SalahLoketFirstDelaySeconds = 3f; // After the door opens.
+            public const float SectorEngageRadius = 9f;          // Around the hall: the sector begins.
+            public const float LeashRadius = 13f;                // Members stay in the loket hall.
+            public const float LockedLeaderRadius = 1.8f;        // Kepala Biro ignores heroes outside his office.
         }
 
         // §8.3 Garda Takhta — "Gerbang Terakhir".
@@ -145,8 +153,6 @@ namespace Konoha.Campaign
             public const float ChairRadius = 2.2f;
             public const float WaypointArrivalRadius = 2.3f;
 
-            public const int BiroSteps = 3;
-            public const float BiroStepIntervalSeconds = 0.65f;
 
             public const int PlayerHealth = 100;
             public const float StartX = 0f, StartY = 0.1f, StartZ = -9f;

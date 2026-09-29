@@ -7,6 +7,14 @@ using UnityEngine;
 
 namespace Konoha.Campaign
 {
+    // Telegraphed leader specials (§8): replicated so every peer shows the right warning.
+    public enum EnemySpecial
+    {
+        None = 0,
+        KetokPalu = 1,  // Majelis Ketua: damage circle in front.
+        SalahLoket = 2  // Kepala Biro: circle on the hero, sends them to the farthest loket.
+    }
+
     // Server-driven member of a fictional organisation (Docs/GAME_LOGIC_JALUR_TAKHTA_v1.md §7).
     // Wibawa, damage, knockback, stun and the knockout state come from the shared hero
     // combat components, so every hero ability works on enemies unchanged. This class adds
@@ -32,6 +40,8 @@ namespace Konoha.Campaign
         // Ground warning of KETOK PALU: full-size outer disc and a fill disc that grows to it.
         public Transform telegraphOuter;
         public Transform telegraphFill;
+        // STEMPEL TUNDA area (§8.2) under a living Biro Pengawas.
+        public GameObject stempelAura;
 
         private NetworkVariable<int> role = new NetworkVariable<int>(
             (int)UnitRole.Kroni,
@@ -47,16 +57,25 @@ namespace Konoha.Campaign
             false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<bool> surrendered = new NetworkVariable<bool>(
             false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        // Behind a locked door (Kepala Biro before the lokets are stamped): cannot be hit.
+        private NetworkVariable<bool> sealedOff = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<bool> telegraphing = new NetworkVariable<bool>(
             false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<Vector3> telegraphCenter = new NetworkVariable<Vector3>(
             Vector3.zero, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<int> specialKind = new NetworkVariable<int>(
+            (int)EnemySpecial.None, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<float> telegraphRadius = new NetworkVariable<float>(
             CampaignTuning.Majelis.KetokPaluRadius, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
         private static CampaignMonument monument;
         private static CampaignStage stage;
         private static readonly List<NetworkPlayerCombat> specialVictims = new List<NetworkPlayerCombat>();
+        // Spawned enemies on this peer (HUD, STEMPEL TUNDA checks) without scene searches.
+        private static readonly List<CampaignEnemy> active = new List<CampaignEnemy>();
+        public static IReadOnlyList<CampaignEnemy> Active => active;
+        private Vector3[] salahLoketTargets;
         // Earliest time the next basic hit may land on each hero (by NetworkObjectId).
         private static readonly Dictionary<ulong, float> nextHitOnTarget = new Dictionary<ulong, float>();
 
@@ -77,6 +96,7 @@ namespace Konoha.Campaign
         private bool appliedBlock;
         private bool appliedSurrender;
         private bool appliedTelegraph;
+        private bool appliedSealed;
 
         // Server-side special attack (KETOK PALU) configuration and clock.
         private bool hasSpecial;
@@ -101,10 +121,25 @@ namespace Konoha.Campaign
         public bool IsElite => UnitRoleStats.For(Role).IsElite;
         public bool BlockShielded => blockShield.Value;
         public bool IsTelegraphing => telegraphing.Value;
+        public EnemySpecial Special => (EnemySpecial)specialKind.Value;
+        // A Biro Pengawas still in the fight projects STEMPEL TUNDA.
+        public bool ProjectsStempelTunda => Faction == FactionId.BiroProsedur && Role == UnitRole.Spesialis && !IsOutOfFight;
+
+        // Any peer: is this point inside a living Pengawas's STEMPEL TUNDA radius?
+        public static bool InsideStempelTunda(Vector3 position)
+        {
+            float radiusSqr = CampaignTuning.Biro.StempelTundaRadius * CampaignTuning.Biro.StempelTundaRadius;
+            foreach (CampaignEnemy enemy in active)
+                if (enemy != null && enemy.IsSpawned && enemy.ProjectsStempelTunda &&
+                    HorizontalDistanceSqr(enemy.transform.position, position) <= radiusSqr)
+                    return true;
+            return false;
+        }
 
         // ICombatActorState: the voting block reduces every hit; surrendered members are left alone.
         public float IncomingDamageMultiplier => MajelisEncounter.IncomingMultiplier(blockShield.Value);
-        public bool IsTargetable => !surrendered.Value;
+        public bool IsTargetable => !surrendered.Value && !sealedOff.Value;
+        public bool SealedOff => sealedOff.Value;
 
         private void Awake()
         {
@@ -117,10 +152,19 @@ namespace Konoha.Campaign
         public override void OnNetworkSpawn()
         {
             base.OnNetworkSpawn();
+            if (!active.Contains(this))
+                active.Add(this);
             cachedCamera = Camera.main;
             RefreshPresentation(true);
             RefreshTelegraph();
         }
+
+        public override void OnNetworkDespawn()
+        {
+            active.Remove(this);
+            base.OnNetworkDespawn();
+        }
+
 
         // Called by the director right after Spawn().
         public void ServerInitialize(UnitRole unitRole, FactionId unitFaction, Vector3 guardAnchor)
@@ -143,6 +187,7 @@ namespace Konoha.Campaign
             despawnAt = -1f;
             blockShield.Value = false;
             surrendered.Value = false;
+            sealedOff.Value = false;
             telegraphing.Value = false;
             combat ??= GetComponent<NetworkPlayerCombat>();
             combat.ServerConfigureWibawa(UnitRoleStats.For(unitRole).Wibawa);
@@ -157,6 +202,7 @@ namespace Konoha.Campaign
                 return;
 
             hasSpecial = true;
+            specialKind.Value = (int)EnemySpecial.KetokPalu;
             specialRadius = CampaignTuning.Majelis.KetokPaluRadius;
             specialForward = CampaignTuning.Majelis.KetokPaluForwardOffset;
             specialTelegraph = CampaignTuning.Majelis.KetokPaluTelegraphSeconds;
@@ -165,6 +211,41 @@ namespace Konoha.Campaign
             specialTriggerRange = CampaignTuning.Majelis.KetokPaluTriggerRange;
             telegraphRadius.Value = specialRadius;
             nextSpecialTime = Time.time + CampaignTuning.Majelis.KetokPaluFirstDelaySeconds;
+        }
+
+        // §8.2 SALAH LOKET: a circle on the hero; whoever is still inside is sent to the
+        // loket farthest from them. Only after the office door opens (the director calls this).
+        public void ServerConfigureSalahLoket(Vector3[] lokets)
+        {
+            if (!IsServer || lokets == null || lokets.Length == 0)
+                return;
+
+            hasSpecial = true;
+            specialKind.Value = (int)EnemySpecial.SalahLoket;
+            salahLoketTargets = (Vector3[])lokets.Clone();
+            specialRadius = CampaignTuning.Biro.SalahLoketRadius;
+            specialForward = 0f;
+            specialTelegraph = CampaignTuning.Biro.SalahLoketTelegraphSeconds;
+            specialDamage = 0;
+            specialCooldown = CampaignTuning.Biro.SalahLoketCooldownSeconds;
+            specialTriggerRange = CampaignTuning.Biro.SalahLoketTriggerRange;
+            telegraphRadius.Value = specialRadius;
+            nextSpecialTime = Time.time + CampaignTuning.Biro.SalahLoketFirstDelaySeconds;
+        }
+
+        public void ServerSetSealed(bool value)
+        {
+            if (IsServer && sealedOff.Value != value)
+                sealedOff.Value = value;
+        }
+
+        // Changes the area this member defends (Kepala Biro leaves his office when the door opens).
+        public void ServerSetLeash(Vector3 center, float radius)
+        {
+            if (!IsServer)
+                return;
+            leashCenter = center;
+            leashRadius = Mathf.Max(0f, radius);
         }
 
         // Voting block flag set by the director every frame (cheap: only writes on change).
@@ -307,7 +388,10 @@ namespace Konoha.Campaign
             Vector3 forward = toTarget.sqrMagnitude > 0.0001f ? toTarget.normalized : transform.forward;
             forward.y = 0f;
             transform.rotation = Quaternion.LookRotation(forward.normalized);
-            telegraphCenter.Value = transform.position + forward.normalized * specialForward;
+            // SALAH LOKET targets the hero's spot; KETOK PALU lands in front of the Ketua.
+            telegraphCenter.Value = Special == EnemySpecial.SalahLoket
+                ? transform.position + toTarget
+                : transform.position + forward.normalized * specialForward;
             telegraphEndsAt = Time.time + specialTelegraph;
             telegraphing.Value = true;
         }
@@ -339,9 +423,38 @@ namespace Konoha.Campaign
 
             // Applied after the scan: a knockout may change the spawned object list.
             foreach (NetworkPlayerCombat victim in specialVictims)
-                if (victim != null)
+            {
+                if (victim == null)
+                    continue;
+                if (Special == EnemySpecial.SalahLoket)
+                    SendToWrongLoket(victim);
+                else if (specialDamage > 0)
                     victim.ServerReceiveDamage(specialDamage, NetworkMatchManager.NoClient, NetworkObjectId);
+            }
             specialVictims.Clear();
+        }
+
+        private void SendToWrongLoket(NetworkPlayerCombat victim)
+        {
+            if (salahLoketTargets == null || salahLoketTargets.Length == 0)
+                return;
+
+            Vector3 from = victim.transform.position;
+            Vector3 best = salahLoketTargets[0];
+            float bestDistance = -1f;
+            foreach (Vector3 loket in salahLoketTargets)
+            {
+                float distance = HorizontalDistanceSqr(loket, from);
+                if (distance > bestDistance)
+                {
+                    bestDistance = distance;
+                    best = loket;
+                }
+            }
+
+            NetworkHeroKit kit = victim.GetComponent<NetworkHeroKit>();
+            if (kit != null)
+                kit.ServerTeleport(new Vector3(best.x, Mathf.Max(best.y, 0f) + CampaignStage.DropHeight, best.z));
         }
 
         private void CancelTelegraph(bool restartCooldown)
@@ -471,7 +584,9 @@ namespace Konoha.Campaign
 
             float progress = active
                 ? Mathf.Clamp01((Time.time - localTelegraphStart) /
-                    Mathf.Max(0.05f, CampaignTuning.Majelis.KetokPaluTelegraphSeconds))
+                    Mathf.Max(0.05f, Special == EnemySpecial.SalahLoket
+                        ? CampaignTuning.Biro.SalahLoketTelegraphSeconds
+                        : CampaignTuning.Majelis.KetokPaluTelegraphSeconds))
                 : 0f;
 
             if (telegraphOuter != null)
@@ -512,11 +627,14 @@ namespace Konoha.Campaign
             bool shielded = blockShield.Value && !down;
             bool kneeling = surrendered.Value;
             bool hammer = telegraphing.Value && !down;
+            bool locked = sealedOff.Value && !down;
 
             if (!force && currentRole == appliedRole && currentFaction == appliedFaction && down == appliedDown &&
-                shielded == appliedBlock && kneeling == appliedSurrender && hammer == appliedTelegraph)
+                shielded == appliedBlock && kneeling == appliedSurrender && hammer == appliedTelegraph &&
+                locked == appliedSealed)
                 return;
 
+            appliedSealed = locked;
             appliedRole = currentRole;
             appliedFaction = currentFaction;
             appliedDown = down;
@@ -538,6 +656,12 @@ namespace Konoha.Campaign
 
             if (blockRing != null && blockRing.activeSelf != shielded)
                 blockRing.SetActive(shielded);
+            if (stempelAura != null)
+            {
+                bool stamping = unitRole == UnitRole.Spesialis && unitFaction == FactionId.BiroProsedur && !down && !kneeling;
+                if (stempelAura.activeSelf != stamping)
+                    stempelAura.SetActive(stamping);
+            }
             if (gavel != null)
             {
                 bool showGavel = unitRole == UnitRole.Pemimpin && unitFaction == FactionId.MajelisDaun && !kneeling;
@@ -568,7 +692,8 @@ namespace Konoha.Campaign
                 string title = EncounterComposer.TitleFor(unitFaction, unitRole).ToUpperInvariant();
                 string state = down ? "TUMBANG"
                     : kneeling ? "MENYERAH"
-                    : hammer ? "KETOK PALU!"
+                    : hammer ? (Special == EnemySpecial.SalahLoket ? "SALAH LOKET!" : "KETOK PALU!")
+                    : locked ? "TERKUNCI"
                     : shielded ? definition.DisplayName + "  •  BLOK"
                     : definition.DisplayName;
                 nameplate.text = title + "\n" + state;

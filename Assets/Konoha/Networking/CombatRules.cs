@@ -27,6 +27,8 @@ namespace Konoha.Networking
         // Server only. Mode multiplier for one hit (campaign blessings); PvP returns 1.
         // attacker may be null (unknown source).
         float GetDamageMultiplier(NetworkObject attacker, NetworkObject target);
+        // Any peer. Multiplier on the actor's skill cooldowns (campaign STEMPEL TUNDA); PvP returns 1.
+        float GetCooldownMultiplier(NetworkObject actor);
     }
 
     public static class CombatRules

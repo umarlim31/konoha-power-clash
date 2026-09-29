@@ -454,6 +454,29 @@ namespace Konoha.Networking
             SelectHeroServerRpc(((int)Hero + 1) % 4);
         }
 
+        // Server: move the owning hero to an exact point (campaign SALAH LOKET). The owner
+        // applies it, like ApplyDisplacementClientRpc, because movement is owner-authoritative.
+        public void ServerTeleport(Vector3 destination)
+        {
+            if (IsServer)
+                TeleportOwnerClientRpc(destination);
+        }
+
+        [ClientRpc]
+        private void TeleportOwnerClientRpc(Vector3 destination)
+        {
+            if (!IsOwner)
+                return;
+
+            CharacterController controller = GetComponent<CharacterController>();
+            bool wasEnabled = controller != null && controller.enabled;
+            if (controller != null)
+                controller.enabled = false;
+            transform.position = destination;
+            if (controller != null)
+                controller.enabled = wasEnabled;
+        }
+
         // Direct pick (Jalur Takhta hero screen). Same server rule as TryCycleHero.
         public void TrySelectHero(PrototypeHero hero)
         {
@@ -1172,7 +1195,18 @@ namespace Konoha.Networking
                 identity.RefreshOwnershipLabel();
         }
 
-        private float GetS1Cooldown()
+        // Single modifier point for skill cooldowns (campaign STEMPEL TUNDA). PvP rules return 1.
+        private float ModeCooldownMultiplier()
+        {
+            ICombatRules rules = CombatRules.Current;
+            return rules != null && IsSpawned ? Mathf.Max(0.1f, rules.GetCooldownMultiplier(NetworkObject)) : 1f;
+        }
+
+        private float GetS1Cooldown() => GetBaseS1Cooldown() * ModeCooldownMultiplier();
+
+        private float GetS2Cooldown() => GetBaseS2Cooldown() * ModeCooldownMultiplier();
+
+        private float GetBaseS1Cooldown()
         {
             switch (Hero)
             {
@@ -1184,7 +1218,7 @@ namespace Konoha.Networking
             }
         }
 
-        private float GetS2Cooldown()
+        private float GetBaseS2Cooldown()
         {
             switch (Hero)
             {

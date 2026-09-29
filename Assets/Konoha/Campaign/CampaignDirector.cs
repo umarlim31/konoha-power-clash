@@ -44,8 +44,23 @@ namespace Konoha.Campaign
             0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<int> seniorsAlive = new NetworkVariable<int>(
             0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
-        private NetworkVariable<int> biroSteps = new NetworkVariable<int>(
+        // Biro Prosedur loket hall (0.0.9.3).
+        private NetworkVariable<bool> biroStarted = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<float> loketProgress0 = new NetworkVariable<float>(
+            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<float> loketProgress1 = new NetworkVariable<float>(
+            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<float> loketProgress2 = new NetworkVariable<float>(
+            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<int> loketStampedMask = new NetworkVariable<int>(
             0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<int> loketContestedMask = new NetworkVariable<int>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<bool> biroDoorOpen = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<bool> biroLeaderDown = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<bool> gateCleared = new NetworkVariable<bool>(
             false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<int> gateRemaining = new NetworkVariable<int>(
@@ -59,6 +74,13 @@ namespace Konoha.Campaign
         private readonly List<CampaignEnemy> gardaEnemies = new List<CampaignEnemy>();
         private readonly List<CampaignEnemy> majelisEnemies = new List<CampaignEnemy>();
         private readonly MajelisEncounter majelis = new MajelisEncounter();
+        private readonly List<CampaignEnemy> biroEnemies = new List<CampaignEnemy>();
+        private readonly BiroEncounter biro = new BiroEncounter();
+        private CampaignEnemy biroLeader;
+        private bool biroSpawned;
+        private bool biroPending;
+        private bool biroContestedAnnounced;
+        private int nextArsipPoint;
         private readonly List<CampaignEnemy> counterEnemies = new List<CampaignEnemy>();
 
         private CampaignStage stage;
@@ -89,7 +111,26 @@ namespace Konoha.Campaign
         public int MajelisRemaining => majelisRemaining.Value;
         public int MajelisTotal => majelisTotal.Value;
         public int SeniorsAlive => seniorsAlive.Value;
-        public int BiroSteps => biroSteps.Value;
+        // Biro Prosedur (0.0.9.3).
+        public bool BiroStarted => biroStarted.Value;
+        public bool BiroDoorOpen => biroDoorOpen.Value;
+        public bool BiroLeaderDown => biroLeaderDown.Value;
+        public int LoketCount => CampaignTuning.Biro.LoketCount;
+        public bool LoketStamped(int loket) => (loketStampedMask.Value & (1 << loket)) != 0;
+        public bool LoketContested(int loket) => (loketContestedMask.Value & (1 << loket)) != 0;
+        public float LoketProgress(int loket) =>
+            loket == 0 ? loketProgress0.Value : loket == 1 ? loketProgress1.Value : loket == 2 ? loketProgress2.Value : 0f;
+
+        public int LoketStampedCount
+        {
+            get
+            {
+                int count = 0;
+                for (int i = 0; i < LoketCount; i++)
+                    if (LoketStamped(i)) count++;
+                return count;
+            }
+        }
         public bool GateCleared => gateCleared.Value;
         public int GateRemaining => gateRemaining.Value;
         public int GardaRemaining => gardaRemaining.Value;
@@ -129,6 +170,7 @@ namespace Konoha.Campaign
             objectives = new CampaignObjectiveDirector(stage.Layout);
             objectives.Notified += OnObjectiveMessage;
             objectives.MajelisRequested += RequestMajelis;
+            objectives.BiroRequested += RequestBiro;
             objectives.GardaRequested += SpawnGarda;
             objectives.CounterattackRequested += SpawnCounterattack;
             objectives.Won += OnWon;
@@ -143,6 +185,7 @@ namespace Konoha.Campaign
             {
                 objectives.Notified -= OnObjectiveMessage;
                 objectives.MajelisRequested -= RequestMajelis;
+                objectives.BiroRequested -= RequestBiro;
                 objectives.GardaRequested -= SpawnGarda;
                 objectives.CounterattackRequested -= SpawnCounterattack;
                 objectives.Won -= OnWon;
@@ -172,6 +215,12 @@ namespace Konoha.Campaign
                 SpawnMajelis();
             }
 
+            if (biroPending)
+            {
+                biroPending = false;
+                SpawnBiro();
+            }
+
             // Hero selection screen: the world waits (AllowsGameplay is false) until MULAI.
             if (!heroLocked.Value)
             {
@@ -196,6 +245,9 @@ namespace Konoha.Campaign
 
             if (majelisSpawned)
                 UpdateMajelis();
+
+            if (biroSpawned)
+                UpdateBiro(player, deltaTime);
 
             if (gardaSpawned && CountAlive(gardaEnemies) == 0 &&
                 (objectives.Run.Phase == CampaignPhase.GerbangDalam || objectives.Run.Phase == CampaignPhase.GardaTakhta))
@@ -234,7 +286,15 @@ namespace Konoha.Campaign
             majelisRemaining.Value = CountAlive(majelisEnemies);
             majelisTotal.Value = majelisEnemies.Count;
             seniorsAlive.Value = CountAlive(majelisEnemies, UnitRole.Senior);
-            biroSteps.Value = objectives.BiroSteps;
+            biroStarted.Value = objectives.BiroEngaged;
+            loketProgress0.Value = biro.LoketCount > 0 ? biro.Progress(0) : 0f;
+            loketProgress1.Value = biro.LoketCount > 1 ? biro.Progress(1) : 0f;
+            loketProgress2.Value = biro.LoketCount > 2 ? biro.Progress(2) : 0f;
+            int stampedMask = 0;
+            for (int i = 0; i < biro.LoketCount; i++)
+                if (biro.IsStamped(i)) stampedMask |= 1 << i;
+            loketStampedMask.Value = stampedMask;
+            biroLeaderDown.Value = biro.LeaderFallen;
             gateCleared.Value = objectives.GateCleared;
             gateRemaining.Value = CountAlive(gateEnemies);
             gardaRemaining.Value = CountAlive(gardaEnemies);
@@ -366,6 +426,143 @@ namespace Konoha.Campaign
             }
         }
 
+        // Biro Prosedur (§8.2): the loket hall opens when the plaza is reached (deferred to Update).
+        private void RequestBiro()
+        {
+            if (!biroSpawned)
+                biroPending = true;
+        }
+
+        private void SpawnBiro()
+        {
+            DespawnAll(biroEnemies);
+            biro.Reset();
+            biroLeader = null;
+            biroDoorOpen.Value = false;
+            biroContestedAnnounced = false;
+            nextArsipPoint = 0;
+
+            Vector3 hall = stage.biro.position;
+            float leash = CampaignTuning.Biro.LeashRadius;
+            foreach (UnitSpawn spawn in EncounterComposer.Compose(FactionId.BiroProsedur, 1))
+            {
+                if (spawn.Trigger == SpawnTrigger.Reinforcement)
+                    continue;
+                for (int i = 0; i < spawn.Count; i++)
+                {
+                    CampaignEnemy enemy = null;
+                    switch (spawn.Role)
+                    {
+                        case UnitRole.Pemimpin:
+                            // Waits behind the office door; untouchable until it opens.
+                            enemy = SpawnEnemy(spawn.Role, FactionId.BiroProsedur, stage.biroLeaderPoint,
+                                stage.biroLeaderPoint, stage.plaza.position, stage.biroOfficeCenter,
+                                CampaignTuning.Biro.LockedLeaderRadius);
+                            if (enemy != null)
+                            {
+                                enemy.ServerSetSealed(true);
+                                biroLeader = enemy;
+                            }
+                            break;
+                        case UnitRole.Spesialis:
+                            enemy = SpawnEnemy(spawn.Role, FactionId.BiroProsedur, stage.biroSpecialistPoint,
+                                stage.biroSpecialistPoint, stage.plaza.position, hall, leash);
+                            break;
+                        case UnitRole.Kroni:
+                            enemy = SpawnArsip();
+                            break;
+                        default:
+                            enemy = SpawnEnemy(spawn.Role, FactionId.BiroProsedur, stage.biroGuardPoint,
+                                stage.biroGuardPoint, stage.plaza.position, hall, leash);
+                            break;
+                    }
+                    if (enemy != null && spawn.Role != UnitRole.Kroni)
+                        biroEnemies.Add(enemy);
+                }
+            }
+
+            biroSpawned = true;
+        }
+
+        // Petugas Arsip alternate between the arsip points at the back of the hall.
+        private CampaignEnemy SpawnArsip()
+        {
+            if (stage.biroArsipPoints.Length == 0)
+                return null;
+            Vector3 point = stage.biroArsipPoints[nextArsipPoint++ % stage.biroArsipPoints.Length];
+            CampaignEnemy enemy = SpawnEnemy(UnitRole.Kroni, FactionId.BiroProsedur, point, point,
+                stage.plaza.position, stage.biro.position, CampaignTuning.Biro.LeashRadius);
+            if (enemy != null)
+                biroEnemies.Add(enemy);
+            return enemy;
+        }
+
+        private void UpdateBiro(NetworkObject player, float deltaTime)
+        {
+            if (biro.Cleared)
+                return;
+
+            // Which loket the hero stands in, and which lokets have a Biro member queuing.
+            int heroLoket = -1;
+            if (player != null)
+            {
+                NetworkPlayerCombat heroCombat = player.GetComponent<NetworkPlayerCombat>();
+                if (heroCombat == null || !heroCombat.IsKnockedOut)
+                    heroLoket = stage.LoketAt(player.transform.position);
+            }
+
+            int contestedMask = 0;
+            foreach (CampaignEnemy enemy in biroEnemies)
+            {
+                if (enemy == null || !enemy.IsSpawned || enemy.IsOutOfFight)
+                    continue;
+                int loket = stage.LoketAt(enemy.transform.position);
+                if (loket >= 0)
+                    contestedMask |= 1 << loket;
+            }
+            loketContestedMask.Value = contestedMask;
+
+            bool contested = heroLoket >= 0 && (contestedMask & (1 << heroLoket)) != 0;
+            if (contested && !biroContestedAnnounced && !biro.IsStamped(heroLoket))
+                OnObjectiveMessage("ANTRIAN!  Usir petugas dari loket " + (heroLoket + 1));
+            biroContestedAnnounced = contested;
+
+            BiroChange change = biro.TickLokets(heroLoket, contested, deltaTime);
+            if ((change & BiroChange.AllStamped) != 0)
+                OpenBiroOffice();
+            else if ((change & BiroChange.LoketStamped) != 0)
+                OnObjectiveMessage("LOKET " + (biro.LastStamped + 1) + " TERCAP  (" + biro.StampedCount + "/" +
+                    biro.LoketCount + ")");
+
+            int arsipAlive = CountAlive(biroEnemies, UnitRole.Kroni);
+            if (biro.TickArsip(arsipAlive, EncounterComposer.ArsipMaxAlive(1), deltaTime) > 0)
+                SpawnArsip();
+
+            bool leaderAlive = biroLeader != null && biroLeader.IsSpawned && !biroLeader.IsOutOfFight;
+            BiroChange result = biro.Evaluate(leaderAlive);
+            if ((result & BiroChange.Cleared) != 0)
+            {
+                foreach (CampaignEnemy enemy in biroEnemies)
+                    if (enemy != null && enemy.IsSpawned && !enemy.IsOutOfFight)
+                        enemy.ServerSurrender();
+                if (objectives.CompleteBiro())
+                    GrantPlayersPengaruh(CampaignTuning.Biro.SealPengaruh);
+            }
+        }
+
+        // All lokets stamped: the Kepala Biro's door opens and he joins the fight.
+        private void OpenBiroOffice()
+        {
+            biroDoorOpen.Value = true;
+            if (biroLeader != null && biroLeader.IsSpawned && !biroLeader.IsOutOfFight)
+            {
+                biroLeader.ServerSetSealed(false);
+                biroLeader.ServerSetLeash(stage.biro.position, CampaignTuning.Biro.LeashRadius);
+                biroLeader.ServerConfigureSalahLoket(stage.loketPoints);
+            }
+            OnObjectiveMessage("3 LOKET TERCAP!  Pintu KEPALA BIRO terbuka, awas SALAH LOKET");
+        }
+
         private void SpawnGarda()
         {
             gardaEnemies.Clear();
@@ -456,8 +653,15 @@ namespace Konoha.Campaign
         {
             DespawnAll(gateEnemies);
             DespawnAll(majelisEnemies);
+            DespawnAll(biroEnemies);
             DespawnAll(gardaEnemies);
             DespawnAll(counterEnemies);
+            biroSpawned = false;
+            biroPending = false;
+            biro.Reset();
+            biroLeader = null;
+            biroDoorOpen.Value = false;
+            loketContestedMask.Value = 0;
             gateSpawned = false;
             majelisSpawned = false;
             majelisPending = false;
@@ -590,6 +794,7 @@ namespace Konoha.Campaign
                 objectives.HandleRuntuh();
                 RecoverEnemies(gateEnemies);
                 RecoverEnemies(majelisEnemies);
+                RecoverEnemies(biroEnemies);
                 RecoverEnemies(gardaEnemies);
                 RecoverEnemies(counterEnemies);
                 SyncState();
@@ -615,6 +820,15 @@ namespace Konoha.Campaign
                 target.TryGetComponent(out CampaignEnemy _);
             bool targetBlessed = target.IsPlayerObject;
             return RestuRakyat.DamageMultiplier(attackerBlessed, targetBlessed);
+        }
+
+        // STEMPEL TUNDA (§8.2): skills of a hero near a living Pengawas recharge 30% slower.
+        // Evaluated on every peer from replicated positions, so the owner's HUD agrees.
+        public float GetCooldownMultiplier(NetworkObject actor)
+        {
+            if (actor == null || !actor.IsPlayerObject)
+                return 1f;
+            return BiroEncounter.CooldownMultiplier(CampaignEnemy.InsideStempelTunda(actor.transform.position));
         }
 
         public float GetRespawnDelay(NetworkObject actor, float defaultDelay) =>
