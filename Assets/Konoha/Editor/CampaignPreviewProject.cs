@@ -19,7 +19,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.9.4")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.1.0")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +27,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.0.9.4";
-            PlayerSettings.Android.bundleVersionCode = 26;
+            PlayerSettings.bundleVersion = "0.1.0";
+            PlayerSettings.Android.bundleVersionCode = 27;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -219,7 +219,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.0.9.4  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.1.0  •  SOLO PREVIEW";
 
             var stage = new GameObject("CampaignStage").AddComponent<CampaignStage>();
             stage.plaza = capital.Plaza;
@@ -274,6 +274,8 @@ namespace Konoha.Editor
             preview.loketZones = capital.LoketZones;
             preview.loketLabels = capital.LoketLabels;
             preview.debuffText = debuff;
+            preview.gardaLockdown = capital.GardaLockdown;
+            preview.traversal = traversal;
 
             var viewButton = Button("ArenaViewButton", "LIHAT ARENA", safe, new Vector2(0f, 1f),
                 new Vector2(14f, -14f), new Vector2(164f, 44f));
@@ -306,16 +308,100 @@ namespace Konoha.Editor
             mute.GetComponentInChildren<Text>().fontSize = 16;
             var audio = new GameObject("CampaignAudio").AddComponent<CampaignAudio>();
             audio.muteButton = mute;
+            var result = CreateResultScreen(safe);
+            // Draw order on top of the HUD: result screen < hero screen < mode menu.
+            result.panel.transform.SetAsLastSibling();
+            heroSelect.panel.transform.SetAsLastSibling();
+            var menu = CreateModeMenu(safe);
+            menu.session = session;
+            menu.pvpScene = SpikeProject.ScenePath;
+            session.waitForMenu = true;
+
             audio.clickButtons = new[] { sit, viewButton, resetCamera,
                 heroSelect.heroButtons[0], heroSelect.heroButtons[1], heroSelect.heroButtons[2],
-                heroSelect.heroButtons[3], heroSelect.startButton };
-            // The hero screen must stay drawn above the new button.
-            heroSelect.transform.SetAsLastSibling();
+                heroSelect.heroButtons[3], heroSelect.startButton,
+                result.retryButton, result.changeHeroButton, menu.soloButton, menu.pvpButton };
 
             EditorSceneManager.SaveScene(scene, ScenePath);
-            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
+            // 0.1.0: the campaign scene opens first (mode menu); the untouched PvP scene is
+            // second and loaded by REBUT KURSI.
+            EditorBuildSettings.scenes = new[]
+            {
+                new EditorBuildSettingsScene(ScenePath, true),
+                new EditorBuildSettingsScene(SpikeProject.ScenePath, true)
+            };
             AssetDatabase.SaveAssets();
             Debug.Log("Jalur Takhta preview prepared: " + ScenePath);
+        }
+
+        private static RectTransform FullPanel(string name, Transform safe, Color color)
+        {
+            var panel = new GameObject(name, typeof(RectTransform), typeof(Image));
+            var rect = (RectTransform)panel.transform;
+            rect.SetParent(safe, false);
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = rect.offsetMax = Vector2.zero;
+            rect.SetAsLastSibling();
+            panel.GetComponent<Image>().color = color;
+            return rect;
+        }
+
+        // §10 result screen (0.1.0).
+        private static CampaignResultScreen CreateResultScreen(Transform safe)
+        {
+            var panel = FullPanel("ResultPanel", safe, new Color(0.05f, 0.05f, 0.04f, 0.90f));
+            var title = Text("ResultTitle", panel, new Vector2(0.5f, 1f), new Vector2(0, -30), new Vector2(700, 56), 34);
+            title.alignment = TextAnchor.MiddleCenter;
+            title.color = new Color(1f, 0.82f, 0.40f);
+            title.text = "TAKHTA DIKUASAI!";
+            title.gameObject.AddComponent<Outline>().effectColor = Color.black;
+            var stats = Text("ResultStats", panel, new Vector2(0.5f, 0.5f), new Vector2(0, 20), new Vector2(640, 250), 20);
+            stats.alignment = TextAnchor.MiddleCenter;
+            stats.gameObject.AddComponent<Outline>().effectColor = Color.black;
+            var retry = Button("ResultRetry", "ULANG", panel, new Vector2(0.5f, 0f), new Vector2(-150, 30), new Vector2(260, 70));
+            retry.GetComponentInChildren<Text>().fontSize = 24;
+            retry.GetComponent<Image>().color = new Color(0.62f, 0.44f, 0.16f, 0.98f);
+            var change = Button("ResultChangeHero", "GANTI HERO", panel, new Vector2(0.5f, 0f), new Vector2(150, 30), new Vector2(260, 70));
+            change.GetComponentInChildren<Text>().fontSize = 24;
+
+            var screen = new GameObject("CampaignResultScreen").AddComponent<CampaignResultScreen>();
+            screen.panel = panel.gameObject;
+            screen.statsText = stats;
+            screen.retryButton = retry;
+            screen.changeHeroButton = change;
+            return screen;
+        }
+
+        // 0.1.0 mode menu, the first screen of the APK.
+        private static CampaignModeMenu CreateModeMenu(Transform safe)
+        {
+            var panel = FullPanel("ModeMenuPanel", safe, new Color(0.05f, 0.07f, 0.08f, 0.97f));
+            var title = Text("ModeMenuTitle", panel, new Vector2(0.5f, 1f), new Vector2(0, -40), new Vector2(760, 60), 36);
+            title.alignment = TextAnchor.MiddleCenter;
+            title.color = new Color(1f, 0.84f, 0.46f);
+            title.text = "NEGARA KONOHA: POWER CLASH";
+            title.gameObject.AddComponent<Outline>().effectColor = Color.black;
+            var tagline = Text("ModeMenuTagline", panel, new Vector2(0.5f, 1f), new Vector2(0, -100), new Vector2(760, 30), 17);
+            tagline.alignment = TextAnchor.MiddleCenter;
+            tagline.text = "Dunia fiksi. Semua institusi dan tokoh adalah satire Negara Konoha.";
+
+            var solo = Button("ModeSolo", "JALUR TAKHTA\nSolo • rebut Kursi", panel, new Vector2(0.5f, 0.5f),
+                new Vector2(-170, -10), new Vector2(300, 120));
+            solo.GetComponentInChildren<Text>().fontSize = 22;
+            solo.GetComponent<Image>().color = new Color(0.62f, 0.44f, 0.16f, 0.98f);
+            var pvp = Button("ModePvp", "REBUT KURSI\nPvP 4v4", panel, new Vector2(0.5f, 0.5f),
+                new Vector2(170, -10), new Vector2(300, 120));
+            pvp.GetComponentInChildren<Text>().fontSize = 22;
+            var version = Text("ModeMenuVersion", panel, new Vector2(0.5f, 0f), new Vector2(0, 14), new Vector2(400, 24), 14);
+            version.alignment = TextAnchor.MiddleCenter;
+
+            var menu = new GameObject("CampaignModeMenu").AddComponent<CampaignModeMenu>();
+            menu.panel = panel.gameObject;
+            menu.soloButton = solo;
+            menu.pvpButton = pvp;
+            menu.versionText = version;
+            return menu;
         }
 
         // Hero screen shown before each run (0.0.9.2.1). Last sibling: covers and blocks the HUD.
@@ -339,7 +425,9 @@ namespace Konoha.Editor
             rule.alignment = TextAnchor.MiddleCenter;
             rule.text = "Hero terkunci selama perjalanan. Bisa diganti setelah ULANG.";
 
-            var select = panel.AddComponent<CampaignHeroSelect>();
+            // The controller lives outside the panel: a component on the panel itself stops
+            // running once the panel is hidden, and the screen could never reopen (ULANG).
+            var select = new GameObject("CampaignHeroSelect").AddComponent<CampaignHeroSelect>();
             select.panel = panel;
             string[] names = { "MEGA", "GEMOY", "ABAH", "PAK WI" };
             for (int i = 0; i < names.Length; i++)

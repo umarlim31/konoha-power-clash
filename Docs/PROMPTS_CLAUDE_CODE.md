@@ -17,7 +17,7 @@ Urutan versi:
 | 0.0.9.2.1 | (perbaikan) | Restu Rakyat, kamera stabil, pilih hero di awal | ✅ Selesai, lolos di tablet (2026-09-29) |
 | 0.0.9.3 | Prompt 6 | Faksi Biro Prosedur | ✅ Selesai, lolos di tablet (2026-09-29) |
 | 0.0.9.4 | (perbaikan) | Kamera tidak tertutup atap, efek suara | Dikerjakan (branch `feat/jalur-takhta-0.0.9.4`), menunggu uji tablet |
-| 0.1.0 | Prompt 7 | Garda Takhta + Fase Memerintah + Hasil = MVP | Setelah 0.0.9.3 OK |
+| 0.1.0 | Prompt 7 | Garda Takhta + Fase Memerintah + Hasil = MVP | Dikerjakan (branch `feat/jalur-takhta-mvp-0.1.0`, berisi 0.0.9.4), menunggu uji tablet |
 
 > Catatan: fase "faksi" dari rencana sebelumnya dipecah menjadi 0.0.9.2 dan 0.0.9.3, dan "combat asli" dipisah dari "peta baru". Alasannya: kamu tidak bisa compile sendiri, jadi setiap build harus kecil agar error mudah dilacak.
 

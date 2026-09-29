@@ -34,6 +34,8 @@ namespace Konoha.Editor
         internal GameObject InnerGateClosed, InnerGateOpen;
         // 0.0.9.3 Biro Prosedur loket hall.
         internal GameObject BiroDoorClosed, BiroDoorOpen;
+        // 0.1.0 Garda LOCKDOWN ring (inactive until the director closes it).
+        internal GameObject GardaLockdown;
         internal Renderer[] LoketZones;
         internal TextMesh[] LoketLabels;
         // Loket centres on the ground; CampaignStage.loketPoints carries the same values.
@@ -176,6 +178,40 @@ namespace Konoha.Editor
             return sector;
         }
 
+        // §8.3 LOCKDOWN: a ring of invisible 5.5 m walls (tall enough to also close the ramp,
+        // which is 2.5 m high where the ring crosses it) with visible posts and red-gold
+        // barrier tape. Walls are on Ignore Raycast so the orbit camera looks through.
+        private void BuildGardaLockdown(Vector3 post)
+        {
+            GardaLockdown = new GameObject("Garda Lockdown ring");
+            GardaLockdown.transform.SetParent(root);
+            const int segments = 28;
+            float radius = CampaignTuning.Garda.LockdownRadius;
+            float chord = 2f * Mathf.PI * radius / segments + .2f;
+            for (int i = 0; i < segments; i++)
+            {
+                float angle = i * Mathf.PI * 2f / segments;
+                var direction = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle));
+                Vector3 at = new Vector3(post.x, 0f, post.z) + direction * radius;
+                var yaw = Quaternion.LookRotation(direction);
+                var wall = Block("Garda lockdown wall", at + Vector3.up * 2.75f, new Vector3(chord, 5.5f, .4f), red, true);
+                wall.transform.rotation = yaw;
+                wall.layer = 2;
+                wall.GetComponent<Renderer>().enabled = false;
+                wall.transform.SetParent(GardaLockdown.transform, true);
+                var postMesh = Block("Garda lockdown post", at + Vector3.up * 1.2f, new Vector3(.16f, 2.4f, .16f), bronze);
+                postMesh.transform.SetParent(GardaLockdown.transform, true);
+                foreach (float height in new[] { 1.1f, 2.0f })
+                {
+                    var tape = Block("Garda lockdown tape", at + Vector3.up * height, new Vector3(chord, .12f, .05f),
+                        height < 1.5f ? red : bronze);
+                    tape.transform.rotation = yaw;
+                    tape.transform.SetParent(GardaLockdown.transform, true);
+                }
+            }
+            GardaLockdown.SetActive(false);
+        }
+
         // Walled office of the Kepala Biro (§8.2 "pintu berlapis"). Walls are 2.4 m (jump
         // height 1.25 m cannot clear them) and on Ignore Raycast so the orbit camera ignores them.
         private void BuildBiroOffice()
@@ -309,6 +345,7 @@ namespace Konoha.Editor
             }
             Block("Takhta processional lane", new Vector3(0, .02f, 24), new Vector3(4.5f, .025f, 14), paving);
             Sign("GARDA TAKHTA", new Vector3(0, 3.2f, 21.2f), 0f, .9f);
+            BuildGardaLockdown(post);
             return Objective("Garda Takhta", post, 1.2f);
         }
 
