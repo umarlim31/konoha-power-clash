@@ -19,7 +19,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.9")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.9.1")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +27,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.0.9";
-            PlayerSettings.Android.bundleVersionCode = 21;
+            PlayerSettings.bundleVersion = "0.0.9.1";
+            PlayerSettings.Android.bundleVersionCode = 22;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -46,6 +46,11 @@ namespace Konoha.Editor
                 follow.crowdedOffset = follow.offset;
                 follow.limitFocusToArena = false;
                 follow.allowOrbit = true;
+                // A lower default pitch keeps the distant Istana Takhta in frame from the spawn
+                // (vertical FOV 50: the frame top sits 3 degrees above the horizon).
+                follow.resetPitch = 22f;
+                follow.minPitch = 16f;
+                follow.resetDistance = 22f;
                 follow.ResetOrbit();
                 follow.focusXLimits = new Vector2(-9f, 9f);
                 follow.focusZLimits = new Vector2(-7.5f, 7f);
@@ -80,6 +85,8 @@ namespace Konoha.Editor
             traversal.motor = player;
             traversal.joystick = pad.GetComponent<Konoha.Input.TouchJoystick>();
             traversal.movementCamera = previewCamera.transform;
+            traversal.boundaryCenter = CampaignCapitalArt.BoundaryCenter;
+            traversal.boundaryRadii = CampaignCapitalArt.BoundaryRadii;
             player.allowJump = true;
             player.jumpHeight = 1.25f;
             player.GetComponent<CharacterController>().stepOffset = .25f;
@@ -97,13 +104,15 @@ namespace Konoha.Editor
             var capital = CampaignCapitalArt.Build();
             var gold = capital.Gold;
             var gateColor = capital.Red;
+            // The seat stands on the Istana Takhta terrace at the north end of the route.
             var chair = new GameObject("Kursi Kekuasaan");
+            chair.transform.position = capital.Throne.position;
+            Vector3 seat = chair.transform.position;
             var barrier = new GameObject("Gerbang Takhta - locked");
-            GateSeal("North Gate", new Vector3(0, 0, 2.35f), false, barrier.transform, gateColor, gold);
-            GateSeal("South Gate", new Vector3(0, 0, -2.35f), false, barrier.transform, gateColor, gold);
-            GateSeal("East Gate", new Vector3(2.35f, 0, 0), true, barrier.transform, gateColor, gold);
-            GateSeal("West Gate", new Vector3(-2.35f, 0, 0), true, barrier.transform, gateColor, gold);
-            WorldLabel("GARDA TAKHTA", capital.Garda.position + new Vector3(0, 3.2f, 0));
+            GateSeal("North Gate", seat + new Vector3(0, 0, 2.35f), false, barrier.transform, gateColor, gold);
+            GateSeal("South Gate", seat + new Vector3(0, 0, -2.35f), false, barrier.transform, gateColor, gold);
+            GateSeal("East Gate", seat + new Vector3(2.35f, 0, 0), true, barrier.transform, gateColor, gold);
+            GateSeal("West Gate", seat + new Vector3(-2.35f, 0, 0), true, barrier.transform, gateColor, gold);
 
             var placeholder = player.transform.Find("PlaceholderSilhouette");
             if (placeholder != null)
@@ -204,7 +213,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.0.9  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.0.9.1  •  SOLO PREVIEW";
 
             var stage = new GameObject("CampaignStage").AddComponent<CampaignStage>();
             stage.plaza = capital.Plaza;
@@ -212,6 +221,9 @@ namespace Konoha.Editor
             stage.biro = capital.Biro;
             stage.garda = capital.Garda;
             stage.chair = chair.transform;
+            stage.startPoint = CampaignCapitalArt.SpawnPoint;
+            stage.terraceHeight = CampaignCapitalArt.TerraceHeight;
+            stage.innerGateZ = CampaignCapitalArt.InnerGateZ;
 
             var playerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SpikeProject.Generated + "/NetworkPlayer.prefab");
             if (playerPrefab == null)
@@ -233,6 +245,8 @@ namespace Konoha.Editor
             var preview = new GameObject("JalurTakhtaPreview").AddComponent<CampaignPreviewController>();
             preview.stage = stage;
             preview.chairBarrier = barrier;
+            preview.innerGateClosed = capital.InnerGateClosed;
+            preview.innerGateOpen = capital.InnerGateOpen;
             preview.objectiveText = objective;
             preview.statusText = status;
             preview.waypointText = waypoint;
@@ -250,6 +264,8 @@ namespace Konoha.Editor
             arenaView.traversal = traversal;
             arenaView.safeRoot = safe;
             arenaView.viewButton = viewButton;
+            arenaView.viewFocus = new Vector3(0f, 2f, 4f);
+            arenaView.viewOffset = new Vector3(0f, 62f, -70f);
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -378,23 +394,6 @@ namespace Konoha.Editor
                     thin, i == 0 ? red : gold);
                 seal.transform.SetParent(parent);
             }
-        }
-
-        private static GameObject WorldLabel(string caption, Vector3 position)
-        {
-            var root = new GameObject("Sign " + caption);
-            root.transform.position = position;
-            var label = root.AddComponent<TextMesh>();
-            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            label.fontSize = 36;
-            label.characterSize = 0.055f;
-            label.anchor = TextAnchor.MiddleCenter;
-            label.text = caption;
-            label.color = Color.white;
-            if (label.font != null)
-                root.GetComponent<MeshRenderer>().sharedMaterial = label.font.material;
-            root.transform.rotation = Quaternion.Euler(30, 0, 0);
-            return root;
         }
 
         private static GameObject Box(string name, Vector3 position, Vector3 scale, Material material)

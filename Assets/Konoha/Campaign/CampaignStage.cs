@@ -14,22 +14,32 @@ namespace Konoha.Campaign
         public Transform garda;
         public Transform chair;
 
-        public Vector3 startPoint = new Vector3(0f, 0.1f, -9f);
-        // Checkpoint 5 sits outside the Garda aggro/leash rings so a revived hero is not
-        // attacked while standing still.
-        public Vector3 gardaCheckpoint = new Vector3(4.4f, 0.1f, -2f);
+        // 0.0.9.1 route map (see CampaignCapitalArt): spawn in the south, seat on the north terrace.
+        public Vector3 startPoint = new Vector3(0f, 0.1f, -44f);
+        // Checkpoint 5: just inside the Gerbang Dalam, outside the Garda aggro/leash rings,
+        // so a revived hero is not attacked while standing still.
+        public Vector3 gardaCheckpoint = new Vector3(0f, 0.1f, 19.5f);
         public Vector3[] gateSpawnPoints =
         {
-            new Vector3(0.6f, 0.1f, -3.3f),
-            new Vector3(2.2f, 0.1f, -3.3f),
-            new Vector3(3.8f, 0.1f, -3.3f)
+            new Vector3(-2f, 0.1f, -30f),
+            new Vector3(0f, 0.1f, -28.5f),
+            new Vector3(2f, 0.1f, -30f)
         };
         public Vector3[] gardaSpawnPoints =
         {
-            new Vector3(0f, 0.1f, 7.4f),
-            new Vector3(2.2f, 0.1f, 7.4f)
+            new Vector3(0f, 0.1f, 30f),
+            new Vector3(3.5f, 0.1f, 28f)
         };
-        public Vector3 counterattackSpawnPoint = new Vector3(4.4f, 0.1f, 7.4f);
+        public Vector3 counterattackSpawnPoint = new Vector3(-6f, 0.1f, 30f);
+
+        // Walkable connections for enemy steering (no navmesh): the throne terrace is
+        // reached only by its ramp, the north only through the Gerbang Dalam.
+        public float terraceHeight = 5f;
+        public Vector3 rampBase = new Vector3(0f, 0f, 30f);
+        public Vector3 rampTop = new Vector3(0f, 5f, 43f);
+        public float rampHalfWidth = 3.4f;
+        public float innerGateZ = 17f;
+        public float innerGateHalfWidth = 2.4f;
 
         // Characters are dropped slightly above the floor and settle with gravity.
         public const float DropHeight = 0.25f;
@@ -49,6 +59,39 @@ namespace Konoha.Campaign
                 default: point = startPoint; break;
             }
             return new Vector3(point.x, Mathf.Max(point.y, 0f) + DropHeight, point.z);
+        }
+
+        // Next intermediate point on the way from 'from' to 'to'; 'to' itself when direct.
+        public Vector3 Steer(Vector3 from, Vector3 to)
+        {
+            float level = terraceHeight - 1f;
+            bool fromHigh = from.y > level;
+            bool toHigh = to.y > level;
+            if (fromHigh != toHigh)
+            {
+                bool inRampLane = Mathf.Abs(from.x - rampBase.x) < rampHalfWidth &&
+                    from.z > rampBase.z - 0.5f && from.z < rampTop.z + 0.5f;
+                if (toHigh)
+                    return inRampLane || FlatDistance(from, rampBase) < 1f ? rampTop : rampBase;
+                return inRampLane || FlatDistance(from, rampTop) < 1f ? rampBase : rampTop;
+            }
+
+            bool fromNorth = from.z > innerGateZ;
+            bool toNorth = to.z > innerGateZ;
+            if (!fromHigh && fromNorth != toNorth)
+            {
+                bool inGateway = Mathf.Abs(from.x) < innerGateHalfWidth && Mathf.Abs(from.z - innerGateZ) < 2.2f;
+                if (!inGateway)
+                    return new Vector3(0f, from.y, innerGateZ + (fromNorth ? 2f : -2f));
+            }
+            return to;
+        }
+
+        private static float FlatDistance(Vector3 a, Vector3 b)
+        {
+            float x = a.x - b.x;
+            float z = a.z - b.z;
+            return Mathf.Sqrt(x * x + z * z);
         }
 
         public static Quaternion Facing(Vector3 from, Vector3 to)

@@ -10,9 +10,9 @@ Urutan versi:
 | Versi | Prompt | Isi | Kapan dijalankan |
 |---|---|---|---|
 | 0.0.8.3 | Prompt 1 | Fondasi logika + pipeline hero 3D + bersih-bersih | ✅ Selesai, lolos di tablet |
-| 0.0.9 | Prompt 3 | Solo = host lokal + combat asli di campaign | ✅ Dikerjakan lebih dulu (2026-09-29) karena file MEGA belum ada |
+| 0.0.9 | Prompt 3 | Solo = host lokal + combat asli di campaign | ✅ Selesai, lolos di tablet (2026-09-29) |
 | (menyusul) | Prompt 2 | Pasang MEGA 3D | Kapan saja setelah file FBX MEGA diunggah; nomor versi = versi berikutnya saat itu |
-| 0.0.9.1 | Prompt 4 | Tata ulang peta menjadi rute | Setelah 0.0.9 OK di tablet |
+| 0.0.9.1 | Prompt 4 | Tata ulang peta menjadi rute | Dikerjakan (branch `feat/jalur-takhta-0.0.9.1`), menunggu uji tablet |
 | 0.0.9.2 | Prompt 5 | Faksi Majelis Daun | Setelah 0.0.9.1 OK |
 | 0.0.9.3 | Prompt 6 | Faksi Biro Prosedur | Setelah 0.0.9.2 OK |
 | 0.1.0 | Prompt 7 | Garda Takhta + Fase Memerintah + Hasil = MVP | Setelah 0.0.9.3 OK |

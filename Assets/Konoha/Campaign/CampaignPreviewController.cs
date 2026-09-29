@@ -13,6 +13,9 @@ namespace Konoha.Campaign
     {
         public CampaignStage stage;
         public GameObject chairBarrier;
+        // Gerbang Dalam: closed leaves (solid) until the inner gate opens, then open leaves.
+        public GameObject innerGateClosed;
+        public GameObject innerGateOpen;
         public Text objectiveText;
         public Text statusText;
         public Text waypointText;
@@ -59,6 +62,11 @@ namespace Konoha.Campaign
 
             if (chairBarrier != null)
                 chairBarrier.SetActive(director.Phase < CampaignPhase.KursiTerbuka);
+            bool innerLocked = director.Phase < CampaignPhase.GerbangDalam;
+            if (innerGateClosed != null && innerGateClosed.activeSelf != innerLocked)
+                innerGateClosed.SetActive(innerLocked);
+            if (innerGateOpen != null && innerGateOpen.activeSelf == innerLocked)
+                innerGateOpen.SetActive(!innerLocked);
 
             NetworkObject hero = LocalHero();
             RefreshObjective(director);

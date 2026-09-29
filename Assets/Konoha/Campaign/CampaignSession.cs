@@ -129,7 +129,7 @@ namespace Konoha.Campaign
 
             Vector3 position = stage != null
                 ? stage.CheckpointPosition(CampaignCheckpoint.GerbangRakyat)
-                : new Vector3(0f, 0.35f, -9f);
+                : new Vector3(0f, 0.35f, -44f);
             Quaternion rotation = stage != null && stage.chair != null
                 ? CampaignStage.Facing(position, stage.chair.position)
                 : Quaternion.identity;

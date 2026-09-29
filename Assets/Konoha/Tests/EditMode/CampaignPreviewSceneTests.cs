@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.0.9  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.0.9"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(21));
+                    Is.EqualTo("JALUR TAKHTA 0.0.9.1  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.0.9.1"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(22));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -72,6 +72,21 @@ namespace Konoha.Tests
                 Assert.That(stage.biro, Is.Not.Null);
                 Assert.That(stage.garda, Is.Not.Null);
                 Assert.That(stage.chair, Is.Not.Null);
+                // 0.0.9.1 route: spawn far south, seat on the raised north terrace.
+                Assert.That(stage.startPoint.z, Is.LessThan(-40f));
+                Assert.That(stage.chair.position.z, Is.GreaterThan(40f));
+                Assert.That(stage.chair.position.y, Is.EqualTo(stage.terraceHeight).Within(.01f));
+                Assert.That(stage.majelis.position.x, Is.LessThan(-20f));
+                Assert.That(stage.biro.position.x, Is.GreaterThan(20f));
+                Assert.That(preview.innerGateClosed, Is.Not.Null);
+                Assert.That(preview.innerGateOpen, Is.Not.Null);
+                Assert.That(preview.innerGateClosed.activeSelf, Is.True);
+                Assert.That(preview.innerGateOpen.activeSelf, Is.False);
+                Assert.That(preview.innerGateClosed.GetComponentsInChildren<BoxCollider>(), Has.Length.EqualTo(2));
+                Assert.That(preview.innerGateOpen.GetComponentsInChildren<Collider>(true), Is.Empty);
+                foreach (string sign in new[] { "Sign GERBANG RAKYAT", "Sign PLAZA ASPIRASI", "Sign MAJELIS DAUN",
+                    "Sign BIRO PROSEDUR", "Sign GERBANG DALAM", "Sign GARDA TAKHTA", "Sign ISTANA TAKHTA" })
+                    Assert.That(GameObject.Find(sign), Is.Not.Null, sign);
 
                 var monument = Object.FindFirstObjectByType<CampaignMonument>();
                 Assert.That(session.monument, Is.SameAs(monument));
@@ -123,7 +138,9 @@ namespace Konoha.Tests
                 Assert.That(traversal.motor, Is.SameAs(probe));
                 Assert.That(traversal.jumpButton, Is.Not.Null);
                 Assert.That(traversal.movementCamera, Is.EqualTo(camera.transform));
-                Assert.That(traversal.boundaryRadii.x, Is.GreaterThan(20));
+                Assert.That(traversal.boundaryRadii.x, Is.GreaterThan(30));
+                Assert.That(traversal.boundaryRadii.y, Is.GreaterThan(55));
+                Assert.That(camera.resetPitch, Is.LessThan(25f));
                 Assert.That(GameObject.Find("Camera drag surface").GetComponent<CampaignCameraDrag>().follow, Is.SameAs(camera));
                 var view = Object.FindFirstObjectByType<CampaignArenaView>();
                 float timeScale = Time.timeScale;
@@ -141,11 +158,15 @@ namespace Konoha.Tests
                 Assert.That(traversal.jumpButton.gameObject.activeSelf, Is.True);
 
                 // Sample actual collision along the complete campaign route, excluding the probe's own capsule.
+                // Points carry their ground height (ramp and 5 m terrace).
                 preview.chairBarrier.SetActive(false);
+                preview.innerGateClosed.SetActive(false);
                 Physics.SyncTransforms();
-                Vector3[] route = { new Vector3(0,0,-9), stage.plaza.position, new Vector3(-9,0,-6),
-                    new Vector3(9,0,-6), new Vector3(4.4f,0,-6), new Vector3(4.4f,0,7.4f), stage.garda.position,
-                    new Vector3(4.4f,0,7.4f), new Vector3(4.4f,0,-3.3f), new Vector3(0,0,-3.3f), Vector3.zero };
+                Vector3 seat = stage.chair.position;
+                Vector3[] route = { new Vector3(0,0,-44), new Vector3(0,0,-30), new Vector3(0,0,-8),
+                    new Vector3(-28,0,-5), new Vector3(28,0,-5), new Vector3(4.4f,0,-5), new Vector3(4.4f,0,7.4f),
+                    new Vector3(2.5f,0,13), new Vector3(0,0,15), new Vector3(0,0,19.5f), new Vector3(0,0,28),
+                    stage.rampBase + Vector3.forward, stage.rampTop - Vector3.forward, seat - Vector3.forward * 1.2f };
                 for (int segment = 1; segment < route.Length; segment++)
                     for (float distance = 0; distance <= Vector3.Distance(route[segment-1],route[segment]); distance += .2f)
                     {
@@ -153,30 +174,57 @@ namespace Konoha.Tests
                         AssertFree(p, probe.transform, "Blocked campaign route at ");
                     }
                 // Enemies and revived heroes must never appear inside geometry.
-                foreach (var point in stage.gateSpawnPoints) AssertFree(point, probe.transform, "Gate spawn blocked at ");
-                foreach (var point in stage.gardaSpawnPoints) AssertFree(point, probe.transform, "Garda spawn blocked at ");
-                AssertFree(stage.counterattackSpawnPoint, probe.transform, "Counterattack spawn blocked at ");
+                foreach (var point in stage.gateSpawnPoints) AssertFree(Flat(point), probe.transform, "Gate spawn blocked at ");
+                foreach (var point in stage.gardaSpawnPoints) AssertFree(Flat(point), probe.transform, "Garda spawn blocked at ");
+                AssertFree(Flat(stage.counterattackSpawnPoint), probe.transform, "Counterattack spawn blocked at ");
                 foreach (CampaignCheckpoint checkpoint in System.Enum.GetValues(typeof(CampaignCheckpoint)))
-                    AssertFree(stage.CheckpointPosition(checkpoint), probe.transform, "Checkpoint " + checkpoint + " blocked at ");
+                    AssertFree(Flat(stage.CheckpointPosition(checkpoint)), probe.transform, "Checkpoint " + checkpoint + " blocked at ");
+
+                // §13: the seat is visible from the spawn with the default camera, above the
+                // monument and inside the frame (Ignore Raycast walls/seals are see-through).
+                Vector3 focus = stage.startPoint + Vector3.up * .8f;
+                Vector3 eye = focus + Quaternion.Euler(camera.resetPitch, 0, 0) * Vector3.back * camera.resetDistance;
+                Vector3 seatTop = seat + Vector3.up * .9f;
+                Vector3 sight = seatTop - eye;
+                bool hidden = Physics.Raycast(eye, sight.normalized, out RaycastHit blocker, sight.magnitude - .3f);
+                Assert.That(hidden, Is.False, "Seat hidden from the spawn camera by " + (hidden ? blocker.collider.name : ""));
+                Assert.That(Vector3.Angle(focus - eye, sight), Is.LessThan(camera.GetComponent<Camera>().fieldOfView * .5f - 1f),
+                    "Seat outside the default spawn frame");
+                float sculptureTop = 0f;
+                foreach (var surface in monument.surfaces)
+                    sculptureTop = Mathf.Max(sculptureTop, surface.bounds.max.y);
+                float along = (monument.solid.bounds.center.z - eye.z) / sight.z;
+                Assert.That(eye.y + sight.y * along, Is.GreaterThan(sculptureTop + .2f), "Sightline must clear the Garuda sculpture");
+
                 VerifyWaterExitsAndJump(probe);
-                // New jump must not bypass the locked mission enclosure.
+                // Jump must not bypass the locked seat enclosure on the terrace...
                 preview.chairBarrier.SetActive(true);
                 Physics.SyncTransforms();
-                probe.Teleport(new Vector3(0,.1f,-3.4f));
+                probe.Teleport(seat + new Vector3(0,.1f,-3.4f));
                 Settle(probe);
                 Assert.That(probe.TryJump(), Is.True);
                 for(int i=0;i<90;i++) probe.Step(new MoveIntent(Vector2.up),1f/60f);
-                Assert.That(probe.transform.position.z,Is.LessThan(-2.7f));
+                Assert.That(probe.transform.position.z,Is.LessThan(seat.z - 2.7f));
+                // ...nor the locked Gerbang Dalam.
+                preview.innerGateClosed.SetActive(true);
+                Physics.SyncTransforms();
+                probe.Teleport(new Vector3(0,.1f,stage.innerGateZ - 2f));
+                Settle(probe);
+                Assert.That(probe.TryJump(), Is.True);
+                for(int i=0;i<90;i++) probe.Step(new MoveIntent(Vector2.up),1f/60f);
+                Assert.That(probe.transform.position.z,Is.LessThan(stage.innerGateZ - .5f));
             }
             finally { SpikeProject.Prepare(); }
         }
 
-        private static void AssertFree(Vector3 p, Transform ignored, string message)
+        // 'ground' is the walking surface height at that point.
+        private static void AssertFree(Vector3 ground, Transform ignored, string message)
         {
-            Vector3 ground = new Vector3(p.x, 0f, p.z);
             foreach (var hit in Physics.OverlapCapsule(ground+Vector3.up*.5f,ground+Vector3.up*1.5f,.42f))
-                Assert.That(hit.transform.IsChildOf(ignored), Is.True, message + p + " by " + hit.name);
+                Assert.That(hit.transform.IsChildOf(ignored), Is.True, message + ground + " by " + hit.name);
         }
+
+        private static Vector3 Flat(Vector3 p) => new Vector3(p.x, 0f, p.z);
 
         private static void Settle(CharacterMotor motor)
         {

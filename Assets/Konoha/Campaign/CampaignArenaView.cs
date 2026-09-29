@@ -14,6 +14,9 @@ namespace Konoha.Campaign
         private bool traversalWasEnabled;
         public Transform safeRoot;
         public Button viewButton;
+        // Overview framing; the generator widens it for the full route map.
+        public Vector3 viewFocus = new Vector3(0, 1.8f, 3.5f);
+        public Vector3 viewOffset = new Vector3(0, 25, -38);
         private readonly List<GameObject> hidden = new List<GameObject>();
         private bool showing;
         private bool followWasEnabled;
@@ -65,10 +68,9 @@ namespace Konoha.Campaign
 
         private void PositionCamera()
         {
-            var focus = new Vector3(0, 1.8f, 3.5f);
             float orbit = 22f + Mathf.Sin(angle) * 16f;
-            follow.transform.position = focus + Quaternion.Euler(0, orbit, 0) * new Vector3(0, 25, -38);
-            follow.transform.LookAt(focus);
+            follow.transform.position = viewFocus + Quaternion.Euler(0, orbit, 0) * viewOffset;
+            follow.transform.LookAt(viewFocus);
         }
 
         private void Restore()
