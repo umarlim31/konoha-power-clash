@@ -192,7 +192,8 @@ namespace Konoha.Networking
             serverNextAttackTime = now + cooldown;
 
             int attackerTeam = NetworkTeamUtility.GetTeam(OwnerClientId);
-            float range = heroKit != null ? heroKit.GetBasicRange() : attackRange;
+            float range = (heroKit != null ? heroKit.GetBasicRange() : attackRange) +
+                Mathf.Max(0f, rules.GetBasicRangeBonus(NetworkObject));
             int damage = heroKit != null ? heroKit.GetBasicDamage() : BasicAttackDamage;
 
             NetworkPlayerCombat bestTarget = null;
