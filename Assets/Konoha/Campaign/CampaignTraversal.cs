@@ -18,6 +18,8 @@ namespace Konoha.Campaign
         public TouchJoystick joystick;
         public Transform movementCamera;
         public Button jumpButton;
+        // §9: seated on the Kursi, the joystick and jump do nothing (BERDIRI stands up).
+        public bool seatLocked;
         public Vector2 boundaryCenter = new Vector2(0, 4);
         public Vector2 boundaryRadii = new Vector2(26, 29);
         private Vector3 lastSafe = new Vector3(0, .1f, -9);
@@ -41,7 +43,7 @@ namespace Konoha.Campaign
         {
             if (!focused || paused || Time.timeScale <= 0f || motor == null || Locked) return;
             float dt = Mathf.Min(Time.deltaTime, .05f);
-            Vector2 axis = CameraRelative(joystick.Value, movementCamera.forward);
+            Vector2 axis = seatLocked ? Vector2.zero : CameraRelative(joystick.Value, movementCamera.forward);
             // Clip intended horizontal movement first, preserving grounding and jump at the boundary.
             float travel = motor.definition.speed * Mathf.Max(.1f, motor.speedMultiplier) * dt;
             if (travel > .00001f)
@@ -69,7 +71,7 @@ namespace Konoha.Campaign
 
         public void Jump()
         {
-            if (focused && !paused && Time.timeScale > 0f && motor != null && !Locked) motor.TryJump();
+            if (focused && !paused && Time.timeScale > 0f && motor != null && !Locked && !seatLocked) motor.TryJump();
         }
 
         public static Vector2 CameraRelative(Vector2 axis, Vector3 forward)

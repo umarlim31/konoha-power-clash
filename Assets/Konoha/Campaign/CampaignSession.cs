@@ -31,6 +31,8 @@ namespace Konoha.Campaign
         public GameObject offlineHero;
 
         public ushort port = 7777;
+        // 0.1.0: the mode menu decides first (BeginSolo); false starts hosting immediately.
+        public bool waitForMenu = true;
         public float jumpHeight = 1.25f;
         public float stepOffset = 0.25f;
 
@@ -41,9 +43,21 @@ namespace Konoha.Campaign
 
         public bool IsHosting => manager != null && manager.IsListening;
         public bool LocalHeroBound => localHeroBound;
+        private bool prepared;
 
         private void Start()
         {
+            if (!waitForMenu)
+                BeginSolo();
+        }
+
+        // JALUR TAKHTA chosen in the mode menu: start the offline local host (no room, no internet).
+        public void BeginSolo()
+        {
+            if (prepared)
+                return;
+            prepared = true;
+
             manager = GetComponent<NetworkManager>();
             transport = GetComponent<UnityTransport>();
 
@@ -97,7 +111,7 @@ namespace Konoha.Campaign
 
         private void Update()
         {
-            if (!localHeroBound)
+            if (prepared && !localHeroBound)
                 TryBindLocalHero();
         }
 

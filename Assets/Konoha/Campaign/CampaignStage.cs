@@ -18,19 +18,36 @@ namespace Konoha.Campaign
         public Vector3 startPoint = new Vector3(0f, 0.1f, -44f);
         // Checkpoint 5: just inside the Gerbang Dalam, outside the Garda aggro/leash rings,
         // so a revived hero is not attacked while standing still.
-        public Vector3 gardaCheckpoint = new Vector3(0f, 0.1f, 19.5f);
+        // 0.1.0: 18.5 keeps a revived hero clear of the Garda LOCKDOWN ring (radius 8.5 around z 28).
+        public Vector3 gardaCheckpoint = new Vector3(0f, 0.1f, 18.5f);
         public Vector3[] gateSpawnPoints =
         {
             new Vector3(-2f, 0.1f, -30f),
             new Vector3(0f, 0.1f, -28.5f),
             new Vector3(2f, 0.1f, -30f)
         };
+        // Order follows EncounterComposer.Compose(GardaTakhta, 1): Panglima, then the Pengawal.
         public Vector3[] gardaSpawnPoints =
         {
             new Vector3(0f, 0.1f, 30f),
-            new Vector3(3.5f, 0.1f, 28f)
+            new Vector3(3.5f, 0.1f, 28f),
+            new Vector3(-3.5f, 0.1f, 28f)
         };
-        public Vector3 counterattackSpawnPoint = new Vector3(-6f, 0.1f, 30f);
+        // §8.3 bala bantuan when the Panglima drops below 50% Wibawa.
+        public Vector3[] gardaReinforcePoints =
+        {
+            new Vector3(-4f, 0.1f, 26f),
+            new Vector3(4f, 0.1f, 26f)
+        };
+        // §9 counterattack waves gather at the foot of the ramp and climb to the seat.
+        public Vector3[] counterattackSpawnPoints =
+        {
+            new Vector3(-6f, 0.1f, 30f),
+            new Vector3(6f, 0.1f, 30f),
+            new Vector3(0f, 0.1f, 25.5f)
+        };
+        // Where DUDUK places the hero: just in front of the seat, facing the ramp.
+        public Vector3 seatOffset = new Vector3(0f, 0.3f, -1.3f);
 
         // 0.0.9.2 Majelis Daun sidang in front of its hall (x -28). Order follows
         // EncounterComposer.Compose(MajelisDaun, 1): Ketua, 2 Senior, 3 Staf Fraksi, Pengawal.

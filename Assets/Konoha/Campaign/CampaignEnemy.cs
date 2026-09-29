@@ -12,7 +12,8 @@ namespace Konoha.Campaign
     {
         None = 0,
         KetokPalu = 1,  // Majelis Ketua: damage circle in front.
-        SalahLoket = 2  // Kepala Biro: circle on the hero, sends them to the farthest loket.
+        SalahLoket = 2, // Kepala Biro: circle on the hero, sends them to the farthest loket.
+        CounterPush = 3 // Panglima Takhta: circle around himself, pushes heroes 5 m away + damage.
     }
 
     // Server-driven member of a fictional organisation (Docs/GAME_LOGIC_JALUR_TAKHTA_v1.md §7).
@@ -233,6 +234,36 @@ namespace Konoha.Campaign
             nextSpecialTime = Time.time + CampaignTuning.Biro.SalahLoketFirstDelaySeconds;
         }
 
+        // §8.3 COUNTER PUSH: every 12 s, a 4 m circle around the Panglima (1.2 s warning);
+        // heroes still inside take 15 damage and are pushed 5 m away.
+        public void ServerConfigureCounterPush()
+        {
+            if (!IsServer)
+                return;
+
+            hasSpecial = true;
+            specialKind.Value = (int)EnemySpecial.CounterPush;
+            specialRadius = CampaignTuning.Garda.CounterPushRadius;
+            specialForward = 0f;
+            specialTelegraph = CampaignTuning.Garda.CounterPushTelegraphSeconds;
+            specialDamage = CampaignTuning.Garda.CounterPushDamage;
+            specialCooldown = CampaignTuning.Garda.CounterPushIntervalSeconds;
+            specialTriggerRange = CampaignTuning.Garda.CounterPushTriggerRange;
+            telegraphRadius.Value = specialRadius;
+            nextSpecialTime = Time.time + CampaignTuning.Garda.CounterPushFirstDelaySeconds;
+        }
+
+        // Push the next special back (e.g. the Garda fight really begins when LOCKDOWN closes).
+        public void ServerDelaySpecial(float seconds)
+        {
+            if (IsServer && hasSpecial)
+                nextSpecialTime = Mathf.Max(nextSpecialTime, Time.time + seconds);
+        }
+
+        // Wibawa left as a fraction of the maximum (Garda reinforcement threshold).
+        public float WibawaFraction =>
+            combat != null && combat.MaxWibawaValue > 0 ? combat.Wibawa / (float)combat.MaxWibawaValue : 0f;
+
         public void ServerSetSealed(bool value)
         {
             if (IsServer && sealedOff.Value != value)
@@ -391,7 +422,9 @@ namespace Konoha.Campaign
             // SALAH LOKET targets the hero's spot; KETOK PALU lands in front of the Ketua.
             telegraphCenter.Value = Special == EnemySpecial.SalahLoket
                 ? transform.position + toTarget
-                : transform.position + forward.normalized * specialForward;
+                : Special == EnemySpecial.CounterPush
+                    ? transform.position
+                    : transform.position + forward.normalized * specialForward;
             telegraphEndsAt = Time.time + specialTelegraph;
             telegraphing.Value = true;
         }
@@ -427,8 +460,21 @@ namespace Konoha.Campaign
                 if (victim == null)
                     continue;
                 if (Special == EnemySpecial.SalahLoket)
+                {
                     SendToWrongLoket(victim);
-                else if (specialDamage > 0)
+                    continue;
+                }
+                if (Special == EnemySpecial.CounterPush)
+                {
+                    Vector3 away = victim.transform.position - telegraphCenter.Value;
+                    away.y = 0f;
+                    if (away.sqrMagnitude < 0.01f)
+                        away = transform.forward;
+                    NetworkHeroKit pushed = victim.GetComponent<NetworkHeroKit>();
+                    if (pushed != null)
+                        pushed.ServerApplyKnockback(away.normalized * CampaignTuning.Garda.CounterPushDistance);
+                }
+                if (specialDamage > 0)
                     victim.ServerReceiveDamage(specialDamage, NetworkMatchManager.NoClient, NetworkObjectId);
             }
             specialVictims.Clear();
@@ -586,7 +632,9 @@ namespace Konoha.Campaign
                 ? Mathf.Clamp01((Time.time - localTelegraphStart) /
                     Mathf.Max(0.05f, Special == EnemySpecial.SalahLoket
                         ? CampaignTuning.Biro.SalahLoketTelegraphSeconds
-                        : CampaignTuning.Majelis.KetokPaluTelegraphSeconds))
+                        : Special == EnemySpecial.CounterPush
+                            ? CampaignTuning.Garda.CounterPushTelegraphSeconds
+                            : CampaignTuning.Majelis.KetokPaluTelegraphSeconds))
                 : 0f;
 
             if (telegraphOuter != null)
@@ -692,7 +740,8 @@ namespace Konoha.Campaign
                 string title = EncounterComposer.TitleFor(unitFaction, unitRole).ToUpperInvariant();
                 string state = down ? "TUMBANG"
                     : kneeling ? "MENYERAH"
-                    : hammer ? (Special == EnemySpecial.SalahLoket ? "SALAH LOKET!" : "KETOK PALU!")
+                    : hammer ? (Special == EnemySpecial.SalahLoket ? "SALAH LOKET!"
+                        : Special == EnemySpecial.CounterPush ? "DORONGAN BALIK!" : "KETOK PALU!")
                     : locked ? "TERKUNCI"
                     : shielded ? definition.DisplayName + "  •  BLOK"
                     : definition.DisplayName;

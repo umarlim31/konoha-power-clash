@@ -246,7 +246,8 @@ namespace Konoha.Campaign
                 if (runtuh > lastRuntuh) Play(CampaignSound.Runtuh);
                 if (phase != lastPhase)
                 {
-                    if (phase == CampaignPhase.GerbangDalam || phase == CampaignPhase.KursiTerbuka)
+                    if (phase == CampaignPhase.GerbangDalam ||
+                        (phase == CampaignPhase.KursiTerbuka && lastPhase == CampaignPhase.GardaTakhta))
                         Play(CampaignSound.Door, 0.9f, phase == CampaignPhase.KursiTerbuka ? 1.15f : 1f);
                     else if (phase == CampaignPhase.Memerintah)
                         Play(CampaignSound.Seal, 0.8f, 0.8f);
