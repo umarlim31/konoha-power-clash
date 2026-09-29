@@ -32,6 +32,24 @@ namespace Konoha.Campaign
         };
         public Vector3 counterattackSpawnPoint = new Vector3(-6f, 0.1f, 30f);
 
+        // 0.0.9.2 Majelis Daun sidang in front of its hall (x -28). Order follows
+        // EncounterComposer.Compose(MajelisDaun, 1): Ketua, 2 Senior, 3 Staf Fraksi, Pengawal.
+        // All stay south of z -4.2, clear of the hall steps (z -3.15 .. -2.3).
+        public Vector3[] majelisSpawnPoints =
+        {
+            new Vector3(-30f, 0.1f, -5.5f),
+            new Vector3(-27f, 0.1f, -7.8f),
+            new Vector3(-26.5f, 0.1f, -4.3f),
+            new Vector3(-28.5f, 0.1f, -9f),
+            new Vector3(-25f, 0.1f, -9.5f),
+            new Vector3(-31.5f, 0.1f, -8f),
+            new Vector3(-24f, 0.1f, -6f)
+        };
+        // Checkpoints 3/4 sit on the wing corridor, outside the sector leash (11 m), so a
+        // revived hero is not dropped into the middle of the sidang.
+        public Vector3 majelisCheckpoint = new Vector3(-14f, 0.1f, -5f);
+        public Vector3 biroCheckpoint = new Vector3(14f, 0.1f, -5f);
+
         // Walkable connections for enemy steering (no navmesh): the throne terrace is
         // reached only by its ramp, the north only through the Gerbang Dalam.
         public float terraceHeight = 5f;
@@ -53,8 +71,8 @@ namespace Konoha.Campaign
             switch (checkpoint)
             {
                 case CampaignCheckpoint.PlazaAspirasi: point = plaza.position; break;
-                case CampaignCheckpoint.MajelisDaun: point = majelis.position; break;
-                case CampaignCheckpoint.BiroProsedur: point = biro.position; break;
+                case CampaignCheckpoint.MajelisDaun: point = majelisCheckpoint; break;
+                case CampaignCheckpoint.BiroProsedur: point = biroCheckpoint; break;
                 case CampaignCheckpoint.GardaTakhta: point = gardaCheckpoint; break;
                 default: point = startPoint; break;
             }

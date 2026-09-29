@@ -303,9 +303,28 @@ namespace Konoha.Networking
 
             heroKit ??= GetComponent<NetworkHeroKit>();
 
+            // Campaign-only actor state (voting block, surrender); PvP actors have none.
+            float stateMultiplier = 1f;
+            if (TryGetComponent(out ICombatActorState actorState))
+            {
+                if (!actorState.IsTargetable)
+                    return;
+                stateMultiplier = Mathf.Max(0f, actorState.IncomingDamageMultiplier);
+            }
+
             NetworkHeroKit attackerKit = FindHeroKitByOwner(sourceClientId);
             float outgoingMultiplier = attackerKit != null ? attackerKit.GetOutgoingDamageMultiplier() : 1f;
-            float incomingMultiplier = heroKit != null ? heroKit.GetIncomingDamageMultiplier() : 1f;
+
+            // Mode multiplier (campaign RESTU RAKYAT); NetworkMatchManager returns 1 for PvP.
+            ICombatRules modeRules = CombatRules.Current;
+            if (modeRules != null)
+            {
+                NetworkObject source = FindActorByNetworkObjectId(sourceActorNetworkObjectId);
+                if (source == null && sourceClientId != NetworkMatchManager.NoClient)
+                    source = FindPlayerObjectByOwner(sourceClientId);
+                stateMultiplier *= Mathf.Max(0f, modeRules.GetDamageMultiplier(source, NetworkObject));
+            }
+            float incomingMultiplier = (heroKit != null ? heroKit.GetIncomingDamageMultiplier() : 1f) * stateMultiplier;
             int adjustedDamage = Mathf.Max(
                 1,
                 Mathf.RoundToInt(damage * outgoingMultiplier * incomingMultiplier));

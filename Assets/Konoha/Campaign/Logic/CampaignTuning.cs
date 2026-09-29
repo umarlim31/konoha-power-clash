@@ -52,6 +52,13 @@ namespace Konoha.Campaign
             public const float KetokPaluCooldownSeconds = 9f;
             public const float SurrenderVanishSeconds = 3f;
             public const int SealPengaruh = ResourceRules.PengaruhSeal;
+
+            // 0.0.9.2 tuning assumptions (not in §8.1), to confirm on device.
+            public const float KetokPaluForwardOffset = 1.8f;   // Circle centre in front of the Ketua.
+            public const float KetokPaluTriggerRange = 4f;      // Hero this close starts the telegraph.
+            public const float KetokPaluFirstDelaySeconds = 3f; // No hammer in the first seconds of a fight.
+            public const float SectorEngageRadius = 9f;         // Entering this ring starts the sidang.
+            public const float LeashRadius = 11f;               // Members never chase beyond this around the hall.
         }
 
         // §8.2 Biro Prosedur — "Sahkan Berkas".
@@ -106,6 +113,19 @@ namespace Konoha.Campaign
             public const float EnemyFirstAttackDelaySeconds = 0.8f;
             public const float EnemyDespawnSeconds = 1.4f;   // Collapsed enemies stay visible briefly.
             public const float CounterattackDelaySeconds = PreviewSlice.CounterattackDelaySeconds;
+            // 0.0.9.2.1: basic hits from different enemies on the same hero are spaced by at
+            // least this much, so a crowd trades blows in turn instead of all at once.
+            // Telegraphed specials (KETOK PALU) are exempt. Tuning assumption.
+            public const float TargetHitSpacingSeconds = 0.5f;
+        }
+
+        // 0.0.9.2.1 RESTU RAKYAT: reward for clearing the Gerbang Rakyat, lasts for the run
+        // (kept after Runtuh, cleared by ULANG). Tuning assumption, not in §5–§9.
+        public static class Restu
+        {
+            public const float HeroDamageMultiplier = 1.30f;   // Hero hits on the Sistem.
+            public const float HeroDamageTakenMultiplier = 0.75f;
+            public const int PengaruhBonus = 30;
         }
 
         // Values of the 0.0.8.x solo preview slice. They intentionally differ from the MVP
@@ -125,8 +145,6 @@ namespace Konoha.Campaign
             public const float ChairRadius = 2.2f;
             public const float WaypointArrivalRadius = 2.3f;
 
-            public const float MajelisHoldSeconds = 2.5f;
-            public const float MajelisDecayRate = 0.25f; // Hold lost per second outside the ring.
             public const int BiroSteps = 3;
             public const float BiroStepIntervalSeconds = 0.65f;
 
@@ -164,7 +182,7 @@ namespace Konoha.Campaign
             public const float PakWiSpeedMultiplier = 1.55f;
             public const float PakWiCooldownSeconds = 9f;
 
-            public const float FeedbackSeconds = 2.2f;
+            public const float FeedbackSeconds = 3.2f;
             public const float MaxFrameSeconds = 0.05f;
         }
     }

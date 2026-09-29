@@ -24,6 +24,9 @@ namespace Konoha.Networking
         Quaternion GetRespawnRotation(NetworkObject actor);
         // Server only, after Wibawa has been restored.
         void ServerOnActorRespawned(NetworkObject actor);
+        // Server only. Mode multiplier for one hit (campaign blessings); PvP returns 1.
+        // attacker may be null (unknown source).
+        float GetDamageMultiplier(NetworkObject attacker, NetworkObject target);
     }
 
     public static class CombatRules
@@ -58,5 +61,16 @@ namespace Konoha.Networking
     public interface INetworkAiActor
     {
         int Team { get; }
+    }
+
+    // Optional per-actor combat state (Jalur Takhta enemies). PvP heroes and bots implement
+    // none of it, so their damage and targeting stay exactly as before.
+    public interface ICombatActorState
+    {
+        // Applied to every incoming hit after the hero kit multipliers (e.g. Majelis voting block).
+        float IncomingDamageMultiplier { get; }
+        // False once the actor has left the fight (a surrendered Staf Fraksi): no ability
+        // targets it and it takes no damage.
+        bool IsTargetable { get; }
     }
 }

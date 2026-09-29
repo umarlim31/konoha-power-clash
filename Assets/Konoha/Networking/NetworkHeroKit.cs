@@ -454,6 +454,19 @@ namespace Konoha.Networking
             SelectHeroServerRpc(((int)Hero + 1) % 4);
         }
 
+        // Direct pick (Jalur Takhta hero screen). Same server rule as TryCycleHero.
+        public void TrySelectHero(PrototypeHero hero)
+        {
+            if (!IsOwner || !IsSpawned || hero == Hero)
+                return;
+
+            ICombatRules rules = CombatRules.Current;
+            if (rules == null || !rules.CanSelectHero)
+                return;
+
+            SelectHeroServerRpc((int)hero);
+        }
+
         public void TryS1()
         {
             if (!CanUseHeroAbility() || Time.unscaledTime < localS1Ready)
@@ -1004,6 +1017,12 @@ namespace Konoha.Networking
             {
                 Collider c = box.GetComponent<Collider>();
                 if (c != null) Destroy(c);
+            }
+            else
+            {
+                // Still blocks movement, but camera/occlusion raycasts ignore it (the Jalur
+                // Takhta orbit camera used to zoom in when a skill placed a box beside the hero).
+                box.layer = 2; // Ignore Raycast
             }
 
             return box;

@@ -93,8 +93,7 @@ namespace Konoha.Character
                     for (int i=0; i<count; i++)
                     {
                         var hit = obstacles[i];
-                        if (hit.collider.transform.IsChildOf(target) ||
-                            hit.collider.GetComponent<Konoha.Campaign.CampaignMonument>() != null) continue;
+                        if (IgnoredByOrbit(hit.collider)) continue;
                         clearDistance = Mathf.Min(clearDistance, Mathf.Max(.8f, hit.distance - .18f));
                     }
                     transform.position = focus + ray.normalized * clearDistance;
@@ -106,6 +105,21 @@ namespace Konoha.Character
             if (lookDirection.sqrMagnitude > 0.001f)
                 transform.rotation = Quaternion.LookRotation(lookDirection, Vector3.up);
         }
+
+        // Only solid scenery may pull the orbit camera in. Characters (enemies crowding the
+        // hero), thin poles (palm trunks, lamps) and the monument are looked past; before
+        // 0.0.9.2.1 they made the view zoom in by itself during fights and skills.
+        private bool IgnoredByOrbit(Collider collider)
+        {
+            if (collider == null || collider.transform.IsChildOf(target) || collider is CharacterController)
+                return true;
+            if (collider.GetComponent<Konoha.Campaign.CampaignMonument>() != null)
+                return true;
+            Vector3 size = collider.bounds.size;
+            return size.x < ThinObstacleWidth && size.z < ThinObstacleWidth;
+        }
+
+        private const float ThinObstacleWidth = 0.7f;
 
         private Vector3 GetFocusPoint()
         {

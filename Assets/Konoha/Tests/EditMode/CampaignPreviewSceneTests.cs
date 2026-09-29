@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.0.9.1  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.0.9.1"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(22));
+                    Is.EqualTo("JALUR TAKHTA 0.0.9.2.1  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.0.9.2.1"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(24));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -64,6 +64,18 @@ namespace Konoha.Tests
                 foreach (string control in new[] { "AttackButton", "S1Button", "S2Button", "UltimateButton",
                     "DodgeButton", "HeroButton", "CampaignJump", "CampaignSit" })
                     Assert.That(GameObject.Find(control).GetComponent<UnityEngine.UI.Button>(), Is.Not.Null, control);
+
+                // 0.0.9.2.1 hero screen (covers the HUD until MULAI) and RESTU RAKYAT marker.
+                var heroSelect = Object.FindFirstObjectByType<CampaignHeroSelect>(FindObjectsInactive.Include);
+                Assert.That(heroSelect, Is.Not.Null);
+                Assert.That(heroSelect.heroButtons, Has.Length.EqualTo(4));
+                foreach (var pick in heroSelect.heroButtons) Assert.That(pick, Is.Not.Null);
+                Assert.That(heroSelect.startButton, Is.Not.Null);
+                Assert.That(heroSelect.detailText, Is.Not.Null);
+                Assert.That(heroSelect.transform.GetSiblingIndex(), Is.EqualTo(heroSelect.transform.parent.childCount - 1),
+                    "Hero screen must be drawn above the HUD");
+                Assert.That(preview.restuAura, Is.Not.Null);
+                Assert.That(preview.restuAura.GetComponent<Collider>(), Is.Null);
 
                 var stage = preview.stage;
                 Assert.That(stage, Is.SameAs(session.stage));
@@ -177,6 +189,18 @@ namespace Konoha.Tests
                 foreach (var point in stage.gateSpawnPoints) AssertFree(Flat(point), probe.transform, "Gate spawn blocked at ");
                 foreach (var point in stage.gardaSpawnPoints) AssertFree(Flat(point), probe.transform, "Garda spawn blocked at ");
                 AssertFree(Flat(stage.counterattackSpawnPoint), probe.transform, "Counterattack spawn blocked at ");
+                // 0.0.9.2 Majelis Daun sidang: one point per roster unit, all clear and inside the hall leash.
+                Assert.That(stage.majelisSpawnPoints.Length, Is.GreaterThanOrEqualTo(
+                    EncounterComposer.TotalUnits(EncounterComposer.Compose(FactionId.MajelisDaun, 1))));
+                foreach (var point in stage.majelisSpawnPoints)
+                {
+                    AssertFree(Flat(point), probe.transform, "Majelis spawn blocked at ");
+                    Assert.That(CampaignObjectiveDirector.Near(point, stage.majelis.position, CampaignTuning.Majelis.LeashRadius),
+                        Is.True, "Majelis member outside its hall leash: " + point);
+                }
+                Assert.That(CampaignObjectiveDirector.Near(stage.CheckpointPosition(CampaignCheckpoint.MajelisDaun),
+                    stage.majelis.position, CampaignTuning.Majelis.LeashRadius + .5f), Is.False,
+                    "Majelis checkpoint must lie outside the sidang leash");
                 foreach (CampaignCheckpoint checkpoint in System.Enum.GetValues(typeof(CampaignCheckpoint)))
                     AssertFree(Flat(stage.CheckpointPosition(checkpoint)), probe.transform, "Checkpoint " + checkpoint + " blocked at ");
 

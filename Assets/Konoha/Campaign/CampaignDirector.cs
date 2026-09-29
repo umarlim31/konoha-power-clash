@@ -26,8 +26,24 @@ namespace Konoha.Campaign
             (int)CampaignCheckpoint.GerbangRakyat, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<int> runtuhCount = new NetworkVariable<int>(
             0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
-        private NetworkVariable<float> majelisHold = new NetworkVariable<float>(
-            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        // 0.0.9.2.1: the hero is chosen before the run and locked until ULANG.
+        private NetworkVariable<bool> heroLocked = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        // RESTU RAKYAT blessing earned at the Gerbang Rakyat.
+        private NetworkVariable<bool> restu = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<bool> majelisStarted = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<bool> majelisBlock = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<bool> majelisLeaderDown = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<int> majelisRemaining = new NetworkVariable<int>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<int> majelisTotal = new NetworkVariable<int>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<int> seniorsAlive = new NetworkVariable<int>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<int> biroSteps = new NetworkVariable<int>(
             0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<bool> gateCleared = new NetworkVariable<bool>(
@@ -41,12 +57,16 @@ namespace Konoha.Campaign
 
         private readonly List<CampaignEnemy> gateEnemies = new List<CampaignEnemy>();
         private readonly List<CampaignEnemy> gardaEnemies = new List<CampaignEnemy>();
+        private readonly List<CampaignEnemy> majelisEnemies = new List<CampaignEnemy>();
+        private readonly MajelisEncounter majelis = new MajelisEncounter();
         private readonly List<CampaignEnemy> counterEnemies = new List<CampaignEnemy>();
 
         private CampaignStage stage;
         private CampaignObjectiveDirector objectives;
         private bool gateSpawned;
         private bool gardaSpawned;
+        private bool majelisSpawned;
+        private bool majelisPending;
         // Enemies are spawned from Update, never from inside another object's OnNetworkSpawn.
         private bool gatePending;
 
@@ -59,7 +79,16 @@ namespace Konoha.Campaign
         public int TargetPower => CampaignTuning.PreviewSlice.TargetPower;
         public int RequiredSeals => CampaignTuning.PreviewSlice.RequiredSeals;
         public int RuntuhCount => runtuhCount.Value;
-        public float MajelisHold => majelisHold.Value;
+        public bool HeroLocked => heroLocked.Value;
+        public bool RestuActive => restu.Value;
+
+        // Majelis Daun sidang (0.0.9.2).
+        public bool MajelisStarted => majelisStarted.Value;
+        public bool MajelisBlock => majelisBlock.Value;
+        public bool MajelisLeaderDown => majelisLeaderDown.Value;
+        public int MajelisRemaining => majelisRemaining.Value;
+        public int MajelisTotal => majelisTotal.Value;
+        public int SeniorsAlive => seniorsAlive.Value;
         public int BiroSteps => biroSteps.Value;
         public bool GateCleared => gateCleared.Value;
         public int GateRemaining => gateRemaining.Value;
@@ -99,6 +128,7 @@ namespace Konoha.Campaign
 
             objectives = new CampaignObjectiveDirector(stage.Layout);
             objectives.Notified += OnObjectiveMessage;
+            objectives.MajelisRequested += RequestMajelis;
             objectives.GardaRequested += SpawnGarda;
             objectives.CounterattackRequested += SpawnCounterattack;
             objectives.Won += OnWon;
@@ -112,6 +142,7 @@ namespace Konoha.Campaign
             if (objectives != null)
             {
                 objectives.Notified -= OnObjectiveMessage;
+                objectives.MajelisRequested -= RequestMajelis;
                 objectives.GardaRequested -= SpawnGarda;
                 objectives.CounterattackRequested -= SpawnCounterattack;
                 objectives.Won -= OnWon;
@@ -135,6 +166,19 @@ namespace Konoha.Campaign
                 SpawnGate();
             }
 
+            if (majelisPending)
+            {
+                majelisPending = false;
+                SpawnMajelis();
+            }
+
+            // Hero selection screen: the world waits (AllowsGameplay is false) until MULAI.
+            if (!heroLocked.Value)
+            {
+                SyncState();
+                return;
+            }
+
             float deltaTime = Mathf.Min(Time.deltaTime, CampaignTuning.PreviewSlice.MaxFrameSeconds);
             NetworkObject player = PrimaryPlayer();
             if (player != null)
@@ -145,7 +189,13 @@ namespace Konoha.Campaign
             }
 
             if (gateSpawned && !objectives.GateCleared && CountAlive(gateEnemies) == 0)
+            {
                 objectives.MarkGateCleared();
+                GrantRestu();
+            }
+
+            if (majelisSpawned)
+                UpdateMajelis();
 
             if (gardaSpawned && CountAlive(gardaEnemies) == 0 &&
                 (objectives.Run.Phase == CampaignPhase.GerbangDalam || objectives.Run.Phase == CampaignPhase.GardaTakhta))
@@ -178,7 +228,12 @@ namespace Konoha.Campaign
             power.Value = run.Power;
             checkpoint.Value = (int)run.Checkpoint;
             runtuhCount.Value = run.RuntuhCount;
-            majelisHold.Value = objectives.MajelisHold;
+            majelisStarted.Value = objectives.MajelisEngaged;
+            majelisBlock.Value = majelisSpawned && majelis.BlockHolds && !majelis.Cleared;
+            majelisLeaderDown.Value = majelis.LeaderFallen;
+            majelisRemaining.Value = CountAlive(majelisEnemies);
+            majelisTotal.Value = majelisEnemies.Count;
+            seniorsAlive.Value = CountAlive(majelisEnemies, UnitRole.Senior);
             biroSteps.Value = objectives.BiroSteps;
             gateCleared.Value = objectives.GateCleared;
             gateRemaining.Value = CountAlive(gateEnemies);
@@ -206,6 +261,111 @@ namespace Konoha.Campaign
             gateSpawned = true;
         }
 
+        // Majelis Daun (§8.1): placed when the plaza is reached (deferred to Update).
+        private void RequestMajelis()
+        {
+            if (!majelisSpawned)
+                majelisPending = true;
+        }
+
+        private void SpawnMajelis()
+        {
+            DespawnAll(majelisEnemies);
+            majelis.Reset();
+
+            Vector3 hall = stage.majelis.position;
+            int point = 0;
+            foreach (UnitSpawn spawn in EncounterComposer.Compose(FactionId.MajelisDaun, 1))
+            {
+                if (spawn.Trigger != SpawnTrigger.Start)
+                    continue;
+                for (int i = 0; i < spawn.Count; i++)
+                {
+                    if (point >= stage.majelisSpawnPoints.Length)
+                    {
+                        Debug.LogWarning("[KONOHA CAMPAIGN] Not enough Majelis spawn points for the roster.");
+                        break;
+                    }
+                    Vector3 position = stage.majelisSpawnPoints[point++];
+                    CampaignEnemy enemy = SpawnEnemy(spawn.Role, FactionId.MajelisDaun, position, position,
+                        stage.plaza.position, hall, CampaignTuning.Majelis.LeashRadius);
+                    if (enemy == null)
+                        continue;
+                    if (spawn.Role == UnitRole.Pemimpin)
+                        enemy.ServerConfigureKetokPalu();
+                    majelisEnemies.Add(enemy);
+                }
+            }
+
+            majelisSpawned = true;
+            UpdateMajelis();
+        }
+
+        private void UpdateMajelis()
+        {
+            if (majelis.Cleared)
+                return;
+
+            int seniors = CountAlive(majelisEnemies, UnitRole.Senior);
+            bool leaderAlive = CountAlive(majelisEnemies, UnitRole.Pemimpin) > 0;
+            int officers = seniors + CountAlive(majelisEnemies, UnitRole.Guard);
+            MajelisChange change = majelis.Evaluate(seniors, leaderAlive, officers);
+
+            if ((change & MajelisChange.BlockBroken) != 0)
+                OnObjectiveMessage("BLOK MAJELIS PECAH!  Serangan kini masuk penuh");
+
+            if ((change & MajelisChange.LeaderDown) != 0)
+            {
+                foreach (CampaignEnemy enemy in majelisEnemies)
+                    if (enemy != null && enemy.IsSpawned && enemy.Role == UnitRole.Kroni)
+                        enemy.ServerSurrender();
+                if ((change & MajelisChange.Cleared) == 0)
+                    OnObjectiveMessage("KETUA TUMBANG!  Staf Fraksi menyerah, kalahkan sisa pejabat");
+            }
+
+            bool block = majelis.BlockHolds && !majelis.Cleared;
+            foreach (CampaignEnemy enemy in majelisEnemies)
+                if (enemy != null && enemy.IsSpawned)
+                    enemy.ServerSetBlock(block && !enemy.IsOutOfFight);
+
+            if ((change & MajelisChange.Cleared) != 0 && objectives.CompleteMajelis())
+                GrantPlayersPengaruh(CampaignTuning.Majelis.SealPengaruh);
+        }
+
+        // RESTU RAKYAT: full Wibawa, a Pengaruh head start and the run-long damage blessing.
+        private void GrantRestu()
+        {
+            if (restu.Value)
+                return;
+
+            restu.Value = true;
+            foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
+            {
+                if (networkObject == null || !networkObject.IsPlayerObject)
+                    continue;
+                NetworkPlayerCombat combat = networkObject.GetComponent<NetworkPlayerCombat>();
+                if (combat != null && !combat.IsKnockedOut)
+                    combat.ServerHeal(combat.MaxWibawaValue);
+            }
+            GrantPlayersPengaruh(CampaignTuning.Restu.PengaruhBonus);
+            OnObjectiveMessage("RESTU RAKYAT!  Damage +" +
+                Mathf.RoundToInt((CampaignTuning.Restu.HeroDamageMultiplier - 1f) * 100f) + "%, damage diterima -" +
+                Mathf.RoundToInt((1f - CampaignTuning.Restu.HeroDamageTakenMultiplier) * 100f) + "%, Pengaruh +" +
+                CampaignTuning.Restu.PengaruhBonus + ".  Menuju PLAZA");
+        }
+
+        private void GrantPlayersPengaruh(int amount)
+        {
+            foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
+            {
+                if (networkObject == null || !networkObject.IsPlayerObject)
+                    continue;
+                NetworkHeroKit kit = networkObject.GetComponent<NetworkHeroKit>();
+                if (kit != null)
+                    kit.ServerGainPengaruh(amount);
+            }
+        }
+
         private void SpawnGarda()
         {
             gardaEnemies.Clear();
@@ -229,6 +389,12 @@ namespace Konoha.Campaign
 
         private CampaignEnemy SpawnEnemy(UnitRole role, FactionId faction, Vector3 position, Vector3 anchor, Vector3 lookAt)
         {
+            return SpawnEnemy(role, faction, position, anchor, lookAt, anchor, 0f);
+        }
+
+        private CampaignEnemy SpawnEnemy(UnitRole role, FactionId faction, Vector3 position, Vector3 anchor,
+            Vector3 lookAt, Vector3 areaCenter, float areaRadius)
+        {
             if (enemyPrefab == null)
             {
                 Debug.LogError("[KONOHA CAMPAIGN] Enemy prefab is not assigned.");
@@ -247,7 +413,7 @@ namespace Konoha.Campaign
             }
 
             networkObject.Spawn(true);
-            enemy.ServerInitialize(role, faction, anchor);
+            enemy.ServerInitialize(role, faction, anchor, areaCenter, areaRadius);
             return enemy;
         }
 
@@ -257,11 +423,20 @@ namespace Konoha.Campaign
                 list.Add(enemy);
         }
 
+        // Standing members; knocked-out and surrendered ones no longer count.
         private static int CountAlive(List<CampaignEnemy> list)
         {
             int alive = 0;
             foreach (CampaignEnemy enemy in list)
-                if (enemy != null && enemy.IsSpawned && !enemy.IsDown) alive++;
+                if (enemy != null && enemy.IsSpawned && !enemy.IsOutOfFight) alive++;
+            return alive;
+        }
+
+        private static int CountAlive(List<CampaignEnemy> list, UnitRole role)
+        {
+            int alive = 0;
+            foreach (CampaignEnemy enemy in list)
+                if (enemy != null && enemy.IsSpawned && !enemy.IsOutOfFight && enemy.Role == role) alive++;
             return alive;
         }
 
@@ -280,9 +455,13 @@ namespace Konoha.Campaign
         private void ServerRestart()
         {
             DespawnAll(gateEnemies);
+            DespawnAll(majelisEnemies);
             DespawnAll(gardaEnemies);
             DespawnAll(counterEnemies);
             gateSpawned = false;
+            majelisSpawned = false;
+            majelisPending = false;
+            majelis.Reset();
             gardaSpawned = false;
             objectives.Restart();
             SyncState();
@@ -297,12 +476,32 @@ namespace Konoha.Campaign
                     combat.ServerResetForMatch();
             }
 
+            // Back to the hero screen: the hero may be changed before the next run.
+            heroLocked.Value = false;
+            restu.Value = false;
             gatePending = true;
             SyncState();
-            OnObjectiveMessage("Perjalanan baru dimulai");
+            OnObjectiveMessage("Pilih hero untuk perjalanan baru");
         }
 
         // --- Player input --------------------------------------------------------------
+
+        // MULAI on the hero screen: locks the chosen hero and starts the run.
+        public void RequestStartRun()
+        {
+            if (IsSpawned && !heroLocked.Value)
+                StartRunServerRpc();
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void StartRunServerRpc()
+        {
+            if (objectives == null || heroLocked.Value)
+                return;
+
+            heroLocked.Value = true;
+            OnObjectiveMessage("Perjalanan dimulai! Kalahkan Kroni di GERBANG RAKYAT");
+        }
 
         // Contextual SAHKAN / DUDUK / ULANG button.
         public void RequestInteract()
@@ -322,6 +521,9 @@ namespace Konoha.Campaign
                 ServerRestart();
                 return;
             }
+
+            if (!heroLocked.Value)
+                return;
 
             NetworkObject player = FindPlayerObject(rpcParams.Receive.SenderClientId);
             if (player == null)
@@ -357,10 +559,11 @@ namespace Konoha.Campaign
 
         // --- ICombatRules ----------------------------------------------------------------
 
-        public bool AllowsGameplay => IsSpawned;
+        // Nothing moves or fights while the hero screen is open.
+        public bool AllowsGameplay => IsSpawned && heroLocked.Value;
 
-        // Hero changes stay open except while holding the seat.
-        public bool CanSelectHero => IsSpawned && Phase != CampaignPhase.Memerintah;
+        // The hero is chosen once per run: only on the hero screen (start and after ULANG).
+        public bool CanSelectHero => IsSpawned && !heroLocked.Value;
 
         // Campaign seating is objective state, not the PvP ruler lock: the seated hero may fight.
         public bool IsRuler(ulong clientId) => false;
@@ -386,6 +589,7 @@ namespace Konoha.Campaign
             {
                 objectives.HandleRuntuh();
                 RecoverEnemies(gateEnemies);
+                RecoverEnemies(majelisEnemies);
                 RecoverEnemies(gardaEnemies);
                 RecoverEnemies(counterEnemies);
                 SyncState();
@@ -399,6 +603,18 @@ namespace Konoha.Campaign
             foreach (CampaignEnemy enemy in list)
                 if (enemy != null && enemy.IsSpawned)
                     enemy.ServerRecover(CampaignTuning.Runtuh.WoundedEnemyRecoveryFraction);
+        }
+
+        // RESTU RAKYAT: blessed heroes hit the Sistem harder and take less damage.
+        public float GetDamageMultiplier(NetworkObject attacker, NetworkObject target)
+        {
+            if (!restu.Value || target == null)
+                return 1f;
+
+            bool attackerBlessed = attacker != null && attacker.IsPlayerObject &&
+                target.TryGetComponent(out CampaignEnemy _);
+            bool targetBlessed = target.IsPlayerObject;
+            return RestuRakyat.DamageMultiplier(attackerBlessed, targetBlessed);
         }
 
         public float GetRespawnDelay(NetworkObject actor, float defaultDelay) =>
