@@ -154,6 +154,14 @@ namespace Konoha.Campaign
             return true;
         }
 
+        // §9 KUDETA: the reign failed; Power returns to zero and the seat is open again.
+        public void ResetPower()
+        {
+            Power = 0;
+            if (Phase == CampaignPhase.Memerintah)
+                Phase = CampaignPhase.KursiTerbuka;
+        }
+
         public void LoseSeat()
         {
             if (Phase == CampaignPhase.Memerintah)
