@@ -69,6 +69,37 @@ namespace Konoha.Editor
             return art;
         }
 
+        // Tall decor that may stand between the orbit camera and the hero: roofs, gate
+        // lintels/walls/pylons, palm crowns and trunks, the Biro office and big gate signs.
+        // CampaignOccluders hides them while they cover the hero (0.0.9.4).
+        private static readonly string[] OccluderNames =
+        {
+            "Tiered Nusantara roof", "Roof bronze ridge", "Upturned roof finial",
+            "Gerbang Rakyat", "Gerbang Dalam", "Kantor Kepala Biro", "Pintu Kepala Biro",
+            "Palm curved frond", "Palm crown", "Palm tapered trunk",
+            "Sign GERBANG", "Sign MENUJU", "Sign KANTOR", "Banner"
+        };
+
+        internal Renderer[] CameraOccluders()
+        {
+            var result = new List<Renderer>();
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                string name = renderer.gameObject.name;
+                if (name.IndexOf("boulevard", StringComparison.OrdinalIgnoreCase) >= 0)
+                    continue; // Floor inlay, never above the hero.
+                foreach (string prefix in OccluderNames)
+                {
+                    if (name.StartsWith(prefix, StringComparison.Ordinal))
+                    {
+                        result.Add(renderer);
+                        break;
+                    }
+                }
+            }
+            return result.ToArray();
+        }
+
         // A hero may cross the east-west wing corridor freely; solid decor stays out of it.
         private static bool InWingCorridor(float x, float z, float halfDepth) =>
             Mathf.Abs(x) > 4f && Mathf.Abs(z - WingCorridorZ) < halfDepth + 2.5f;

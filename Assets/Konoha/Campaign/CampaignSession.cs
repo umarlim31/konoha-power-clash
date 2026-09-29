@@ -23,6 +23,8 @@ namespace Konoha.Campaign
         public CampaignStage stage;
         public CampaignTraversal traversal;
         public CampaignMonument monument;
+        // Hides roofs/walls that would cover the hero (0.0.9.4).
+        public CampaignOccluders occluders;
         public Transform movementCamera;
         // The generated offline character (collision probe in editor tests); hidden once
         // the networked hero exists.
@@ -178,6 +180,8 @@ namespace Konoha.Campaign
                 traversal.Bind(motor, movement);
             if (monument != null)
                 monument.player = player.transform;
+            if (occluders != null)
+                occluders.target = player.transform;
             if (offlineHero != null)
                 offlineHero.SetActive(false);
 

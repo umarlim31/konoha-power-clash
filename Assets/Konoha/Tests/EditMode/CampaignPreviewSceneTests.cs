@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.0.9.3  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.0.9.3"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(25));
+                    Is.EqualTo("JALUR TAKHTA 0.0.9.4  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.0.9.4"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(26));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -75,6 +75,19 @@ namespace Konoha.Tests
                 Assert.That(heroSelect.transform.GetSiblingIndex(), Is.EqualTo(heroSelect.transform.parent.childCount - 1),
                     "Hero screen must be drawn above the HUD");
                 Assert.That(preview.restuAura, Is.Not.Null);
+                // 0.0.9.4: roofs/gates/palms hide while covering the hero; sound effects with a toggle.
+                Assert.That(session.occluders, Is.Not.Null);
+                Assert.That(session.occluders.candidates.Length, Is.GreaterThan(20));
+                foreach (var occluder in session.occluders.candidates)
+                {
+                    Assert.That(occluder, Is.Not.Null);
+                    Assert.That(occluder.bounds.max.y, Is.GreaterThan(.5f), "Floor-level decor is never an occluder: " + occluder.name);
+                }
+                var audio = Object.FindFirstObjectByType<CampaignAudio>();
+                Assert.That(audio, Is.Not.Null);
+                Assert.That(audio.muteButton, Is.Not.Null);
+                foreach (var click in audio.clickButtons) Assert.That(click, Is.Not.Null);
+                Assert.That(Camera.main.GetComponent<AudioListener>(), Is.Not.Null, "Sound needs a listener on the camera");
                 Assert.That(preview.restuAura.GetComponent<Collider>(), Is.Null);
 
                 var stage = preview.stage;

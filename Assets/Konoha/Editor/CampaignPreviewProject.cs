@@ -19,7 +19,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.9.3")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.9.4")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +27,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.0.9.3";
-            PlayerSettings.Android.bundleVersionCode = 25;
+            PlayerSettings.bundleVersion = "0.0.9.4";
+            PlayerSettings.Android.bundleVersionCode = 26;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -219,7 +219,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.0.9.3  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.0.9.4  •  SOLO PREVIEW";
 
             var stage = new GameObject("CampaignStage").AddComponent<CampaignStage>();
             stage.plaza = capital.Plaza;
@@ -250,6 +250,10 @@ namespace Konoha.Editor
             session.stage = stage;
             session.traversal = traversal;
             session.monument = UnityEngine.Object.FindFirstObjectByType<CampaignMonument>();
+            var occluders = new GameObject("CampaignOccluders").AddComponent<CampaignOccluders>();
+            occluders.viewCamera = previewCamera;
+            occluders.candidates = capital.CameraOccluders();
+            session.occluders = occluders;
             session.movementCamera = previewCamera.transform;
             session.offlineHero = player.gameObject;
 
@@ -294,7 +298,19 @@ namespace Konoha.Editor
             aura.SetActive(false);
             preview.restuAura = aura.transform;
 
-            CreateHeroSelect(safe);
+            var heroSelect = CreateHeroSelect(safe);
+
+            // Sound effects (0.0.9.4): synthesised at runtime, SUARA toggle under KAMERA AWAL.
+            var mute = Button("SoundToggle", "SUARA: NYALA", safe, new Vector2(1f, 1f),
+                new Vector2(-14, -64), new Vector2(164, 44));
+            mute.GetComponentInChildren<Text>().fontSize = 16;
+            var audio = new GameObject("CampaignAudio").AddComponent<CampaignAudio>();
+            audio.muteButton = mute;
+            audio.clickButtons = new[] { sit, viewButton, resetCamera,
+                heroSelect.heroButtons[0], heroSelect.heroButtons[1], heroSelect.heroButtons[2],
+                heroSelect.heroButtons[3], heroSelect.startButton };
+            // The hero screen must stay drawn above the new button.
+            heroSelect.transform.SetAsLastSibling();
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -303,7 +319,7 @@ namespace Konoha.Editor
         }
 
         // Hero screen shown before each run (0.0.9.2.1). Last sibling: covers and blocks the HUD.
-        private static void CreateHeroSelect(Transform safe)
+        private static CampaignHeroSelect CreateHeroSelect(Transform safe)
         {
             var panel = new GameObject("HeroSelectPanel", typeof(RectTransform), typeof(Image));
             var panelRect = (RectTransform)panel.transform;
@@ -343,6 +359,7 @@ namespace Konoha.Editor
                 new Vector2(0, 28), new Vector2(260, 70));
             start.GetComponentInChildren<Text>().fontSize = 26;
             select.startButton = start;
+            return select;
         }
 
         // Server-driven organisation member. Shares the hero combat components so every
