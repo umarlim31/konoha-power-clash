@@ -19,7 +19,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.9.1")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.0.9.2")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +27,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.0.9.1";
-            PlayerSettings.Android.bundleVersionCode = 22;
+            PlayerSettings.bundleVersion = "0.0.9.2";
+            PlayerSettings.Android.bundleVersionCode = 23;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -213,7 +213,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.0.9.1  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.0.9.2  •  SOLO PREVIEW";
 
             var stage = new GameObject("CampaignStage").AddComponent<CampaignStage>();
             stage.plaza = capital.Plaza;
@@ -318,8 +318,42 @@ namespace Konoha.Editor
                 new Vector3(0.26f, 0.14f, 0.40f), accent);
             Part("ShoulderR", PrimitiveType.Cube, visual.transform, new Vector3(0.50f, 1.50f, 0f),
                 new Vector3(0.26f, 0.14f, 0.40f), accent);
-            Part("SistemRing", PrimitiveType.Cylinder, root.transform, new Vector3(0f, 0.03f, 0f),
+            // Raised above the thin floor inlays (corridor top .043 m) so it is never hidden.
+            Part("SistemRing", PrimitiveType.Cylinder, root.transform, new Vector3(0f, 0.075f, 0f),
                 new Vector3(1.2f, 0.012f, 1.2f), ringMaterial);
+
+            // 0.0.9.2 Majelis Daun readability (§8.1). Shared opaque materials, no lights.
+            var blockMaterial = Mat("CampaignMajelisBlock", new Color(0.46f, 0.08f, 0.16f));
+            var gavelWood = Mat("CampaignGavelWood", new Color(0.36f, 0.21f, 0.11f));
+            var warnOuter = Mat("CampaignTelegraphOuter", new Color(0.36f, 0.05f, 0.05f));
+            var warnFill = Mat("CampaignTelegraphFill", new Color(0.95f, 0.30f, 0.12f));
+
+            // Voting block: a wider burgundy disc under the red Sistem ring.
+            var blockRing = Part("BlockRing", PrimitiveType.Cylinder, root.transform, new Vector3(0f, 0.05f, 0f),
+                new Vector3(1.9f, 0.006f, 1.9f), blockMaterial);
+            blockRing.SetActive(false);
+
+            // Ketua's gavel on the right hand; the pivot swings it overhead during KETOK PALU.
+            var gavelPivot = new GameObject("GavelPivot");
+            gavelPivot.transform.SetParent(visual.transform, false);
+            gavelPivot.transform.localPosition = new Vector3(0.62f, 1.35f, 0.15f);
+            Part("GavelHandle", PrimitiveType.Cylinder, gavelPivot.transform, new Vector3(0f, 0f, 0.38f),
+                new Vector3(0.07f, 0.38f, 0.07f), gavelWood).transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            Part("GavelHead", PrimitiveType.Cylinder, gavelPivot.transform, new Vector3(0f, 0f, 0.78f),
+                new Vector3(0.20f, 0.17f, 0.20f), gavelWood);
+            Part("GavelBand", PrimitiveType.Cylinder, gavelPivot.transform, new Vector3(0f, 0f, 0.78f),
+                new Vector3(0.21f, 0.04f, 0.21f), accent);
+            gavelPivot.SetActive(false);
+
+            // KETOK PALU warning circle; placed in world space by CampaignEnemy while active.
+            var telegraphOuter = Part("KetokPaluWarning", PrimitiveType.Cylinder, root.transform, Vector3.zero,
+                new Vector3(6f, 0.006f, 6f), warnOuter);
+            var telegraphFill = Part("KetokPaluFill", PrimitiveType.Cylinder, root.transform, Vector3.zero,
+                new Vector3(0.3f, 0.006f, 0.3f), warnFill);
+            foreach (var disc in new[] { blockRing, telegraphOuter, telegraphFill })
+                disc.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            telegraphOuter.SetActive(false);
+            telegraphFill.SetActive(false);
 
             var labelObject = new GameObject("Nameplate");
             labelObject.transform.SetParent(root.transform, false);
@@ -340,6 +374,11 @@ namespace Konoha.Editor
             enemy.bodyRenderer = capsule.GetComponent<Renderer>();
             enemy.accentRenderer = sash.GetComponent<Renderer>();
             enemy.nameplate = label;
+            enemy.blockRing = blockRing;
+            enemy.gavel = gavelPivot;
+            enemy.gavelPivot = gavelPivot.transform;
+            enemy.telegraphOuter = telegraphOuter.transform;
+            enemy.telegraphFill = telegraphFill.transform;
             SpikeProject.CreateWorldWibawaBar(root);
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, path);

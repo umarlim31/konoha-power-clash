@@ -82,7 +82,8 @@ namespace Konoha.Editor
             Block("Gerbang Rakyat lintel", new Vector3(0, 6.2f, z), new Vector3(10.4f, .75f, 1.5f), ivory);
             Roof(new Vector3(0, 6.55f, z), new Vector3(5.6f, 1.9f, 1.3f), red);
             Sign("GERBANG RAKYAT", new Vector3(0, 7.9f, z - .8f), 0f, 1.25f);
-            Sign("MENUJU ISTANA TAKHTA", new Vector3(0, 1.9f, -49f), 0f, .7f);
+            // Hung under the lintel: the old spot (z -49, 1.9 m) sat between the spawn camera and the hero.
+            Sign("MENUJU ISTANA TAKHTA", new Vector3(0, 5.15f, z - .8f), 0f, .55f);
         }
 
         private void BuildPlazaAspirasi()
