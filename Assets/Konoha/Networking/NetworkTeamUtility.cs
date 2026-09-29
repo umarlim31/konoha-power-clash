@@ -60,7 +60,8 @@ namespace Konoha.Networking
         public static bool IsCombatActor(NetworkObject networkObject)
         {
             return networkObject != null &&
-                   networkObject.GetComponent<NetworkPlayerCombat>() != null;
+                   networkObject.GetComponent<NetworkPlayerCombat>() != null &&
+                   (!networkObject.TryGetComponent(out ICombatActorState state) || state.IsTargetable);
         }
 
         public static int GetHumanSlot(ulong clientId)

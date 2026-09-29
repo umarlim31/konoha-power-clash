@@ -303,9 +303,18 @@ namespace Konoha.Networking
 
             heroKit ??= GetComponent<NetworkHeroKit>();
 
+            // Campaign-only actor state (voting block, surrender); PvP actors have none.
+            float stateMultiplier = 1f;
+            if (TryGetComponent(out ICombatActorState actorState))
+            {
+                if (!actorState.IsTargetable)
+                    return;
+                stateMultiplier = Mathf.Max(0f, actorState.IncomingDamageMultiplier);
+            }
+
             NetworkHeroKit attackerKit = FindHeroKitByOwner(sourceClientId);
             float outgoingMultiplier = attackerKit != null ? attackerKit.GetOutgoingDamageMultiplier() : 1f;
-            float incomingMultiplier = heroKit != null ? heroKit.GetIncomingDamageMultiplier() : 1f;
+            float incomingMultiplier = (heroKit != null ? heroKit.GetIncomingDamageMultiplier() : 1f) * stateMultiplier;
             int adjustedDamage = Mathf.Max(
                 1,
                 Mathf.RoundToInt(damage * outgoingMultiplier * incomingMultiplier));

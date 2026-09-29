@@ -59,4 +59,15 @@ namespace Konoha.Networking
     {
         int Team { get; }
     }
+
+    // Optional per-actor combat state (Jalur Takhta enemies). PvP heroes and bots implement
+    // none of it, so their damage and targeting stay exactly as before.
+    public interface ICombatActorState
+    {
+        // Applied to every incoming hit after the hero kit multipliers (e.g. Majelis voting block).
+        float IncomingDamageMultiplier { get; }
+        // False once the actor has left the fight (a surrendered Staf Fraksi): no ability
+        // targets it and it takes no damage.
+        bool IsTargetable { get; }
+    }
 }
