@@ -107,23 +107,23 @@ namespace Konoha.Campaign
                 case PrototypeHero.Mega:
                     return "MEGA  •  Petarung depan\n" +
                         "S1 SERUAN IBU: terjang 6 m, dorong + stun sebentar\n" +
-                        "S2 PERISAI RAKYAT: dua pagar kader penahan musuh\n" +
+                        "S2 PERISAI RAKYAT: dua kader penahan musuh + perisai 15\n" +
                         "ULT MONCONG: serangan garis jauh 12 m";
                 case PrototypeHero.Prabowo:
                     return "GEMOY  •  Komandan\n" +
                         "S1 CMD LEAP: lompat 4 m, damage area pendaratan\n" +
-                        "S2 BARIS!: dorong musuh di depan, perisai sekutu di belakang\n" +
+                        "S2 BARIS!: dorong + 16 damage di depan, perisai 10 untuk GEMOY\n" +
                         "ULT GARUDA: damage +30% dan lebih tahan selama 8 detik";
                 case PrototypeHero.Abah:
                     return "ABAH  •  Pengendali narasi\n" +
                         "S1 NARASI: zona 6 detik, sekutu cepat, musuh lambat + damage\n" +
                         "S2 ELECTRIC DASH: melesat 5 m\n" +
-                        "ULT PIDATO: bungkam + damage area 7 m";
+                        "ULT PIDATO: 30 damage area 7 m + dorong musuh";
                 case PrototypeHero.Jokowi:
-                    return "PAK WI  •  Mobilitas\n" +
-                        "S1 INFRASTRUKTUR: jalan 8 detik, sekutu di atasnya +35% lebih cepat\n" +
-                        "S2 BLUSUKAN: melesat 6 m\n" +
-                        "ULT PROYEK: membangun proyek";
+                    return "PAK WI  •  Pembangun lincah\n" +
+                        "S1 INFRASTRUKTUR: jalan 8 dtk; di atasnya cepat, damage +25%, tahan +20%\n" +
+                        "S2 BLUSUKAN: melesat 6 m, 18 damage di lintasan + perisai 15\n" +
+                        "ULT PROYEK: ledakan 30 damage area 7 m + perisai 25";
                 default:
                     return NetworkHeroKit.GetHeroName(hero);
             }

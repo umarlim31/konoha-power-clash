@@ -152,47 +152,43 @@ namespace Konoha.Networking
             RefreshHud();
         }
 
-        public int GetBasicDamage()
-        {
-            switch (Hero)
-            {
-                case PrototypeHero.Prabowo: return 24;
-                case PrototypeHero.Abah: return 17;
-                case PrototypeHero.Jokowi: return 15;
-                default: return 18;
-            }
-        }
+        // Numbers live in HeroBalance (PvP profile = the original values; solo profile for
+        // Jalur Takhta, 0.2.4).
+        public int GetBasicDamage() => HeroBalance.BasicDamage(Hero, SoloKit);
 
-        public float GetBasicRange()
-        {
-            switch (Hero)
-            {
-                case PrototypeHero.Abah: return 6.8f;
-                case PrototypeHero.Prabowo: return 2.8f;
-                default: return 2.7f;
-            }
-        }
+        public float GetBasicRange() => HeroBalance.BasicRange(Hero);
 
-        public float GetBasicCooldown()
-        {
-            switch (Hero)
-            {
-                case PrototypeHero.Prabowo: return IsGarudaActive ? 0.62f : 0.88f;
-                case PrototypeHero.Abah: return 0.72f;
-                case PrototypeHero.Jokowi: return 0.68f;
-                default: return 0.64f;
-            }
-        }
+        public float GetBasicCooldown() => HeroBalance.BasicCooldown(Hero, IsGarudaActive);
 
         public float GetOutgoingDamageMultiplier()
         {
-            return Hero == PrototypeHero.Prabowo && IsGarudaActive ? 1.30f : 1f;
+            if (Hero == PrototypeHero.Prabowo && IsGarudaActive)
+                return 1.30f;
+            return OnOwnSoloRoad() ? HeroBalance.SoloRoadDamageMultiplier : 1f;
         }
 
         public float GetIncomingDamageMultiplier()
         {
-            return Hero == PrototypeHero.Prabowo && IsGarudaActive ? 0.72f : 1f;
+            if (Hero == PrototypeHero.Prabowo && IsGarudaActive)
+                return 0.72f;
+            return OnOwnSoloRoad() ? HeroBalance.SoloRoadDamageTakenMultiplier : 1f;
         }
+
+        // Jalur Takhta uses the solo hero kit (HeroBalance); PvP never does.
+        private static bool SoloKit
+        {
+            get
+            {
+                ICombatRules rules = CombatRules.Current;
+                return rules != null && rules.UsesSoloHeroKit;
+            }
+        }
+
+        // Solo PAK WI standing on his own INFRASTRUKTUR road.
+        private bool OnOwnSoloRoad() =>
+            Hero == PrototypeHero.Jokowi && IsSpawned && SoloKit &&
+            ServerClock < roadUntil.Value &&
+            HorizontalDistanceSqr(transform.position, roadCenter.Value) <= 25f;
 
         public float GetMovementSpeedMultiplier()
         {
@@ -629,6 +625,8 @@ namespace Konoha.Networking
                     PlayAbilityFxClientRpc((int)Hero, 2, transform.position, direction);
                     break;
                 case PrototypeHero.Jokowi:
+                    if (SoloKit)
+                        ServerSoloBlusukan(transform.position, direction, 5.8f);
                     ApplyDisplacementClientRpc(direction * 5.8f, true);
                     PlayAbilityFxClientRpc((int)Hero, 2, transform.position, direction);
                     break;
@@ -717,6 +715,8 @@ namespace Konoha.Networking
             Vector3 center = transform.position + transform.forward * 2.4f;
             PlayAbilityFxClientRpc((int)Hero, 2, center, transform.forward);
             ServerGainPengaruh(4);
+            if (SoloKit)
+                GetComponent<NetworkPlayerCombat>()?.ServerGrantShield(HeroBalance.SoloKaderShield);
         }
 
         private void ServerMoncongPutih(Vector3 direction)
@@ -788,10 +788,14 @@ namespace Konoha.Networking
                 }
                 else if (facingDot >= 0.25f)
                 {
-                    combat?.ServerReceiveDamage(10, DamageSourceClientId, DamageSourceActorNetworkObjectId);
+                    combat?.ServerReceiveDamage(SoloKit ? HeroBalance.SoloBarisDamage : HeroBalance.PvpBarisDamage,
+                        DamageSourceClientId, DamageSourceActorNetworkObjectId);
                     kit?.ServerApplyKnockback(toward * 3.0f);
                 }
             }
+
+            if (SoloKit)
+                GetComponent<NetworkPlayerCombat>()?.ServerGrantShield(HeroBalance.SoloBarisSelfShield);
 
             PlayAbilityFxClientRpc((int)Hero, 2, transform.position, direction);
         }
@@ -814,7 +818,11 @@ namespace Konoha.Networking
 
                 enemy.ServerApplySilence(3f);
                 NetworkPlayerCombat combat = enemy.GetComponent<NetworkPlayerCombat>();
-                combat?.ServerReceiveDamage(18, DamageSourceClientId, DamageSourceActorNetworkObjectId);
+                bool solo = SoloKit;
+                combat?.ServerReceiveDamage(solo ? HeroBalance.SoloPidatoDamage : HeroBalance.PvpPidatoDamage,
+                    DamageSourceClientId, DamageSourceActorNetworkObjectId);
+                if (solo)
+                    enemy.ServerApplyKnockback(FlattenDirection(enemy.transform.position - transform.position) * HeroBalance.SoloPidatoKnockback);
             }
 
             PlayAbilityFxClientRpc((int)Hero, 3, transform.position, Vector3.forward);
@@ -830,7 +838,38 @@ namespace Konoha.Networking
 
         private void ServerProyekNasional()
         {
-            PlayAbilityFxClientRpc((int)Hero, 3, Vector3.zero, Vector3.forward);
+            if (!SoloKit)
+            {
+                PlayAbilityFxClientRpc((int)Hero, 3, Vector3.zero, Vector3.forward);
+                return;
+            }
+
+            // Solo: ground-breaking blast around PAK WI instead of the fixed PvP walls.
+            float radiusSqr = HeroBalance.SoloProyekRadius * HeroBalance.SoloProyekRadius;
+            foreach (NetworkHeroKit enemy in ServerEnemies())
+            {
+                if (HorizontalDistanceSqr(enemy.transform.position, transform.position) > radiusSqr)
+                    continue;
+                enemy.GetComponent<NetworkPlayerCombat>()?.ServerReceiveDamage(HeroBalance.SoloProyekDamage,
+                    DamageSourceClientId, DamageSourceActorNetworkObjectId);
+                enemy.ServerApplyKnockback(FlattenDirection(enemy.transform.position - transform.position) * HeroBalance.SoloProyekKnockback);
+            }
+            GetComponent<NetworkPlayerCombat>()?.ServerGrantShield(HeroBalance.SoloProyekShield);
+            PlayAbilityFxClientRpc((int)Hero, 3, transform.position, transform.forward);
+        }
+
+        // Solo BLUSUKAN: enemies along the dash take damage; PAK WI gets a small shield.
+        private void ServerSoloBlusukan(Vector3 start, Vector3 direction, float distance)
+        {
+            Vector3 end = start + direction * distance;
+            foreach (NetworkHeroKit enemy in ServerEnemies())
+            {
+                if (DistancePointToSegmentXZ(enemy.transform.position, start, end) > HeroBalance.SoloBlusukanWidth)
+                    continue;
+                enemy.GetComponent<NetworkPlayerCombat>()?.ServerReceiveDamage(HeroBalance.SoloBlusukanDamage,
+                    DamageSourceClientId, DamageSourceActorNetworkObjectId);
+            }
+            GetComponent<NetworkPlayerCombat>()?.ServerGrantShield(HeroBalance.SoloBlusukanShield);
         }
 
         private NetworkHeroKit[] ServerEnemies()
@@ -929,7 +968,8 @@ namespace Konoha.Networking
                 yield break;
             }
 
-            if (hero == PrototypeHero.Jokowi && slot == 3)
+            // PvP proyek walls (the solo ULT is a blast around PAK WI, drawn by Jalur Takhta).
+            if (hero == PrototypeHero.Jokowi && slot == 3 && !SoloKit)
             {
                 GameObject[] structures =
                 {

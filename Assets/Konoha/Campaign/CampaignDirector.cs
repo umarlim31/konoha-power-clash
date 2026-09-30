@@ -1061,6 +1061,9 @@ namespace Konoha.Campaign
                 ? CampaignTuning.Memerintah.SeatedBasicRangeBonus
                 : 0f;
 
+        // 0.2.4: solo hero kit (HeroBalance) so all four heroes work without allies.
+        public bool UsesSoloHeroKit => true;
+
         public float GetRespawnDelay(NetworkObject actor, float defaultDelay) =>
             CampaignTuning.Runtuh.RespawnDelaySeconds;
 
