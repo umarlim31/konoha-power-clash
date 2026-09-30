@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.2.1  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.1"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(30));
+                    Is.EqualTo("JALUR TAKHTA 0.2.2  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.2"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(31));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -125,6 +125,35 @@ namespace Konoha.Tests
                 Assert.That(grading, Is.Not.Null);
                 Assert.That(grading.GetComponent<Volume>().sharedProfile, Is.Not.Null);
                 Assert.That(Camera.main.GetUniversalAdditionalCameraData().renderPostProcessing, Is.True);
+                // 0.2.2 Kota Hidup: traffic, warga and fountains exist, never collide, stay within budget.
+                var city = Object.FindFirstObjectByType<CampaignCityLife>();
+                Assert.That(city, Is.Not.Null);
+                Assert.That(city.ringCorners, Has.Length.EqualTo(4));
+                Assert.That(city.vehicles.Length, Is.InRange(8, 14));
+                Assert.That(city.walkers.Length, Is.InRange(20, 36));
+                Assert.That(city.jets.Length, Is.EqualTo(city.nozzles.Length));
+                Assert.That(city.droplets.Length, Is.GreaterThan(0));
+                foreach (var vehicle in city.vehicles) Assert.That(vehicle.body, Is.Not.Null);
+                foreach (var walker in city.walkers)
+                {
+                    Assert.That(walker.root, Is.Not.Null);
+                    Assert.That(walker.legLeft, Is.Not.Null);
+                    Assert.That(walker.armRight, Is.Not.Null);
+                }
+                foreach (Vector3 corner in city.ringCorners)
+                    Assert.That(Mathf.Abs(corner.x) > 34f || Mathf.Abs(corner.z - 4f) > 58f, Is.True,
+                        "Ring road stays outside the playable oval");
+                int kota = 0;
+                foreach (var decor in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                {
+                    if (!decor.name.StartsWith("Kota")) continue;
+                    kota++;
+                    Assert.That(decor.GetComponent<Collider>(), Is.Null, "Kota Hidup must not collide: " + decor.name);
+                }
+                Assert.That(kota, Is.InRange(300, 1600), "Kota Hidup budget for the tablet");
+                Assert.That(GameObject.Find("KotaTall spanduk lambang Konoha"), Is.Not.Null);
+                Assert.That(GameObject.Find("Kota ruko"), Is.Not.Null);
+                Assert.That(GameObject.Find("Kota teluk"), Is.Not.Null);
                 var audio = Object.FindFirstObjectByType<CampaignAudio>();
                 Assert.That(audio, Is.Not.Null);
                 Assert.That(audio.muteButton, Is.Not.Null);

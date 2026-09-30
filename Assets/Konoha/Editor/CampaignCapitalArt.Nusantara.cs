@@ -31,9 +31,12 @@ namespace Konoha.Editor
             WarungDanGerobak();
             Trembesi(new Vector3(-24f, 0f, -44f), 0f);
             Trembesi(new Vector3(24f, 0f, -44f), 40f);
-            Trembesi(new Vector3(-38f, 0f, 6f), 80f);
-            Trembesi(new Vector3(38f, 0f, 14f), 120f);
+            // 0.2.2: moved from x ±38 to ±35, off the new side roads (x ±41).
+            Trembesi(new Vector3(-35f, 0f, 6f), 80f);
+            Trembesi(new Vector3(35f, 0f, 14f), 120f);
             SawahDanGunung();
+            // 0.2.2 Kota Hidup (CampaignCapitalArt.KotaHidup.cs).
+            BuildKotaHidup();
         }
 
         private void CreateNusantaraPalette()
@@ -106,6 +109,11 @@ namespace Konoha.Editor
 
         // --- Street --------------------------------------------------------------------------
 
+        // Far (south) pavement of the jalan raya: poles, ruko and pedestrians (0.2.2).
+        private const float FarTrotoarZ = -65.6f;
+        // Poles stand at the kerb edge of that pavement, clear of the ruko awnings.
+        private const float FarPoleZ = -64.95f;
+
         // A busy road just south of the spawn, beyond the invisible oval boundary.
         private void JalanRaya()
         {
@@ -113,6 +121,8 @@ namespace Konoha.Editor
             Block("NusantaraGround kerb jalan raya", new Vector3(0f, .07f, -55.35f), new Vector3(220f, .14f, .3f), kerbRoad);
             // Trotoar between the road and the gate plaza.
             Block("NusantaraGround trotoar", new Vector3(0f, .02f, -54.2f), new Vector3(220f, .03f, 2f), concrete);
+            Block("NusantaraGround kerb seberang", new Vector3(0f, .07f, -64.65f), new Vector3(220f, .14f, .3f), kerbRoad);
+            Block("NusantaraGround trotoar seberang", new Vector3(0f, .02f, FarTrotoarZ), new Vector3(220f, .03f, 2f), concrete);
         }
 
         // Black-yellow kerb stones along the boulevard: the most Indonesian street detail.
@@ -126,37 +136,38 @@ namespace Konoha.Editor
             }
         }
 
-        // Concrete utility poles with overhead cables. 0.2.1: the line no longer crosses the
-        // boulevard in front of the camera; it runs along both sides of the boulevard (x ±12.5)
-        // and continues along the main road behind the spawn, so it reads as a real grid.
+        // Concrete utility poles with overhead cables. They run along both sides of the
+        // boulevard (x ±12.5). 0.2.2: the road line moved from the near trotoar (z -54.4) to
+        // the FAR side of the jalan raya (z -64.95). At -54.4 the wires hung right under the
+        // spawn camera and crossed the whole screen (owner screenshot 0.2.1); the far side
+        // stays behind the camera. The span over the boulevard entrance is gone for the same reason.
         private void TiangListrik()
         {
-            const float top = 7.6f, roadZ = -54.4f, sideX = 12.5f;
+            const float top = 7.6f, sideX = 12.5f;
             float[] boulevard = { -50f, -37f, -27f, -14f };
             foreach (int side in new[] { -1, 1 })
             {
-                Vector3 previous = new Vector3(side * sideX, 0f, roadZ);
-                Pole(previous, side, false);
+                Vector3 previous = Vector3.zero;
                 for (int i = 0; i < boulevard.Length; i++)
                 {
                     var p = new Vector3(side * sideX, 0f, boulevard[i]);
                     Pole(p, side, i == 1);
-                    Span(previous, p);
-                    previous = p;
-                }
-
-                // Along the road, outward from the boulevard entrance.
-                previous = new Vector3(side * sideX, 0f, roadZ);
-                for (int k = 1; k <= 5; k++)
-                {
-                    var p = new Vector3(side * (sideX + k * 14f), 0f, roadZ);
-                    Pole(p, side, k == 3);
-                    Span(previous, p);
+                    if (i > 0)
+                        Span(previous, p);
                     previous = p;
                 }
             }
-            // One span over the boulevard entrance, behind the spawn camera.
-            Span(new Vector3(-sideX, 0f, roadZ), new Vector3(sideX, 0f, roadZ));
+
+            // Along the far side of the road, x -98 .. 98 (kerb edge of the far pavement).
+            Vector3 last = new Vector3(-98f, 0f, FarPoleZ);
+            Pole(last, 1, false);
+            for (int k = 1; k <= 14; k++)
+            {
+                var p = new Vector3(-98f + k * 14f, 0f, FarPoleZ);
+                Pole(p, 1, k % 5 == 2);
+                Span(last, p);
+                last = p;
+            }
 
             void Pole(Vector3 at, int facing, bool transformer)
             {
@@ -311,9 +322,11 @@ namespace Konoha.Editor
         // Rice fields on both sides of the capital and volcanoes on the hazy horizon.
         private void SawahDanGunung()
         {
-            Block("NusantaraGround sawah", new Vector3(-80f, .006f, -20f), new Vector3(70f, .02f, 90f), sawah);
-            Block("NusantaraGround sawah", new Vector3(80f, .006f, -20f), new Vector3(70f, .02f, 90f), sawah);
-            Block("NusantaraGround sawah", new Vector3(-60f, .006f, 75f), new Vector3(60f, .02f, 50f), sawah);
+            // 0.2.2: pushed out beyond the side roads and kampung houses; the north field sits
+            // between the north road (z 70) and the bay (z 110).
+            Block("NusantaraGround sawah", new Vector3(-92f, .006f, -20f), new Vector3(70f, .02f, 90f), sawah);
+            Block("NusantaraGround sawah", new Vector3(92f, .006f, -20f), new Vector3(70f, .02f, 90f), sawah);
+            Block("NusantaraGround sawah", new Vector3(-75f, .006f, 94f), new Vector3(50f, .02f, 28f), sawah);
             MeshObject("Nusantara gunung", mountain, new Vector3(-80f, -.5f, 175f), new Vector3(90f, 48f, 90f), haze);
             MeshObject("Nusantara gunung", mountain, new Vector3(35f, -.5f, 190f), new Vector3(110f, 62f, 110f), haze);
             MeshObject("Nusantara gunung", mountain, new Vector3(120f, -.5f, 150f), new Vector3(70f, 34f, 70f), haze);
