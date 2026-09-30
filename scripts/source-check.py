@@ -54,7 +54,7 @@ for path in root.glob('scripts/*.py'):
 sources = list(root.glob('Assets/**/*.cs'))
 assert len(sources) >= 12
 declaration = re.compile(r'^    (?:public |internal )?(?:static |sealed |abstract |readonly )*'
-                         r'(?:partial )?(?:class|struct|enum|interface) (\w+)', re.M)
+                         r'(partial )?(?:class|struct|enum|interface) (\w+)', re.M)
 declared = {}
 for path in sources:
     text = path.read_text()
@@ -65,10 +65,12 @@ for path in sources:
     if not editor_only:
         assert 'using UnityEditor' not in text, f'Editor API in runtime assembly: {path}'
     namespace = re.search(r'^namespace ([\w.]+)', text, re.M)
-    for name in declaration.findall(text):
+    for partial, name in declaration.findall(text):
         key = (namespace.group(1) if namespace else '', name)
-        assert key not in declared, f'Duplicate type {key} in {path} and {declared[key]}'
-        declared[key] = path
+        # Partial types may span files (e.g. CampaignCapitalArt.Nusantara.cs); every part must be partial.
+        if key in declared:
+            assert partial and declared[key][1], f'Duplicate type {key} in {path} and {declared[key][0]}'
+        declared[key] = (path, bool(partial))
 
 # Campaign logic layer: plain C# (no MonoBehaviour); pure data files stay engine-free.
 logic = root / 'Assets/Konoha/Campaign/Logic'

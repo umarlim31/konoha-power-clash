@@ -16,7 +16,7 @@ namespace Konoha.Editor
     //   Majelis Daun (x -28) and Biro Prosedur (x +28) wings -> Gerbang Dalam wall (z 17,
     //   locked gate) -> Garda Takhta parade ground (z 28) -> ramp -> Istana Takhta terrace
     //   (5 m high) with the Kursi at z 46.5, visible from the spawn over the monument.
-    internal sealed class CampaignCapitalArt
+    internal sealed partial class CampaignCapitalArt
     {
         internal const float TerraceHeight = 5f;
         internal const float InnerGateZ = 17f;
@@ -68,6 +68,9 @@ namespace Konoha.Editor
             art.BuildGerbangDalam();
             art.Garda = art.BuildPlazaTakhtaGarda();
             art.Throne = art.BuildIstanaTakhta();
+            // 0.2.0 Suasana Nusantara: street life, utility poles, umbul-umbul, baliho, warung,
+            // sawah and gunung (CampaignCapitalArt.Nusantara.cs).
+            art.BuildNusantara();
             return art;
         }
 
@@ -79,7 +82,7 @@ namespace Konoha.Editor
             "Tiered Nusantara roof", "Roof bronze ridge", "Upturned roof finial",
             "Gerbang Rakyat", "Gerbang Dalam", "Kantor Kepala Biro", "Pintu Kepala Biro",
             "Palm curved frond", "Palm crown", "Palm tapered trunk",
-            "Sign GERBANG", "Sign MENUJU", "Sign KANTOR", "Banner"
+            "Sign GERBANG", "Sign MENUJU", "Sign KANTOR", "Banner", "NusantaraTall"
         };
 
         internal Renderer[] CameraOccluders()
@@ -460,7 +463,7 @@ namespace Konoha.Editor
             paleLeaf = Surface("PalmSunlit", new Color(0.29f, 0.46f, 0.12f), 0.23f);
             flower = Surface("Bougainvillea", new Color(0.68f, 0.19f, 0.33f), 0.15f);
             water = Surface("TurquoiseWater", new Color(0.10f, 0.46f, 0.49f), 0.86f, 0.18f);
-            paving = Surface("PlazaPaving", new Color(0.63f, 0.64f, 0.60f), 0.29f);
+            paving = Surface("PlazaPaving", new Color(0.66f, 0.63f, 0.57f), 0.22f);
             // Faction identities (FactionDefinition colours) for banners and trims.
             majelisCloth = Surface("MajelisBurgundy", new Color(0.45f, 0.09f, 0.16f), 0.14f);
             majelisTrim = Surface("MajelisGold", new Color(0.86f, 0.66f, 0.28f), 0.5f, 0.3f);
@@ -520,7 +523,7 @@ namespace Konoha.Editor
             EditorUtility.SetDirty(pipeline);
             var sun = GameObject.Find("Sun").GetComponent<Light>();
             sun.transform.rotation = Quaternion.Euler(48, -38, 0);
-            sun.color = new Color(1, .91f, .76f); sun.intensity = 1.45f;
+            sun.color = new Color(1, .92f, .78f); sun.intensity = 1.5f;
             sun.shadows = LightShadows.Soft; sun.shadowStrength = .8f;
             sun.shadowBias = .035f; sun.shadowNormalBias = .25f;
             RenderSettings.sun = sun;
@@ -530,9 +533,10 @@ namespace Konoha.Editor
             RenderSettings.ambientEquatorColor = new Color(.42f, .44f, .40f);
             RenderSettings.ambientGroundColor = new Color(.23f, .23f, .18f);
             RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogColor = new Color(.65f, .77f, .79f);
-            // The seat must read from the spawn ~100 m away: lighter, longer fog.
-            RenderSettings.fogStartDistance = 60; RenderSettings.fogEndDistance = 175;
+            RenderSettings.fogColor = new Color(.70f, .80f, .86f);
+            // The seat must read from the spawn ~100 m away; 0.2.0 stretches the haze so the
+            // gunung on the horizon (about 210 m) stay a faint silhouette.
+            RenderSettings.fogStartDistance = 70; RenderSettings.fogEndDistance = 250;
             var sky = AssetDatabase.LoadAssetAtPath<Material>(CampaignCapitalMeshes.Folder + "/TropicalSky.mat");
             if (sky == null)
             {
@@ -540,9 +544,9 @@ namespace Konoha.Editor
                 AssetDatabase.CreateAsset(sky, CampaignCapitalMeshes.Folder + "/TropicalSky.mat");
             }
             sky.SetFloat("_AtmosphereThickness", .8f); sky.SetFloat("_Exposure", 1.2f);
-            sky.SetColor("_SkyTint", new Color(.47f,.53f,.57f));
+            sky.SetColor("_SkyTint", new Color(.50f,.60f,.72f));
             RenderSettings.skybox = sky; EditorUtility.SetDirty(sky);
-            Camera.main.clearFlags = CameraClearFlags.Skybox; Camera.main.farClipPlane = 190;
+            Camera.main.clearFlags = CameraClearFlags.Skybox; Camera.main.farClipPlane = 260;
         }
 
         private static void SetBool(SerializedObject data, string name, bool value)
@@ -556,9 +560,9 @@ namespace Konoha.Editor
         {
             var grass=Surface("TropicalGardenGround",new Color(.24f,.34f,.16f),.1f);
             grass.SetTexture("_BaseMap",Texture("Grain"));
-            grass.SetTextureScale("_BaseMap",new Vector2(55,55));
             EditorUtility.SetDirty(grass);
-            Block("Surrounding Konoha Landscape", new Vector3(0,-.16f,4), new Vector3(220,.3f,240), grass);
+            grass.SetTextureScale("_BaseMap",new Vector2(150,150));
+            Block("Surrounding Konoha Landscape", new Vector3(0,-.16f,4), new Vector3(600,.3f,600), grass);
             // A continuous collision floor extends beyond the logical oval campus boundary.
             // There is no perimeter wall or rendered boundary box.
             // Covers the whole route oval (radii 34 x 58 around z 4) with margin.
@@ -948,9 +952,15 @@ namespace Konoha.Editor
                 float value=.9f+grain;
                 if(name=="Paving")
                 {
-                    int stagger=(y/128%2)*128;
-                    bool joint=y%128<2||(x+stagger)%256<2;
-                    value=joint?.65f:.88f+grain+Mathf.PerlinNoise(x*.036f,y*.036f)*.05f;
+                    // Conblock basketweave (trotoar khas Indonesia): 64 px cells of two bricks,
+                    // horizontal and vertical cells alternating, each brick a slightly different tone.
+                    int cx=x/64, cy=y/64, lx=x%64, ly=y%64;
+                    bool horizontal=((cx+cy)&1)==0;
+                    int brick=horizontal?ly/32:lx/32;
+                    int along=horizontal?lx:ly, across=horizontal?ly%32:lx%32;
+                    bool joint=along<2||across<2;
+                    float tone=((cx*7+cy*13+brick*5)%4)*.025f;
+                    value=joint?.60f:.84f+tone+grain*.8f;
                 }
                 if(name=="Water") value=.82f+.12f*Mathf.Sin(x*.17f+Mathf.Sin(y*.08f)*3)+grain;
                 pixels[y*size+x]=new Color(value,value,value,1);
