@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.2.0  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.0"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(29));
+                    Is.EqualTo("JALUR TAKHTA 0.2.1  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.1"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(30));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -115,6 +115,16 @@ namespace Konoha.Tests
                     Assert.That(decor.GetComponent<Collider>(), Is.Null, "Decor must not collide: " + decor.name);
                 }
                 Assert.That(nusantara, Is.InRange(150, 900), "Decor budget for the tablet");
+                // 0.2.1: no 17-an decoration; surfaces carry normal maps; colour grading on the camera.
+                Assert.That(GameObject.Find("NusantaraTall umbul-umbul"), Is.Null);
+                Assert.That(GameObject.Find("Nusantara bendera segitiga"), Is.Null);
+                var roofTile = GameObject.Find("Tiered Nusantara roof").GetComponent<Renderer>().sharedMaterial;
+                Assert.That(roofTile.name, Is.EqualTo("GentengTanahLiat"));
+                Assert.That(roofTile.GetTexture("_BumpMap"), Is.Not.Null, "Genteng needs a normal map");
+                var grading = GameObject.Find("NusantaraColourGrading");
+                Assert.That(grading, Is.Not.Null);
+                Assert.That(grading.GetComponent<Volume>().sharedProfile, Is.Not.Null);
+                Assert.That(Camera.main.GetUniversalAdditionalCameraData().renderPostProcessing, Is.True);
                 var audio = Object.FindFirstObjectByType<CampaignAudio>();
                 Assert.That(audio, Is.Not.Null);
                 Assert.That(audio.muteButton, Is.Not.Null);

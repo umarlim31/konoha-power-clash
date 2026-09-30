@@ -5,21 +5,21 @@ using UnityEngine.Rendering;
 
 namespace Konoha.Editor
 {
-    // 0.2.0 "Suasana Nusantara": everyday Indonesian street life around the fictional
+    // 0.2.0/0.2.1 "Suasana Nusantara": everyday Indonesian street life around the fictional
     // Konoha capital. Everything is primitive/procedural decor, batching-static, sharing a
     // handful of opaque materials, and WITHOUT colliders, so the tested walkable route and
     // spawn points are untouched. Tall pieces are named "NusantaraTall ..." so the camera
     // occluder hides them when they cover the hero; floor pieces are "NusantaraGround ...".
     //
     // IP/satire: all texts are fictional; no party symbols (no bull head, no banyan tree,
-    // no party colours as a set), no real logos or faces. Merah-putih appears only as the
-    // ordinary 17-an street decoration.
+    // no party colours as a set), no real logos or faces. 0.2.1 removed the 17-an
+    // decoration (umbul-umbul, bendera segitiga) on the owner's request.
     internal sealed partial class CampaignCapitalArt
     {
         private Material asphalt, kerb, kerbRoad, concrete, steel, cable, porcelain, bamboo, timber,
             terpal, terpalOrange, flagRed, flagWhite, flagYellow, flagGreen, flagBlue,
             bark, canopy, canopyLight, haze, sawah, chrome, rubber, cartWhite, cartGlass;
-        private Mesh pennant, mountain;
+        private Mesh mountain;
 
         private void BuildNusantara()
         {
@@ -27,11 +27,10 @@ namespace Konoha.Editor
             JalanRaya();
             BoulevardKerbs();
             TiangListrik();
-            UmbulUmbul();
             Baliho();
             WarungDanGerobak();
-            Trembesi(new Vector3(-21f, 0f, -44f), 0f);
-            Trembesi(new Vector3(21f, 0f, -44f), 40f);
+            Trembesi(new Vector3(-24f, 0f, -44f), 0f);
+            Trembesi(new Vector3(24f, 0f, -44f), 40f);
             Trembesi(new Vector3(-38f, 0f, 6f), 80f);
             Trembesi(new Vector3(38f, 0f, 14f), 120f);
             SawahDanGunung();
@@ -97,8 +96,9 @@ namespace Konoha.Editor
 
             foreach (var mat in new[] { asphalt, kerb, kerbRoad, concrete, bark, sawah })
                 EditorUtility.SetDirty(mat);
+            // Photo textures (Art/Textures/<Slot>) or detailed procedural surfaces.
+            ApplyRealNusantaraSurfaces(landscapeGrass);
 
-            pennant = CampaignCapitalMeshes.Pennant();
             mountain = CampaignCapitalMeshes.Lathe("NusantaraGunung", new[] {
                 new Vector2(1f, 0f), new Vector2(.72f, .18f), new Vector2(.42f, .55f),
                 new Vector2(.16f, .95f), new Vector2(.10f, 1f), new Vector2(0f, .97f) }, 28);
@@ -126,83 +126,61 @@ namespace Konoha.Editor
             }
         }
 
-        // Concrete utility poles with tangled overhead cables (kabel semrawut).
+        // Concrete utility poles with overhead cables. 0.2.1: the line no longer crosses the
+        // boulevard in front of the camera; it runs along both sides of the boulevard (x ±12.5)
+        // and continues along the main road behind the spawn, so it reads as a real grid.
         private void TiangListrik()
         {
-            float[] zs = { -50f, -38f, -26f, -13.5f };
-            const float x = 9.8f, top = 7.6f;
+            const float top = 7.6f, roadZ = -54.4f, sideX = 12.5f;
+            float[] boulevard = { -50f, -37f, -27f, -14f };
             foreach (int side in new[] { -1, 1 })
             {
-                for (int i = 0; i < zs.Length; i++)
+                Vector3 previous = new Vector3(side * sideX, 0f, roadZ);
+                Pole(previous, side, false);
+                for (int i = 0; i < boulevard.Length; i++)
                 {
-                    var p = new Vector3(side * x, 0f, zs[i]);
-                    Cylinder("NusantaraTall tiang listrik", p + Vector3.up * top * .5f, new Vector3(.26f, top * .5f, .26f), concrete);
-                    Block("NusantaraTall palang tiang", p + Vector3.up * (top - .3f), new Vector3(1.7f, .1f, .12f), steel);
-                    for (int k = -1; k <= 1; k++)
-                        Cylinder("Nusantara isolator", p + new Vector3(k * .7f, top - .15f, 0f), new Vector3(.08f, .1f, .08f), porcelain);
-                    if (i == 1)
-                    {
-                        Block("NusantaraTall trafo", p + new Vector3(-side * .45f, 5.3f, 0f), new Vector3(.6f, .9f, .55f), steel);
-                        Block("Nusantara papan bahaya", p + new Vector3(-side * .14f, 2.6f, -.14f), new Vector3(.3f, .4f, .02f), flagYellow);
-                    }
-                    if (i + 1 < zs.Length)
-                    {
-                        var next = new Vector3(side * x, 0f, zs[i + 1]);
-                        for (int k = -1; k <= 1; k++)
-                            Wire(p + new Vector3(k * .7f, top - .08f, 0f), next + new Vector3(k * .7f, top - .08f, 0f), .55f + .15f * (k + 1), 5);
-                    }
+                    var p = new Vector3(side * sideX, 0f, boulevard[i]);
+                    Pole(p, side, i == 1);
+                    Span(previous, p);
+                    previous = p;
+                }
+
+                // Along the road, outward from the boulevard entrance.
+                previous = new Vector3(side * sideX, 0f, roadZ);
+                for (int k = 1; k <= 5; k++)
+                {
+                    var p = new Vector3(side * (sideX + k * 14f), 0f, roadZ);
+                    Pole(p, side, k == 3);
+                    Span(previous, p);
+                    previous = p;
                 }
             }
-            // Cables crossing the boulevard (north of the gate roof), plus one crooked diagonal
-            // for the semrawut look.
-            foreach (float z in new[] { -26f, -13.5f })
-            {
-                Wire(new Vector3(-x, top - .1f, z), new Vector3(x, top - .1f, z), 1.2f, 8);
-                Wire(new Vector3(-x + .7f, top - .1f, z), new Vector3(x - .7f, top - .1f, z), 1.6f, 8);
-            }
-            Wire(new Vector3(-x, top - .1f, -13.5f), new Vector3(x, top - .1f, -26f), 2.0f, 9);
-        }
+            // One span over the boulevard entrance, behind the spawn camera.
+            Span(new Vector3(-sideX, 0f, roadZ), new Vector3(sideX, 0f, roadZ));
 
-        // Tall curved bamboo poles with long coloured flags (umbul-umbul), and a string of
-        // merah-putih pennants across the boulevard (hiasan 17-an).
-        private void UmbulUmbul()
-        {
-            float[] zs = { -47f, -41f, -33f, -25f, -19f };
-            Material[] flags = { flagRed, flagYellow, flagGreen, flagBlue, flagWhite };
-            foreach (int side in new[] { -1, 1 })
+            void Pole(Vector3 at, int facing, bool transformer)
             {
-                for (int i = 0; i < zs.Length; i++)
+                Cylinder("NusantaraTall tiang listrik", at + Vector3.up * top * .5f, new Vector3(.26f, top * .5f, .26f), concrete);
+                Block("NusantaraTall palang tiang", at + Vector3.up * (top - .3f), new Vector3(1.7f, .1f, .12f), steel);
+                for (int n = -1; n <= 1; n++)
+                    Cylinder("Nusantara isolator", at + new Vector3(n * .7f, top - .15f, 0f), new Vector3(.08f, .1f, .08f), porcelain);
+                if (transformer)
                 {
-                    var basePoint = new Vector3(side * 5.3f, 0f, zs[i]);
-                    // Four bamboo segments bending in toward the boulevard.
-                    Vector3[] joints =
-                    {
-                        basePoint,
-                        basePoint + new Vector3(0f, 2.6f, 0f),
-                        basePoint + new Vector3(-side * .10f, 4.7f, 0f),
-                        basePoint + new Vector3(-side * .35f, 6.2f, 0f),
-                        basePoint + new Vector3(-side * .80f, 6.9f, 0f)
-                    };
-                    for (int j = 0; j + 1 < joints.Length; j++)
-                        Stick("NusantaraTall bambu umbul-umbul", joints[j], joints[j + 1], .08f, bamboo);
-                    var flag = Block("NusantaraTall umbul-umbul", joints[4] + new Vector3(0f, -1.9f, 0f),
-                        new Vector3(.5f, 3.4f, .02f), flags[(i + (side > 0 ? 2 : 0)) % flags.Length]);
-                    flag.transform.rotation = Quaternion.Euler(0f, 0f, side * 4f);
+                    Block("NusantaraTall trafo", at + new Vector3(facing * .45f, 5.3f, 0f), new Vector3(.6f, .9f, .55f), steel);
+                    Block("Nusantara papan bahaya", at + new Vector3(facing * .14f, 2.6f, -.14f), new Vector3(.3f, .4f, .02f), flagYellow);
                 }
             }
 
-            foreach (float z in new[] { -33f, -25f, -19f })
+            void Span(Vector3 from, Vector3 to)
             {
-                var left = new Vector3(-4.9f, 5.7f, z);
-                var right = new Vector3(4.9f, 5.7f, z);
-                Wire(left, right, .7f, 8);
-                const int count = 14;
-                for (int k = 1; k < count; k++)
+                // Crossarm runs along x; spans along x keep the three wires stacked, spans
+                // along z spread them across the crossarm.
+                bool alongX = Mathf.Abs(to.x - from.x) > Mathf.Abs(to.z - from.z);
+                for (int n = -1; n <= 1; n++)
                 {
-                    float t = k / (float)count;
-                    Vector3 at = Vector3.Lerp(left, right, t) + Vector3.down * (.7f * 4f * t * (1f - t));
-                    MeshObject("Nusantara bendera segitiga", pennant, at, new Vector3(.36f, .46f, .36f),
-                        k % 2 == 0 ? flagRed : flagWhite);
+                    Vector3 offset = alongX ? new Vector3(0f, top - .08f - (n + 1) * .12f, 0f)
+                        : new Vector3(n * .7f, top - .08f, 0f);
+                    Wire(from + offset, to + offset, .45f + .12f * (n + 1), alongX ? 6 : 5);
                 }
             }
         }
@@ -210,13 +188,13 @@ namespace Konoha.Editor
         // Fictional satirical billboards. Readable from the spawn camera.
         private void Baliho()
         {
-            BalihoBoard(new Vector3(-12f, 0f, -48f), 16f, flagWhite, flagRed,
+            BalihoBoard(new Vector3(-16.5f, 0f, -47f), 16f, flagWhite, flagRed,
                 "SELAMAT DATANG\nDI IBU KOTA KONOHA", Color.black);
-            BalihoBoard(new Vector3(12f, 0f, -48f), -16f, flagYellow, flagBlue,
+            BalihoBoard(new Vector3(16.5f, 0f, -47f), -16f, flagYellow, flagBlue,
                 "JALAN RUSAK?\nSABAR, MASIH DIANGGARKAN", Color.black);
-            BalihoBoard(new Vector3(-13f, 0f, -24f), 20f, flagBlue, flagYellow,
+            BalihoBoard(new Vector3(-15.5f, 0f, -22f), 20f, flagBlue, flagYellow,
                 "KONOHA MAJU\nRAKYAT ANTRI", Color.white);
-            BalihoBoard(new Vector3(13f, 0f, -24f), -20f, flagGreen, flagWhite,
+            BalihoBoard(new Vector3(15.5f, 0f, -22f), -20f, flagGreen, flagWhite,
                 "DILARANG KAMPANYE DI SINI*\n*kecuali yang sedang berkuasa", Color.white);
         }
 

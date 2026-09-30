@@ -45,17 +45,6 @@ namespace Konoha.Editor
             return Save("OvalCapitalGround",vertices,uv,triangles);
         }
 
-        // Double-sided triangular pennant (bendera segitiga), hanging down from its top edge.
-        internal static Mesh Pennant()
-        {
-            var v = new List<Vector3> { new Vector3(-.5f, 0f, 0f), new Vector3(.5f, 0f, 0f), new Vector3(0f, -1f, 0f) };
-            v.AddRange(new[] { v[0], v[1], v[2] });
-            var uv = new List<Vector2> { new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(.5f, 0f),
-                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(.5f, 0f) };
-            var t = new List<int> { 0, 1, 2, 3, 5, 4 };
-            return Save("NusantaraPennant", v, uv, t);
-        }
-
         internal static Mesh Ring(string name, float inner, float outer, int sides = 96)
         {
             return Lathe(name, new[] { new Vector2(outer, 0), new Vector2(inner, 0) }, sides);
