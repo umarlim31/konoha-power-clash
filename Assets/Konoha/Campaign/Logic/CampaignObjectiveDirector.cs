@@ -42,7 +42,10 @@ namespace Konoha.Campaign
         public bool MajelisEngaged { get; private set; }
         public bool BiroPrepared { get; private set; }
         public bool BiroEngaged { get; private set; }
-        public bool CounterattackLaunched { get; private set; }
+        // §9 reign: set on the first DUDUK, cleared by KUDETA or a restart.
+        public bool ReignStarted { get; private set; }
+        public int ReignRuntuh { get; private set; }
+        public int CounterattackWaves { get; private set; }
 
         // Raised with a player-facing message.
         public event Action<string> Notified;
@@ -52,8 +55,12 @@ namespace Konoha.Campaign
         public event Action BiroRequested;
         // The inner gate opened: place the Garda Takhta defenders.
         public event Action GardaRequested;
-        // The ruler has held the seat long enough: send the counterattack.
+        // §9: every 15 s of the reign, send a counterattack wave.
         public event Action CounterattackRequested;
+        // The hero sat down: the host places them on the seat.
+        public event Action Seated;
+        // §9 KUDETA: three Runtuh during the reign; Power is back to zero.
+        public event Action Kudeta;
         // Power reached its target.
         public event Action Won;
 
@@ -76,7 +83,9 @@ namespace Konoha.Campaign
             BiroEngaged = false;
             powerClock = 0f;
             counterattackClock = 0f;
-            CounterattackLaunched = false;
+            ReignStarted = false;
+            ReignRuntuh = 0;
+            CounterattackWaves = 0;
         }
 
         // The Gerbang Rakyat defenders are down; the plaza may now be reached.
@@ -179,43 +188,52 @@ namespace Konoha.Campaign
                 Near(player, layout.Garda, CampaignTuning.Encounters.GardaEngageRadius))
                 Run.TryStartGuard();
 
+            // §9 Fase Memerintah: Power +2/s while seated; leaving the seat stops it (no loss).
             if (Run.Phase == CampaignPhase.Memerintah)
             {
-                if (!Near(player, layout.Chair, CampaignTuning.PreviewSlice.ChairRadius))
+                if (!Near(player, layout.Chair, CampaignTuning.Memerintah.ChairRadius))
                 {
                     Run.LoseSeat();
                     powerClock = 0f;
+                    Notify("Terdorong dari Kursi! Kuasa berhenti, DUDUK lagi");
                 }
                 else
                 {
                     powerClock += deltaTime;
-                    while (powerClock >= CampaignTuning.PreviewSlice.PowerTickSeconds && Run.Phase == CampaignPhase.Memerintah)
+                    while (powerClock >= CampaignTuning.Memerintah.PowerTickSeconds && Run.Phase == CampaignPhase.Memerintah)
                     {
-                        powerClock -= CampaignTuning.PreviewSlice.PowerTickSeconds;
-                        Run.GainPower(CampaignTuning.PreviewSlice.PowerPerTick);
+                        powerClock -= CampaignTuning.Memerintah.PowerTickSeconds;
+                        Run.GainPower(1);
                         if (Run.Phase == CampaignPhase.Menang)
                         {
                             Notify("TAKHTA DIKUASAI!");
                             Won?.Invoke();
                         }
                     }
-                    if (!CounterattackLaunched && Run.Phase == CampaignPhase.Memerintah)
-                    {
-                        counterattackClock += deltaTime;
-                        if (counterattackClock >= CampaignTuning.Encounters.CounterattackDelaySeconds)
-                        {
-                            CounterattackLaunched = true;
-                            Notify("Serangan balik! Pertahankan Kursi");
-                            CounterattackRequested?.Invoke();
-                        }
-                    }
+                }
+            }
+
+            // Counterattack waves keep coming during the whole reign, seated or not.
+            if (ReignStarted && (Run.Phase == CampaignPhase.Memerintah || Run.Phase == CampaignPhase.KursiTerbuka))
+            {
+                counterattackClock += deltaTime;
+                if (counterattackClock >= CampaignTuning.Memerintah.CounterattackIntervalSeconds)
+                {
+                    counterattackClock -= CampaignTuning.Memerintah.CounterattackIntervalSeconds;
+                    CounterattackWaves++;
+                    Notify("SERANGAN BALIK " + CounterattackWaves + "!  Sisa kekuatan lama menyerbu Kursi");
+                    CounterattackRequested?.Invoke();
                 }
             }
         }
 
         public bool CanSit(Vector3 player) =>
             Run.Phase == CampaignPhase.KursiTerbuka &&
-            Near(player, layout.Chair, CampaignTuning.PreviewSlice.ChairRadius);
+            Near(player, layout.Chair, CampaignTuning.Memerintah.ChairRadius);
+
+        public bool CanStand(Vector3 player) =>
+            Run.Phase == CampaignPhase.Memerintah &&
+            Near(player, layout.Chair, CampaignTuning.Memerintah.ChairRadius + 1f);
 
         // Contextual action button (DUDUK). Returns true when something happened. The Biro
         // lokets are zones since 0.0.9.3, so there is no SAHKAN any more.
@@ -223,7 +241,26 @@ namespace Konoha.Campaign
         {
             if (CanSit(player) && Run.TrySit())
             {
-                Notify("Bertahan di Kursi untuk mengumpulkan Kuasa");
+                powerClock = 0f;
+                if (!ReignStarted)
+                {
+                    ReignStarted = true;
+                    ReignRuntuh = 0;
+                    counterattackClock = 0f;
+                    Notify("MEMERINTAH!  Kuasa +2/detik. Bertahan sampai 100");
+                }
+                else
+                {
+                    Notify("Kembali ke Kursi. Kuasa berjalan lagi");
+                }
+                Seated?.Invoke();
+                return true;
+            }
+            if (CanStand(player))
+            {
+                Run.LoseSeat();
+                powerClock = 0f;
+                Notify("Berdiri dari Kursi. Kuasa berhenti");
                 return true;
             }
             return false;
@@ -234,13 +271,35 @@ namespace Konoha.Campaign
         {
             Run.LoseSeat();
             Run.RecordRuntuh();
-            Notify("Tumbang! Bangkit di checkpoint terakhir");
+            if (!ReignStarted)
+            {
+                Notify("Tumbang! Bangkit di checkpoint terakhir");
+                return;
+            }
+
+            ReignRuntuh++;
+            if (ReignRuntuh < CampaignTuning.Memerintah.KudetaRuntuhLimit)
+            {
+                Notify("Tumbang! Kursi lepas (" + ReignRuntuh + "/" + CampaignTuning.Memerintah.KudetaRuntuhLimit +
+                    " menuju KUDETA)");
+                return;
+            }
+
+            // KUDETA: the reign failed. Back to checkpoint 5 with the counts reset.
+            Run.ResetPower();
+            ReignStarted = false;
+            ReignRuntuh = 0;
+            CounterattackWaves = 0;
+            counterattackClock = 0f;
+            powerClock = 0f;
+            Notify("KUDETA!  Kekuasaan direbut. Kuasa kembali 0, rebut Kursi lagi");
+            Kudeta?.Invoke();
         }
 
         private void Notify(string message) => Notified?.Invoke(message);
 
         private static CampaignRunState NewRun() =>
-            new CampaignRunState(CampaignTuning.PreviewSlice.RequiredSeals, CampaignTuning.PreviewSlice.TargetPower);
+            new CampaignRunState(CampaignTuning.Seals.Required, CampaignTuning.Memerintah.TargetPower);
 
         public static bool Near(Vector3 a, Vector3 b, float radius)
         {

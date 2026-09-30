@@ -29,6 +29,8 @@ namespace Konoha.Networking
         float GetDamageMultiplier(NetworkObject attacker, NetworkObject target);
         // Any peer. Multiplier on the actor's skill cooldowns (campaign STEMPEL TUNDA); PvP returns 1.
         float GetCooldownMultiplier(NetworkObject actor);
+        // Server. Extra Basic reach in metres (campaign: attacking from the seat, §9); PvP returns 0.
+        float GetBasicRangeBonus(NetworkObject actor);
     }
 
     public static class CombatRules

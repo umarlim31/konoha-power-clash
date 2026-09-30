@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.0.9.3  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.0.9.3"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(25));
+                    Is.EqualTo("JALUR TAKHTA 0.1.0  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.1.0"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(27));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -72,9 +72,42 @@ namespace Konoha.Tests
                 foreach (var pick in heroSelect.heroButtons) Assert.That(pick, Is.Not.Null);
                 Assert.That(heroSelect.startButton, Is.Not.Null);
                 Assert.That(heroSelect.detailText, Is.Not.Null);
-                Assert.That(heroSelect.transform.GetSiblingIndex(), Is.EqualTo(heroSelect.transform.parent.childCount - 1),
-                    "Hero screen must be drawn above the HUD");
+                Assert.That(heroSelect.panel, Is.Not.SameAs(heroSelect.gameObject),
+                    "The controller must stay active while its panel is hidden");
+                // 0.1.0: mode menu first (on top), then hero screen, then the result screen.
+                var menu = Object.FindFirstObjectByType<CampaignModeMenu>();
+                Assert.That(menu, Is.Not.Null);
+                Assert.That(menu.session, Is.SameAs(session));
+                Assert.That(session.waitForMenu, Is.True, "Solo must not host before JALUR TAKHTA is chosen");
+                Assert.That(menu.pvpScene, Is.EqualTo(SpikeProject.ScenePath));
+                Transform hud = menu.panel.transform.parent;
+                Assert.That(menu.panel.transform.GetSiblingIndex(), Is.EqualTo(hud.childCount - 1));
+                Assert.That(heroSelect.panel.transform.GetSiblingIndex(), Is.EqualTo(hud.childCount - 2));
+                var result = Object.FindFirstObjectByType<CampaignResultScreen>();
+                Assert.That(result, Is.Not.Null);
+                Assert.That(result.panel, Is.Not.SameAs(result.gameObject));
+                Assert.That(result.retryButton, Is.Not.Null);
+                Assert.That(result.changeHeroButton, Is.Not.Null);
+                Assert.That(EditorBuildSettings.scenes, Has.Length.EqualTo(2));
+                Assert.That(EditorBuildSettings.scenes[0].path, Is.EqualTo(CampaignPreviewProject.ScenePath));
+                Assert.That(EditorBuildSettings.scenes[1].path, Is.EqualTo(SpikeProject.ScenePath));
+                Assert.That(preview.gardaLockdown, Is.Not.Null);
+                Assert.That(preview.gardaLockdown.activeSelf, Is.False, "LOCKDOWN starts open");
+                Assert.That(preview.traversal, Is.Not.Null);
                 Assert.That(preview.restuAura, Is.Not.Null);
+                // 0.0.9.4: roofs/gates/palms hide while covering the hero; sound effects with a toggle.
+                Assert.That(session.occluders, Is.Not.Null);
+                Assert.That(session.occluders.candidates.Length, Is.GreaterThan(20));
+                foreach (var occluder in session.occluders.candidates)
+                {
+                    Assert.That(occluder, Is.Not.Null);
+                    Assert.That(occluder.bounds.max.y, Is.GreaterThan(.5f), "Floor-level decor is never an occluder: " + occluder.name);
+                }
+                var audio = Object.FindFirstObjectByType<CampaignAudio>();
+                Assert.That(audio, Is.Not.Null);
+                Assert.That(audio.muteButton, Is.Not.Null);
+                foreach (var click in audio.clickButtons) Assert.That(click, Is.Not.Null);
+                Assert.That(Camera.main.GetComponent<AudioListener>(), Is.Not.Null, "Sound needs a listener on the camera");
                 Assert.That(preview.restuAura.GetComponent<Collider>(), Is.Null);
 
                 var stage = preview.stage;
@@ -191,7 +224,22 @@ namespace Konoha.Tests
                 // Enemies and revived heroes must never appear inside geometry.
                 foreach (var point in stage.gateSpawnPoints) AssertFree(Flat(point), probe.transform, "Gate spawn blocked at ");
                 foreach (var point in stage.gardaSpawnPoints) AssertFree(Flat(point), probe.transform, "Garda spawn blocked at ");
-                AssertFree(Flat(stage.counterattackSpawnPoint), probe.transform, "Counterattack spawn blocked at ");
+                foreach (var point in stage.counterattackSpawnPoints)
+                    AssertFree(Flat(point), probe.transform, "Counterattack spawn blocked at ");
+                foreach (var point in stage.gardaReinforcePoints)
+                    AssertFree(Flat(point), probe.transform, "Garda reinforcement blocked at ");
+                // Garda points inside the LOCKDOWN ring; checkpoint 5 outside it (and clear of its walls).
+                foreach (var point in stage.gardaSpawnPoints)
+                    Assert.That(CampaignObjectiveDirector.Near(point, stage.garda.position, CampaignTuning.Garda.LockdownRadius - 1f), Is.True);
+                Assert.That(CampaignObjectiveDirector.Near(stage.CheckpointPosition(CampaignCheckpoint.GardaTakhta),
+                    stage.garda.position, CampaignTuning.Garda.LockdownRadius + .7f), Is.False);
+                // With the ring closed, the checkpoint and the ring's inside stay free.
+                preview.gardaLockdown.SetActive(true);
+                Physics.SyncTransforms();
+                AssertFree(Flat(stage.CheckpointPosition(CampaignCheckpoint.GardaTakhta)), probe.transform, "Checkpoint 5 inside the ring wall at ");
+                foreach (var point in stage.gardaSpawnPoints) AssertFree(Flat(point), probe.transform, "Garda point inside the ring wall at ");
+                preview.gardaLockdown.SetActive(false);
+                Physics.SyncTransforms();
                 // 0.0.9.2 Majelis Daun sidang: one point per roster unit, all clear and inside the hall leash.
                 Assert.That(stage.majelisSpawnPoints.Length, Is.GreaterThanOrEqualTo(
                     EncounterComposer.TotalUnits(EncounterComposer.Compose(FactionId.MajelisDaun, 1))));

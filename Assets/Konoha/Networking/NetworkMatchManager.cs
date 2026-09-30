@@ -212,6 +212,11 @@ namespace Konoha.Networking
             return 1f;
         }
 
+        public float GetBasicRangeBonus(NetworkObject actor)
+        {
+            return 0f;
+        }
+
         private void Update()
         {
             if (!IsServer || !IsSpawned)

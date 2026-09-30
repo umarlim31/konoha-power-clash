@@ -31,6 +31,9 @@ namespace Konoha.Campaign
         public Renderer[] loketZones = new Renderer[0];
         public TextMesh[] loketLabels = new TextMesh[0];
         public Text debuffText;
+        // 0.1.0: Garda LOCKDOWN ring (colliders + posts) and the seat lock on the joystick.
+        public GameObject gardaLockdown;
+        public CampaignTraversal traversal;
 
         private static readonly Color LoketIdle = new Color(0.22f, 0.34f, 0.52f);
         private static readonly Color LoketFull = new Color(0.95f, 0.74f, 0.26f);
@@ -90,7 +93,12 @@ namespace Konoha.Campaign
                 biroDoorOpen.SetActive(!officeLocked);
             RefreshLokets(director);
 
+            if (gardaLockdown != null && gardaLockdown.activeSelf != director.GardaLockdown)
+                gardaLockdown.SetActive(director.GardaLockdown);
+
             NetworkObject hero = LocalHero();
+            if (traversal != null)
+                traversal.seatLocked = hero != null && director.SeatedObjectId == hero.NetworkObjectId;
             RefreshAura(director, hero);
             RefreshDebuff(hero);
             if (!director.HeroLocked)
@@ -154,21 +162,26 @@ namespace Konoha.Campaign
                     }
                     break;
                 case CampaignPhase.GerbangDalam:
-                    objectiveText.text = "GERBANG DALAM TERBUKA  >  Hadapi GARDA TAKHTA";
+                    objectiveText.text = "GERBANG DALAM • Masuk lapangan GARDA TAKHTA";
                     break;
                 case CampaignPhase.GardaTakhta:
-                    objectiveText.text = "GARDA TAKHTA  >  Kalahkan pengawal (" + director.GardaRemaining + " tersisa)";
+                    objectiveText.text = director.GardaLockdown
+                        ? "LOCKDOWN • Tumbangkan PANGLIMA TAKHTA"
+                        : "GARDA • Tumbangkan PANGLIMA (awas DORONGAN)";
                     break;
                 case CampaignPhase.KursiTerbuka:
-                    objectiveText.text = "KURSI TERBUKA  >  Dekati dan tekan DUDUK";
+                    objectiveText.text = director.ReignStarted
+                        ? "KURSI LEPAS • DUDUK lagi (Runtuh " + director.ReignRuntuh + "/" +
+                            CampaignTuning.Memerintah.KudetaRuntuhLimit + ")"
+                        : "KURSI TERBUKA • Naik ramp dan tekan DUDUK";
                     break;
                 case CampaignPhase.Memerintah:
                     objectiveText.text = director.CounterRemaining > 0
-                        ? "SERANGAN BALIK  >  Bertahan di dekat Kursi"
-                        : "PERTAHANKAN TAKHTA  >  Tetap di dekat Kursi";
+                        ? "SERANGAN BALIK • Pertahankan Kursi (" + director.CounterRemaining + ")"
+                        : "MEMERINTAH • Kuasa " + director.Power + "/" + director.TargetPower;
                     break;
                 default:
-                    objectiveText.text = "JALUR TAKHTA SELESAI!  Tekan ULANG untuk bermain lagi";
+                    objectiveText.text = "TAKHTA DIKUASAI!";
                     break;
             }
 
@@ -194,8 +207,9 @@ namespace Konoha.Campaign
                             : director.SealCount / (float)director.RequiredSeals;
                     break;
                 case CampaignPhase.GardaTakhta:
-                    fill = 1f - director.GardaRemaining / (float)director.GardaTotal;
+                    fill = 1f - director.PanglimaFraction;
                     break;
+                case CampaignPhase.KursiTerbuka:
                 case CampaignPhase.Memerintah:
                 case CampaignPhase.Menang:
                     fill = director.Power / (float)director.TargetPower;
@@ -351,12 +365,14 @@ namespace Konoha.Campaign
 
             Vector3 position = hero != null ? hero.transform.position : Vector3.one * 999f;
             bool canSit = director.Phase == CampaignPhase.KursiTerbuka &&
-                CampaignObjectiveDirector.Near(position, stage.chair.position, CampaignTuning.PreviewSlice.ChairRadius);
+                CampaignObjectiveDirector.Near(position, stage.chair.position, CampaignTuning.Memerintah.ChairRadius);
+            bool seated = hero != null && director.SeatedObjectId == hero.NetworkObjectId;
             bool won = director.Phase == CampaignPhase.Menang;
 
-            sitButton.gameObject.SetActive(canSit || won);
+            // The result screen owns ULANG / GANTI HERO after a victory.
+            sitButton.gameObject.SetActive((canSit || seated) && !won);
             if (sitLabel != null)
-                sitLabel.text = won ? "ULANG" : "DUDUK";
+                sitLabel.text = seated ? "BERDIRI" : "DUDUK";
         }
 
         private void RefreshWaypoint(CampaignDirector director, NetworkObject hero)
@@ -408,9 +424,13 @@ namespace Konoha.Campaign
                     break;
                 case CampaignPhase.GerbangDalam:
                 case CampaignPhase.GardaTakhta:
-                    if (!NearestEnemy(hero.transform.position, out destination))
+                    if (NearestEnemy(hero.transform.position, out destination, FactionId.GardaTakhta, UnitRole.Pemimpin))
+                        label = "PANGLIMA";
+                    else
+                    {
                         destination = stage.garda.position;
-                    label = "GARDA";
+                        label = "GARDA";
+                    }
                     break;
                 case CampaignPhase.KursiTerbuka:
                 case CampaignPhase.Memerintah:

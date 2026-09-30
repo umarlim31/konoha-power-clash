@@ -888,8 +888,13 @@ namespace Konoha.Networking
             if (!isActiveAndEnabled)
                 return;
 
+            // Presentation hook (Jalur Takhta sound effects). No listener in PvP.
+            AbilityFxPlayed?.Invoke(this, slot, position);
             StartCoroutine(AbilityFxRoutine((PrototypeHero)hero, slot, position, direction));
         }
+
+        // Every peer: a hero ability played its effect (slot 1 = S1, 2 = S2, 3 = ultimate).
+        public static event Action<NetworkHeroKit, int, Vector3> AbilityFxPlayed;
 
         private IEnumerator AbilityFxRoutine(PrototypeHero hero, int slot, Vector3 position, Vector3 direction)
         {

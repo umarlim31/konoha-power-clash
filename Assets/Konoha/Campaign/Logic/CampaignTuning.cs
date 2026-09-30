@@ -95,6 +95,21 @@ namespace Konoha.Campaign
             public const int CounterPushDamage = 15;
             public const float ReinforcementHealthFraction = 0.50f;
             public const int ReinforcementKroni = 2;
+
+            // 0.1.0 tuning assumptions (not in §8.3), to confirm on device.
+            public const float LockdownRadius = 8.5f;            // Barrier ring around the Garda post (0, 28).
+            public const float LockdownCloseRadius = 7f;         // Hero this far inside closes it.
+            public const float CounterPushTriggerRange = 3.5f;   // Panglima pushes heroes this close.
+            public const float CounterPushFirstDelaySeconds = 4f;
+            public const int MaxCounterattackAlive = 6;          // §9 waves stop stacking beyond this.
+        }
+
+        // 0.1.0: Wibawa recovery out of combat (tuning assumption, not in §5–§9). Added after
+        // tablet runs with 9–12 Runtuh: without any healing, every fight chipped the next one.
+        public static class Recovery
+        {
+            public const float DelaySeconds = 4f;     // No damage taken for this long...
+            public const float WibawaPerSecond = 10f; // ...then Wibawa refills at this rate.
         }
 
         // §9 Fase Memerintah.
@@ -107,6 +122,8 @@ namespace Konoha.Campaign
             public const int CounterattackGuard = 1;
             public const float SeatedBasicRangeBonus = 1f;
             public const int KudetaRuntuhLimit = 3;
+            public const float ChairRadius = 2.2f;
+            public const float PowerTickSeconds = 1f / PowerPerSecond; // +1 Power per tick.
         }
 
         // 0.0.9 encounters that already use real hero combat (host-authoritative). Role
@@ -120,7 +137,6 @@ namespace Konoha.Campaign
             public const float EnemyAttackIntervalSeconds = 1.6f; // Tuning assumption, not in §7.
             public const float EnemyFirstAttackDelaySeconds = 0.8f;
             public const float EnemyDespawnSeconds = 1.4f;   // Collapsed enemies stay visible briefly.
-            public const float CounterattackDelaySeconds = PreviewSlice.CounterattackDelaySeconds;
             // 0.0.9.2.1: basic hits from different enemies on the same hero are spaced by at
             // least this much, so a crowd trades blows in turn instead of all at once.
             // Telegraphed specials (KETOK PALU) are exempt. Tuning assumption.
@@ -142,10 +158,6 @@ namespace Konoha.Campaign
         public static class PreviewSlice
         {
             public const int RequiredSeals = Seals.Required;
-            public const int TargetPower = 35;
-            public const int PowerPerTick = 5;
-            public const float PowerTickSeconds = 1f;
-            public const float CounterattackDelaySeconds = 2.5f;
 
             public const float PlazaRadius = 2.4f;
             public const float SectorRadius = 2.8f;

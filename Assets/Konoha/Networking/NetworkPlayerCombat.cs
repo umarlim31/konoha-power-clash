@@ -192,7 +192,8 @@ namespace Konoha.Networking
             serverNextAttackTime = now + cooldown;
 
             int attackerTeam = NetworkTeamUtility.GetTeam(OwnerClientId);
-            float range = heroKit != null ? heroKit.GetBasicRange() : attackRange;
+            float range = (heroKit != null ? heroKit.GetBasicRange() : attackRange) +
+                Mathf.Max(0f, rules.GetBasicRangeBonus(NetworkObject));
             int damage = heroKit != null ? heroKit.GetBasicDamage() : BasicAttackDamage;
 
             NetworkPlayerCombat bestTarget = null;
@@ -630,11 +631,17 @@ namespace Konoha.Networking
             if (damage <= 0 && absorbed <= 0)
                 return;
 
+            // Presentation hook (Jalur Takhta sound effects). No listener in PvP.
+            DamageFeedbackPlayed?.Invoke(this, damage, absorbed);
+
             if (GetDistanceFromLocalPlayer() > 14f && !IsOwner)
                 return;
 
             StartCoroutine(FloatingDamageRoutine(damage, absorbed, worldPosition));
         }
+
+        // Every peer: a hit landed on this actor (damage after shields, absorbed by shield).
+        public static event System.Action<NetworkPlayerCombat, int, int> DamageFeedbackPlayed;
 
         private IEnumerator FloatingDamageRoutine(int damage, int absorbed, Vector3 worldPosition)
         {

@@ -142,7 +142,7 @@ namespace Konoha.Tests
         }
 
         [Test]
-        public void FullSliceRouteReachesVictoryWithOneCounterattack()
+        public void FullSliceRouteReachesVictoryWithThreeCounterattackWaves()
         {
             var director = Cleared();
             int gardaRequests = 0, counterattacks = 0, wins = 0;
@@ -163,15 +163,66 @@ namespace Konoha.Tests
             Assert.That(director.CompleteGarda(), Is.True);
             Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.KursiTerbuka));
 
+            int seated = 0;
+            director.Seated += () => seated++;
             Assert.That(director.Interact(Chair, 6f), Is.True);
-            Hold(director, Chair, 3.1f);
+            Assert.That(seated, Is.EqualTo(1));
+            Assert.That(director.ReignStarted, Is.True);
+            // §9: Power +2/s, a counterattack wave every 15 s, 100 Power wins (~50 s).
+            Hold(director, Chair, 15.05f);
             Assert.That(counterattacks, Is.EqualTo(1));
-            Assert.That(director.Run.Power, Is.EqualTo(15));
-            Hold(director, Chair, 5f);
+            Assert.That(director.Run.Power, Is.EqualTo(30));
+            Hold(director, Chair, 35f);
             Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.Menang));
-            Assert.That(director.Run.Power, Is.EqualTo(35));
-            Assert.That(counterattacks, Is.EqualTo(1));
+            Assert.That(director.Run.Power, Is.EqualTo(100));
+            Assert.That(counterattacks, Is.EqualTo(3));
             Assert.That(wins, Is.EqualTo(1));
+        }
+
+        private static CampaignObjectiveDirector Seated()
+        {
+            var director = Cleared();
+            CollectBothSeals(director);
+            director.Tick(Garda, Frame);
+            director.CompleteGarda();
+            Assert.That(director.Interact(Chair, 5f), Is.True);
+            return director;
+        }
+
+        [Test]
+        public void StandingUpStopsPowerWithoutLosingIt()
+        {
+            var director = Seated();
+            Hold(director, Chair, 2.05f);
+            Assert.That(director.Run.Power, Is.EqualTo(4));
+            Assert.That(director.Interact(Chair, 9f), Is.True, "BERDIRI");
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.KursiTerbuka));
+            Hold(director, Chair, 3f);
+            Assert.That(director.Run.Power, Is.EqualTo(4));
+            Assert.That(director.Interact(Chair, 12f), Is.True, "DUDUK again");
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.Memerintah));
+        }
+
+        [Test]
+        public void ThreeRuntuhDuringTheReignIsAKudeta()
+        {
+            var director = Seated();
+            int kudeta = 0;
+            director.Kudeta += () => kudeta++;
+            Hold(director, Chair, 5.05f);
+            Assert.That(director.Run.Power, Is.EqualTo(10));
+            director.HandleRuntuh();
+            director.HandleRuntuh();
+            Assert.That(kudeta, Is.Zero);
+            Assert.That(director.ReignRuntuh, Is.EqualTo(2));
+            Assert.That(director.Run.Power, Is.EqualTo(10), "Runtuh alone keeps Power");
+            director.HandleRuntuh();
+            Assert.That(kudeta, Is.EqualTo(1));
+            Assert.That(director.Run.Power, Is.Zero);
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.KursiTerbuka));
+            Assert.That(director.ReignStarted, Is.False);
+            Assert.That(director.ReignRuntuh, Is.Zero);
+            Assert.That(director.Run.Checkpoint, Is.EqualTo(CampaignCheckpoint.GardaTakhta));
         }
 
         [Test]

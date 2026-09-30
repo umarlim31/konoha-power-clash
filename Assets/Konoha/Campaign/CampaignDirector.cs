@@ -69,6 +69,25 @@ namespace Konoha.Campaign
             0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<int> counterRemaining = new NetworkVariable<int>(
             0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        // 0.1.0 Garda Takhta, Fase Memerintah and result screen.
+        private NetworkVariable<int> gardaTotal = new NetworkVariable<int>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<float> panglimaFraction = new NetworkVariable<float>(
+            1f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<bool> gardaLockdown = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<bool> reignStarted = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<int> reignRuntuh = new NetworkVariable<int>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<int> counterWaves = new NetworkVariable<int>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<ulong> seatedObjectId = new NetworkVariable<ulong>(
+            ulong.MaxValue, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<double> runStartedAt = new NetworkVariable<double>(
+            0d, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<double> runEndedAt = new NetworkVariable<double>(
+            -1d, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
         private readonly List<CampaignEnemy> gateEnemies = new List<CampaignEnemy>();
         private readonly List<CampaignEnemy> gardaEnemies = new List<CampaignEnemy>();
@@ -87,6 +106,14 @@ namespace Konoha.Campaign
         private CampaignObjectiveDirector objectives;
         private bool gateSpawned;
         private bool gardaSpawned;
+        private readonly GardaEncounter garda = new GardaEncounter();
+        private CampaignEnemy panglima;
+        private int counterFaction;
+        // Out-of-combat Wibawa recovery per hero (NetworkObjectId).
+        private readonly Dictionary<ulong, int> lastWibawa = new Dictionary<ulong, int>();
+        private readonly Dictionary<ulong, float> lastHurtAt = new Dictionary<ulong, float>();
+        private readonly Dictionary<ulong, float> recoveryCarry = new Dictionary<ulong, float>();
+        private readonly List<NetworkObject> heroScratch = new List<NetworkObject>();
         private bool majelisSpawned;
         private bool majelisPending;
         // Enemies are spawned from Update, never from inside another object's OnNetworkSpawn.
@@ -98,7 +125,7 @@ namespace Konoha.Campaign
 
         public CampaignPhase Phase => (CampaignPhase)phase.Value;
         public int Power => power.Value;
-        public int TargetPower => CampaignTuning.PreviewSlice.TargetPower;
+        public int TargetPower => CampaignTuning.Memerintah.TargetPower;
         public int RequiredSeals => CampaignTuning.PreviewSlice.RequiredSeals;
         public int RuntuhCount => runtuhCount.Value;
         public bool HeroLocked => heroLocked.Value;
@@ -135,7 +162,24 @@ namespace Konoha.Campaign
         public int GateRemaining => gateRemaining.Value;
         public int GardaRemaining => gardaRemaining.Value;
         public int CounterRemaining => counterRemaining.Value;
-        public int GardaTotal => 2;
+        public int GardaTotal => gardaTotal.Value;
+        public float PanglimaFraction => panglimaFraction.Value;
+        public bool GardaLockdown => gardaLockdown.Value;
+        public bool ReignStarted => reignStarted.Value;
+        public int ReignRuntuh => reignRuntuh.Value;
+        public int CounterWaves => counterWaves.Value;
+        public ulong SeatedObjectId => seatedObjectId.Value;
+        // Seconds since MULAI; frozen at the victory moment (result screen).
+        public double RunSeconds
+        {
+            get
+            {
+                double now = NetworkManager != null ? NetworkManager.ServerTime.Time : 0d;
+                double end = runEndedAt.Value >= 0d ? runEndedAt.Value : now;
+                return HeroLocked ? System.Math.Max(0d, end - runStartedAt.Value) : 0d;
+            }
+        }
+        public double RunStartedAt => runStartedAt.Value;
         public CampaignCheckpoint Checkpoint => (CampaignCheckpoint)checkpoint.Value;
 
         public int SealCount
@@ -174,6 +218,7 @@ namespace Konoha.Campaign
             objectives.GardaRequested += SpawnGarda;
             objectives.CounterattackRequested += SpawnCounterattack;
             objectives.Won += OnWon;
+            objectives.Kudeta += OnKudeta;
             gatePending = true;
             SyncState();
             Debug.Log("[KONOHA CAMPAIGN] Director ready (host authority).");
@@ -189,6 +234,7 @@ namespace Konoha.Campaign
                 objectives.GardaRequested -= SpawnGarda;
                 objectives.CounterattackRequested -= SpawnCounterattack;
                 objectives.Won -= OnWon;
+                objectives.Kudeta -= OnKudeta;
             }
 
             if (Instance == this)
@@ -249,9 +295,10 @@ namespace Konoha.Campaign
             if (biroSpawned)
                 UpdateBiro(player, deltaTime);
 
-            if (gardaSpawned && CountAlive(gardaEnemies) == 0 &&
-                (objectives.Run.Phase == CampaignPhase.GerbangDalam || objectives.Run.Phase == CampaignPhase.GardaTakhta))
-                objectives.CompleteGarda();
+            if (gardaSpawned)
+                UpdateGarda(player);
+
+            UpdateRecovery(deltaTime);
 
             SyncState();
         }
@@ -298,6 +345,12 @@ namespace Konoha.Campaign
             gateCleared.Value = objectives.GateCleared;
             gateRemaining.Value = CountAlive(gateEnemies);
             gardaRemaining.Value = CountAlive(gardaEnemies);
+            gardaTotal.Value = gardaEnemies.Count;
+            reignStarted.Value = objectives.ReignStarted;
+            reignRuntuh.Value = objectives.ReignRuntuh;
+            counterWaves.Value = objectives.CounterattackWaves;
+            NetworkObject seated = run.Phase == CampaignPhase.Memerintah ? PrimaryPlayer() : null;
+            seatedObjectId.Value = seated != null ? seated.NetworkObjectId : ulong.MaxValue;
             counterRemaining.Value = CountAlive(counterEnemies);
 
             int mask = 0;
@@ -563,25 +616,153 @@ namespace Konoha.Campaign
             OnObjectiveMessage("3 LOKET TERCAP!  Pintu KEPALA BIRO terbuka, awas SALAH LOKET");
         }
 
+        // §8.3 Garda Takhta: Panglima + Pengawal on the parade ground (placed when the inner gate opens).
         private void SpawnGarda()
         {
-            gardaEnemies.Clear();
+            DespawnAll(gardaEnemies);
+            garda.Reset();
+            panglima = null;
+            gardaLockdown.Value = false;
+
             Vector3 post = stage.garda.position;
-            if (stage.gardaSpawnPoints.Length > 0)
-                AddIfSpawned(gardaEnemies, SpawnEnemy(UnitRole.Pemimpin, FactionId.GardaTakhta,
-                    stage.gardaSpawnPoints[0], post, stage.chair.position));
-            if (stage.gardaSpawnPoints.Length > 1)
-                AddIfSpawned(gardaEnemies, SpawnEnemy(UnitRole.Guard, FactionId.GardaTakhta,
-                    stage.gardaSpawnPoints[1], post, stage.chair.position));
+            int point = 0;
+            foreach (UnitSpawn spawn in EncounterComposer.Compose(FactionId.GardaTakhta, 1))
+            {
+                if (spawn.Trigger != SpawnTrigger.Start)
+                    continue;
+                for (int i = 0; i < spawn.Count && point < stage.gardaSpawnPoints.Length; i++)
+                {
+                    Vector3 position = stage.gardaSpawnPoints[point++];
+                    CampaignEnemy enemy = SpawnEnemy(spawn.Role, FactionId.GardaTakhta, position, post,
+                        stage.chair.position, post, CampaignTuning.Garda.LockdownRadius);
+                    if (enemy == null)
+                        continue;
+                    if (spawn.Role == UnitRole.Pemimpin)
+                    {
+                        enemy.ServerConfigureCounterPush();
+                        panglima = enemy;
+                    }
+                    gardaEnemies.Add(enemy);
+                }
+            }
             gardaSpawned = true;
         }
 
+        private void UpdateGarda(NetworkObject player)
+        {
+            if (garda.LeaderFallen)
+                return;
+
+            bool leaderAlive = panglima != null && panglima.IsSpawned && !panglima.IsOutOfFight;
+            panglimaFraction.Value = leaderAlive ? panglima.WibawaFraction : 0f;
+            GardaChange change = garda.Evaluate(panglimaFraction.Value, leaderAlive);
+
+            if ((change & GardaChange.Reinforce) != 0)
+            {
+                Vector3 post = stage.garda.position;
+                foreach (Vector3 point in stage.gardaReinforcePoints)
+                    AddIfSpawned(gardaEnemies, SpawnEnemy(UnitRole.Kroni, FactionId.GardaTakhta, point, post,
+                        stage.chair.position, post, CampaignTuning.Garda.LockdownRadius));
+                OnObjectiveMessage("BALA BANTUAN!  Panglima memanggil Kroni");
+            }
+
+            if ((change & GardaChange.LeaderDown) != 0)
+            {
+                gardaLockdown.Value = false;
+                foreach (CampaignEnemy enemy in gardaEnemies)
+                    if (enemy != null && enemy.IsSpawned && !enemy.IsOutOfFight)
+                        enemy.ServerSurrender();
+                objectives.CompleteGarda();
+                return;
+            }
+
+            // LOCKDOWN: closes once the hero is well inside the ring during the Garda fight.
+            bool heroDown = false, heroInside = false;
+            if (player != null)
+            {
+                NetworkPlayerCombat heroCombat = player.GetComponent<NetworkPlayerCombat>();
+                heroDown = heroCombat != null && heroCombat.IsKnockedOut;
+                heroInside = objectives.Run.Phase == CampaignPhase.GardaTakhta &&
+                    CampaignObjectiveDirector.Near(player.transform.position, stage.garda.position,
+                        CampaignTuning.Garda.LockdownCloseRadius);
+            }
+            // Never lock the hero away from the Panglima: the ring only holds while he is inside it.
+            bool panglimaInside = CampaignObjectiveDirector.Near(panglima.transform.position, stage.garda.position,
+                CampaignTuning.Garda.LockdownRadius - 0.8f);
+            if (garda.UpdateLockdown(heroInside && panglimaInside, heroDown || !panglimaInside))
+            {
+                gardaLockdown.Value = garda.LockdownClosed;
+                if (garda.LockdownClosed)
+                {
+                    panglima.ServerDelaySpecial(CampaignTuning.Garda.CounterPushFirstDelaySeconds);
+                    OnObjectiveMessage("LOCKDOWN!  Tidak ada jalan keluar sampai PANGLIMA tumbang");
+                }
+            }
+        }
+
+        // §9 counterattack: 2 Kroni + 1 Pengawal from the remnants of a beaten faction.
         private void SpawnCounterattack()
         {
-            counterEnemies.Clear();
-            // The counterattack guards the seat, so its leash is centred on the chair.
-            AddIfSpawned(counterEnemies, SpawnEnemy(UnitRole.Guard, FactionId.GardaTakhta,
-                stage.counterattackSpawnPoint, stage.chair.position, stage.chair.position));
+            if (CountAlive(counterEnemies) >= CampaignTuning.Garda.MaxCounterattackAlive)
+                return;
+
+            counterEnemies.RemoveAll(enemy => enemy == null || !enemy.IsSpawned);
+            FactionId faction = counterFaction++ % 2 == 0 ? FactionId.MajelisDaun : FactionId.BiroProsedur;
+            Vector3[] points = stage.counterattackSpawnPoints;
+            if (points.Length == 0)
+                return;
+
+            for (int i = 0; i < CampaignTuning.Memerintah.CounterattackKroni; i++)
+                AddIfSpawned(counterEnemies, SpawnEnemy(UnitRole.Kroni, faction, points[i % points.Length],
+                    stage.chair.position, stage.chair.position));
+            // The Pengawal guards the seat, so its leash is centred on the chair.
+            for (int i = 0; i < CampaignTuning.Memerintah.CounterattackGuard; i++)
+                AddIfSpawned(counterEnemies, SpawnEnemy(UnitRole.Guard, faction,
+                    points[(CampaignTuning.Memerintah.CounterattackKroni + i) % points.Length],
+                    stage.chair.position, stage.chair.position));
+        }
+
+        private void OnKudeta()
+        {
+            DespawnAll(counterEnemies);
+        }
+
+        // 0.1.0: out of combat for a few seconds, a hero's Wibawa refills.
+        private void UpdateRecovery(float deltaTime)
+        {
+            float now = Time.time;
+            heroScratch.Clear();
+            foreach (NetworkObject networkObject in NetworkManager.SpawnManager.SpawnedObjectsList)
+                if (networkObject != null && networkObject.IsPlayerObject)
+                    heroScratch.Add(networkObject);
+
+            foreach (NetworkObject hero in heroScratch)
+            {
+                NetworkPlayerCombat combat = hero.GetComponent<NetworkPlayerCombat>();
+                if (combat == null)
+                    continue;
+                ulong id = hero.NetworkObjectId;
+                int wibawa = combat.Wibawa;
+                if (!lastWibawa.TryGetValue(id, out int previous) || wibawa < previous || combat.IsKnockedOut)
+                {
+                    lastHurtAt[id] = now;
+                    recoveryCarry[id] = 0f;
+                }
+                lastWibawa[id] = wibawa;
+
+                if (combat.IsKnockedOut || wibawa >= combat.MaxWibawaValue ||
+                    now - lastHurtAt[id] < CampaignTuning.Recovery.DelaySeconds)
+                    continue;
+
+                float carry = recoveryCarry[id] + CampaignTuning.Recovery.WibawaPerSecond * deltaTime;
+                int heal = Mathf.FloorToInt(carry);
+                recoveryCarry[id] = carry - heal;
+                if (heal > 0)
+                {
+                    combat.ServerHeal(heal);
+                    lastWibawa[id] = combat.Wibawa;
+                }
+            }
         }
 
         private CampaignEnemy SpawnEnemy(UnitRole role, FactionId faction, Vector3 position, Vector3 anchor, Vector3 lookAt)
@@ -647,9 +828,11 @@ namespace Konoha.Campaign
         private void OnWon()
         {
             DespawnAll(counterEnemies);
+            runEndedAt.Value = NetworkManager.ServerTime.Time;
         }
 
-        private void ServerRestart()
+        // chooseHero: back to the hero screen (GANTI HERO); otherwise the same hero starts again (ULANG).
+        private void ServerRestart(bool chooseHero)
         {
             DespawnAll(gateEnemies);
             DespawnAll(majelisEnemies);
@@ -667,6 +850,10 @@ namespace Konoha.Campaign
             majelisPending = false;
             majelis.Reset();
             gardaSpawned = false;
+            garda.Reset();
+            panglima = null;
+            gardaLockdown.Value = false;
+            counterFaction = 0;
             objectives.Restart();
             SyncState();
 
@@ -680,12 +867,21 @@ namespace Konoha.Campaign
                     combat.ServerResetForMatch();
             }
 
-            // Back to the hero screen: the hero may be changed before the next run.
-            heroLocked.Value = false;
             restu.Value = false;
             gatePending = true;
+            runEndedAt.Value = -1d;
+            if (chooseHero)
+            {
+                // Back to the hero screen: the hero may be changed before the next run.
+                heroLocked.Value = false;
+                OnObjectiveMessage("Pilih hero untuk perjalanan baru");
+            }
+            else
+            {
+                runStartedAt.Value = NetworkManager.ServerTime.Time;
+                OnObjectiveMessage("Perjalanan baru dimulai! Kalahkan Kroni di GERBANG RAKYAT");
+            }
             SyncState();
-            OnObjectiveMessage("Pilih hero untuk perjalanan baru");
         }
 
         // --- Player input --------------------------------------------------------------
@@ -704,7 +900,23 @@ namespace Konoha.Campaign
                 return;
 
             heroLocked.Value = true;
+            runStartedAt.Value = NetworkManager.ServerTime.Time;
+            runEndedAt.Value = -1d;
             OnObjectiveMessage("Perjalanan dimulai! Kalahkan Kroni di GERBANG RAKYAT");
+        }
+
+        // Result screen: ULANG (same hero) or GANTI HERO (back to the hero screen).
+        public void RequestRestart(bool chooseHero)
+        {
+            if (IsSpawned)
+                RestartServerRpc(chooseHero);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void RestartServerRpc(bool chooseHero)
+        {
+            if (objectives != null && objectives.Run.Phase == CampaignPhase.Menang)
+                ServerRestart(chooseHero);
         }
 
         // Contextual SAHKAN / DUDUK / ULANG button.
@@ -722,7 +934,7 @@ namespace Konoha.Campaign
 
             if (objectives.Run.Phase == CampaignPhase.Menang)
             {
-                ServerRestart();
+                ServerRestart(false);
                 return;
             }
 
@@ -737,7 +949,16 @@ namespace Konoha.Campaign
             if (combat != null && combat.IsKnockedOut)
                 return;
 
+            bool wasSeated = objectives.Run.Phase == CampaignPhase.Memerintah;
             objectives.Interact(player.transform.position, Time.time);
+            if (!wasSeated && objectives.Run.Phase == CampaignPhase.Memerintah)
+            {
+                // §9 DUDUK: the hero is placed at the seat and stays there (movement locked
+                // by CampaignTraversal) until BERDIRI, a push, or a Runtuh.
+                NetworkHeroKit kit = player.GetComponent<NetworkHeroKit>();
+                if (kit != null && stage != null && stage.chair != null)
+                    kit.ServerTeleport(stage.chair.position + stage.seatOffset);
+            }
             SyncState();
         }
 
@@ -830,6 +1051,12 @@ namespace Konoha.Campaign
                 return 1f;
             return BiroEncounter.CooldownMultiplier(CampaignEnemy.InsideStempelTunda(actor.transform.position));
         }
+
+        // §9: attacking from the seat reaches 1 m further.
+        public float GetBasicRangeBonus(NetworkObject actor) =>
+            actor != null && actor.NetworkObjectId == seatedObjectId.Value
+                ? CampaignTuning.Memerintah.SeatedBasicRangeBonus
+                : 0f;
 
         public float GetRespawnDelay(NetworkObject actor, float defaultDelay) =>
             CampaignTuning.Runtuh.RespawnDelaySeconds;
