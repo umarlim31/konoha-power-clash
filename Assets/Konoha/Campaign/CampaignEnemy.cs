@@ -32,6 +32,12 @@ namespace Konoha.Campaign
         public Transform visualRoot;
         public Renderer bodyRenderer;
         public Renderer accentRenderer;
+        // 0.2.3 human body: every renderer that wears the faction colours, the animated rig,
+        // and headwear per faction (peci Majelis, kepet Biro, baret Garda).
+        public Renderer[] primaryRenderers = new Renderer[0];
+        public Renderer[] accentRenderers = new Renderer[0];
+        public CampaignHumanoid body;
+        public GameObject headwearMajelis, headwearBiro, headwearGarda;
         public TextMesh nameplate;
         // Burgundy ring under every Majelis unit while the voting block holds.
         public GameObject blockRing;
@@ -76,6 +82,8 @@ namespace Konoha.Campaign
         // Spawned enemies on this peer (HUD, STEMPEL TUNDA checks) without scene searches.
         private static readonly List<CampaignEnemy> active = new List<CampaignEnemy>();
         public static IReadOnlyList<CampaignEnemy> Active => active;
+        // Server: this member threw a basic attack at a hero (0.2.3 punch animation + effects).
+        public static event System.Action<CampaignEnemy, NetworkPlayerCombat> AttackLaunched;
         private Vector3[] salahLoketTargets;
         // Earliest time the next basic hit may land on each hero (by NetworkObjectId).
         private static readonly Dictionary<ulong, float> nextHitOnTarget = new Dictionary<ulong, float>();
@@ -564,6 +572,8 @@ namespace Konoha.Campaign
             nextHitOnTarget[targetId] = Time.time + CampaignTuning.Encounters.TargetHitSpacingSeconds;
 
             nextAttackTime = Time.time + CampaignTuning.Encounters.EnemyAttackIntervalSeconds;
+            // Presentation hook: the body throws the punch as the hit lands.
+            AttackLaunched?.Invoke(this, target);
             // Credited to this actor, never to a client (see INetworkAiActor).
             target.ServerReceiveDamage(stats.DamagePerHit, NetworkMatchManager.NoClient, NetworkObjectId);
         }
@@ -734,6 +744,20 @@ namespace Konoha.Campaign
             block ??= new MaterialPropertyBlock();
             SetColor(bodyRenderer, primary);
             SetColor(accentRenderer, accent);
+            if (primaryRenderers != null)
+                foreach (Renderer part in primaryRenderers)
+                    if (part != bodyRenderer) SetColor(part, primary);
+            if (accentRenderers != null)
+                foreach (Renderer part in accentRenderers)
+                    if (part != accentRenderer) SetColor(part, accent);
+            SetActive(headwearMajelis, unitFaction == FactionId.MajelisDaun);
+            SetActive(headwearBiro, unitFaction == FactionId.BiroProsedur);
+            SetActive(headwearGarda, unitFaction != FactionId.MajelisDaun && unitFaction != FactionId.BiroProsedur);
+            if (body != null)
+            {
+                body.SetDown(down);
+                body.heldItem = gavel;
+            }
 
             if (nameplate != null)
             {
@@ -756,6 +780,12 @@ namespace Konoha.Campaign
             }
 
             gameObject.name = "Enemy_" + unitFaction + "_" + unitRole;
+        }
+
+        private static void SetActive(GameObject target, bool value)
+        {
+            if (target != null && target.activeSelf != value)
+                target.SetActive(value);
         }
 
         private void SetColor(Renderer target, Color color)
