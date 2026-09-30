@@ -91,7 +91,8 @@ namespace Konoha.Campaign
                 "RUNTUH  " + director.RuntuhCount + "\n" +
                 "PENGARUH TERKUMPUL  " + collected + "\n\n" +
                 "ARKETIPE:  TAKHTA BESI\n" +
-                "Kursi direbut lewat adu kuat, bukan lewat koalisi.";
+                "Kursi direbut lewat adu kuat, bukan lewat koalisi.\n\n" +
+                "LEVEL 2 segera hadir. Untuk sekarang: ULANG atau GANTI HERO.";
         }
 
         private static NetworkHeroKit LocalKit()

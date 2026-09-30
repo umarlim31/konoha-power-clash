@@ -123,6 +123,10 @@ namespace Konoha.Campaign
             public const float SeatedBasicRangeBonus = 1f;
             public const int KudetaRuntuhLimit = 3;
             public const float ChairRadius = 2.2f;
+            // 0.1.1 (owner decision): sitting on the seat wins the run at once; the §9 Power
+            // phase stays in code for later levels. Waves harass the hero until they sit.
+            public const bool SeatWinsRun = true;
+            public const float FirstWaveSeconds = 6f;
             public const float PowerTickSeconds = 1f / PowerPerSecond; // +1 Power per tick.
         }
 
@@ -160,6 +164,9 @@ namespace Konoha.Campaign
             public const int RequiredSeals = Seals.Required;
 
             public const float PlazaRadius = 2.4f;
+            // 0.1.1: walking this far north of the plaza point also counts as reaching it
+            // (a hero taking the garden path to Majelis never touched the 2.4 m ring).
+            public const float PlazaEntryDepth = 15f;
             public const float SectorRadius = 2.8f;
             public const float GardaTriggerRadius = 2.6f;
             public const float ChairRadius = 2.2f;

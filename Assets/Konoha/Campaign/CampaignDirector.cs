@@ -827,7 +827,9 @@ namespace Konoha.Campaign
 
         private void OnWon()
         {
+            // The run is over: every remaining Sistem member leaves the capital.
             DespawnAll(counterEnemies);
+            DespawnAll(gardaEnemies);
             runEndedAt.Value = NetworkManager.ServerTime.Time;
         }
 
@@ -951,7 +953,8 @@ namespace Konoha.Campaign
 
             bool wasSeated = objectives.Run.Phase == CampaignPhase.Memerintah;
             objectives.Interact(player.transform.position, Time.time);
-            if (!wasSeated && objectives.Run.Phase == CampaignPhase.Memerintah)
+            if (!wasSeated && (objectives.Run.Phase == CampaignPhase.Memerintah ||
+                objectives.Run.Phase == CampaignPhase.Menang))
             {
                 // §9 DUDUK: the hero is placed at the seat and stays there (movement locked
                 // by CampaignTraversal) until BERDIRI, a push, or a Runtuh.

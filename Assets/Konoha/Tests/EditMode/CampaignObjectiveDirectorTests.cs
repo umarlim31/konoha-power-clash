@@ -145,6 +145,7 @@ namespace Konoha.Tests
         public void FullSliceRouteReachesVictoryWithThreeCounterattackWaves()
         {
             var director = Cleared();
+            director.SeatWinsRun = false; // §9 Power phase
             int gardaRequests = 0, counterattacks = 0, wins = 0;
             director.GardaRequested += () => gardaRequests++;
             director.CounterattackRequested += () => counterattacks++;
@@ -182,6 +183,7 @@ namespace Konoha.Tests
         private static CampaignObjectiveDirector Seated()
         {
             var director = Cleared();
+            director.SeatWinsRun = false; // §9 Power phase
             CollectBothSeals(director);
             director.Tick(Garda, Frame);
             director.CompleteGarda();
@@ -226,6 +228,46 @@ namespace Konoha.Tests
         }
 
         [Test]
+        public void GardenPathNorthOfTheGateStillReachesThePlaza()
+        {
+            var director = Cleared();
+            int majelis = 0;
+            director.MajelisRequested += () => majelis++;
+            director.Tick(new Vector3(-12f, 0f, Plaza.z - 16f), Frame);
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.GerbangRakyat), "Still in the gate area");
+            director.Tick(new Vector3(-12f, 0f, Plaza.z - 14f), Frame);
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.PlazaAspirasi), "0.1.1: no need to touch the plaza ring");
+            Assert.That(majelis, Is.EqualTo(1), "Majelis is placed before the hero arrives there");
+        }
+
+        [Test]
+        public void SittingOnTheSeatWinsAndEndsTheWaves()
+        {
+            var director = Cleared();
+            Assert.That(director.SeatWinsRun, Is.True, "0.1.1 default");
+            int waves = 0, wins = 0, seated = 0;
+            director.CounterattackRequested += () => waves++;
+            director.Won += () => wins++;
+            director.Seated += () => seated++;
+            CollectBothSeals(director);
+            director.Tick(Garda, Frame);
+            director.CompleteGarda();
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.KursiTerbuka));
+            Hold(director, Plaza, 5.9f);
+            Assert.That(waves, Is.Zero, "First wave after 6 s");
+            Hold(director, Plaza, 0.2f);
+            Assert.That(waves, Is.EqualTo(1));
+            Hold(director, Plaza, 15f);
+            Assert.That(waves, Is.EqualTo(2), "Then every 15 s until the hero sits");
+            Assert.That(director.Interact(Chair, 30f), Is.True);
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.Menang));
+            Assert.That(wins, Is.EqualTo(1));
+            Assert.That(seated, Is.EqualTo(1));
+            Hold(director, Chair, 30f);
+            Assert.That(waves, Is.EqualTo(2), "No waves after the win");
+        }
+
+        [Test]
         public void GardaClearedBeforeEngagingStillOpensTheSeat()
         {
             var director = Cleared();
@@ -240,6 +282,7 @@ namespace Konoha.Tests
         public void LeavingSeatStopsPowerAndRuntuhIsCounted()
         {
             var director = Cleared();
+            director.SeatWinsRun = false; // §9 Power phase
             CollectBothSeals(director);
             director.Tick(Garda, Frame);
             director.HandleRuntuh();
