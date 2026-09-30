@@ -84,7 +84,7 @@ namespace Konoha.Editor
             "Tiered Nusantara roof", "Roof bronze ridge", "Upturned roof finial",
             "Gerbang Rakyat", "Gerbang Dalam", "Kantor Kepala Biro", "Pintu Kepala Biro",
             "Palm curved frond", "Palm crown", "Palm tapered trunk",
-            "Sign GERBANG", "Sign MENUJU", "Sign KANTOR", "Banner", "NusantaraTall"
+            "Sign GERBANG", "Sign MENUJU", "Sign KANTOR", "Banner", "NusantaraTall", "KotaTall"
         };
 
         internal Renderer[] CameraOccluders()
