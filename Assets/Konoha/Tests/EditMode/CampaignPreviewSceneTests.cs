@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.2.5  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.5"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(34));
+                    Is.EqualTo("JALUR TAKHTA 0.2.6  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.6"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(35));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -161,6 +161,13 @@ namespace Konoha.Tests
                 Assert.That(wallBanners, Is.EqualTo(12));
                 Assert.That(megah, Is.InRange(200, 900), "Megah decor budget for the tablet");
                 Assert.That(Camera.main.farClipPlane, Is.GreaterThanOrEqualTo(RenderSettings.fogEndDistance));
+                // 0.2.6 Rasa Nusantara: stupa instead of the guardian figure, heritage buildings,
+                // lotus inlay, candi bentar at the boulevard mouth.
+                Assert.That(GameObject.Find("Guardian head"), Is.Null);
+                Assert.That(GameObject.Find("Stupa genta"), Is.Not.Null);
+                Assert.That(GameObject.Find("Gedung lama jendela"), Is.Not.Null);
+                Assert.That(GameObject.Find("Tower recessed arcade"), Is.Null);
+                Assert.That(GameObject.Find("MegahTall candi bentar"), Is.Not.Null);
 
                 // 0.2.3: hero bodies (one per hero, inactive templates), effects and camera shake.
                 var bodies = Object.FindFirstObjectByType<CampaignBodies>();

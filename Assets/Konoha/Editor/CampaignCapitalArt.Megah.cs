@@ -23,7 +23,7 @@ namespace Konoha.Editor
         {
             motif = Surface("MegahUbinMotif", Color.white, .35f);
             motif.SetTexture("_BaseMap", ColorTexture("MegahUbinMotif", MotifTile));
-            flamboyan = Surface("MegahFlamboyan", new Color(.86f, .24f, .10f), .15f);
+            flamboyan = Surface("MegahFlamboyan", new Color(.72f, .14f, .08f), .15f);
             cloud = Surface("MegahAwan", new Color(.97f, .97f, .98f), 0f);
             cascade = Surface("MegahAirTerjun", new Color(.62f, .84f, .92f), .9f);
             cascade.SetTexture("_BaseMap", Texture("Water"));
@@ -39,15 +39,16 @@ namespace Konoha.Editor
             Clouds();
             CoastalTown();
             Islands();
+            CandiBentar();
         }
 
         // --- Ornamental tiles -------------------------------------------------------------
 
         private void MotifPaving()
         {
-            // 3 m tiles: boulevard 6 x 43 m, forecourt 18 x 5 m (the top face maps x -> u, z -> v).
-            SetMotif("Gerbang Rakyat boulevard", new Vector2(2f, 43f / 3f));
-            SetMotif("Civic forecourt inlay", new Vector2(6f, 5f / 3f));
+            // 1.5 m tiles (0.2.6, was 3 m): boulevard 6 x 43 m, forecourt 18 x 5 m (top face: x -> u, z -> v).
+            SetMotif("Gerbang Rakyat boulevard", new Vector2(4f, 43f / 1.5f));
+            SetMotif("Civic forecourt inlay", new Vector2(12f, 5f / 1.5f));
         }
 
         private void SetMotif(string blockName, Vector2 tiles)
@@ -70,7 +71,8 @@ namespace Konoha.Editor
         // that meet at the tile corners.
         private static Color MotifTile(int x, int y)
         {
-            Color navy = new Color(.13f, .19f, .33f), gold = new Color(.86f, .66f, .28f), cream = new Color(.86f, .80f, .66f);
+            // 0.2.6: muted like weathered glazed tiles (0.2.5 was too loud).
+            Color navy = new Color(.22f, .27f, .36f), gold = new Color(.70f, .58f, .36f), cream = new Color(.78f, .74f, .64f);
             float n = Mathf.PerlinNoise(x * .08f, y * .08f) * .05f;
             if (x < 5 || y < 5 || x > 250 || y > 250)
                 return gold * (.9f + n);
@@ -211,18 +213,26 @@ namespace Konoha.Editor
         }
 
         // Flame tree (flamboyan): the red-flowering shade tree of Indonesian streets.
+        // 0.2.6: a wide, flat umbrella of many small clumps, mostly green leaves with patches
+        // of deep red flowers (0.2.5 used a few huge orange blobs that looked like toys).
         private void Flamboyan(Vector3 p, float twist)
         {
-            Cylinder("MegahTall batang flamboyan", p + Vector3.up * 1.5f, new Vector3(.4f, 1.5f, .4f), bark);
-            for (int i = 0; i < 3; i++)
+            Cylinder("MegahTall batang flamboyan", p + Vector3.up * 1.6f, new Vector3(.3f, 1.6f, .3f), bark);
+            for (int i = 0; i < 4; i++)
             {
-                var direction = Quaternion.Euler(0f, twist + i * 120f, 0f) * Vector3.forward;
-                Stick("MegahTall dahan flamboyan", p + Vector3.up * 2.7f, p + Vector3.up * 4.2f + direction * 1.8f, .18f, bark);
+                var direction = Quaternion.Euler(0f, twist + i * 90f, 0f) * Vector3.forward;
+                Stick("MegahTall dahan flamboyan", p + Vector3.up * 2.8f, p + Vector3.up * 3.9f + direction * 1.7f, .12f, bark);
             }
-            Vector3[] crowns = { new Vector3(0f, 4.9f, 0f), new Vector3(1.7f, 4.5f, .5f), new Vector3(-1.5f, 4.6f, .9f), new Vector3(.4f, 4.4f, -1.7f) };
-            for (int i = 0; i < crowns.Length; i++)
-                Ellipsoid("MegahTall tajuk flamboyan", p + Quaternion.Euler(0f, twist, 0f) * crowns[i],
-                    new Vector3(3.4f, 1.3f, 3.4f) * (i == 0 ? 1.1f : .85f), i == 3 ? canopy : flamboyan);
+            var random = new System.Random(Mathf.RoundToInt(p.x * 31f + p.z * 7f));
+            for (int i = 0; i < 11; i++)
+            {
+                float angle = (twist + i * 32.7f) * Mathf.Deg2Rad;
+                float radius = i == 0 ? 0f : .9f + (float)random.NextDouble() * 1.4f;
+                var at = p + new Vector3(Mathf.Sin(angle) * radius, 4.1f + (float)random.NextDouble() * .5f - radius * .12f, Mathf.Cos(angle) * radius);
+                bool blossom = i % 3 == 1;
+                Ellipsoid("MegahTall tajuk flamboyan", at, blossom ? new Vector3(1f, .45f, 1f) : new Vector3(1.5f, .6f, 1.5f),
+                    blossom ? flamboyan : (i % 2 == 0 ? canopy : canopyLight));
+            }
         }
 
         private void Bugenvil(Vector3 p)
@@ -230,6 +240,41 @@ namespace Konoha.Editor
             Ellipsoid("Megah bugenvil daun", p + new Vector3(0f, .35f, 0f), new Vector3(1.1f, .7f, 1f), leaf);
             Ellipsoid("Megah bugenvil bunga", p + new Vector3(.15f, .62f, .1f), new Vector3(.8f, .4f, .75f), flower);
             Ellipsoid("Megah bugenvil bunga", p + new Vector3(-.25f, .5f, -.2f), new Vector3(.5f, .3f, .5f), flower);
+        }
+
+        // --- Candi bentar ------------------------------------------------------------------
+
+        // 0.2.6: a split gate of red brick (candi bentar, as in Majapahit Trowulan and Bali)
+        // welcoming the hero at the mouth of the boulevard, on the pavement by the road.
+        private void CandiBentar()
+        {
+            Material brick = Surface("MegahBataMerah", Color.white, .12f);
+            brick.SetTexture("_BaseMap", ColorTexture("MegahBataMerah", (x, y) =>
+            {
+                int row = y / 32;
+                bool mortar = y % 32 < 3 || (x + (row % 2) * 32) % 64 < 3;
+                float n = Mathf.PerlinNoise(x * .09f + row, y * .09f) * .08f;
+                float shade = ((x + (row % 2) * 32) / 64 + row) % 3 * .03f;
+                return mortar ? new Color(.72f, .66f, .56f) : new Color(.60f + n - shade, .27f + n * .5f, .18f);
+            }));
+            EditorUtility.SetDirty(brick);
+            const float z = -54.3f, inner = 3.4f;
+            foreach (int side in new[] { -1, 1 })
+            {
+                // The inner face of every tier lines up at x = ±3.4 (the split); tiers step back outward.
+                float[] widths = { 2.4f, 2f, 1.7f, 1.4f, 1.1f, .8f };
+                float y = 0f;
+                for (int i = 0; i < widths.Length; i++)
+                {
+                    float h = i == 0 ? .8f : .9f;
+                    float w = widths[i];
+                    Block("MegahTall candi bentar", new Vector3(side * (inner + w * .5f), y + h * .5f, z), new Vector3(w, h, w * .9f), brick);
+                    if (i > 0)
+                        Block("MegahTall candi bentar pelipit", new Vector3(side * (inner + w * .5f), y + .06f, z), new Vector3(w + .12f, .12f, w * .9f + .12f), stone);
+                    y += h;
+                }
+                MeshObject("MegahTall candi bentar kemuncak", stupa, new Vector3(side * (inner + .4f), y, z), new Vector3(.32f, .45f, .32f), stone);
+            }
         }
 
         // --- Horizon ------------------------------------------------------------------------

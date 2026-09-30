@@ -64,6 +64,8 @@ namespace Konoha.Campaign
         private AudioClip[] clips;
         private Text muteLabel;
         private int nextSource;
+        private AudioSource ambience;
+        [Range(0f, 1f)] public float ambienceVolume = 0.28f;
         private bool muted;
 
         // Last observed director state (null until first seen: no sound on the first frame).
@@ -102,6 +104,15 @@ namespace Konoha.Campaign
 
         private void Start()
         {
+            // 0.2.6: quiet gamelan in the background (Nusantara atmosphere), follows SUARA.
+            ambience = gameObject.AddComponent<AudioSource>();
+            ambience.playOnAwake = false;
+            ambience.spatialBlend = 0f;
+            ambience.loop = true;
+            ambience.clip = BuildGamelanLoop();
+            ambience.volume = ambienceVolume;
+            ambience.mute = muted;
+            ambience.Play();
             if (muteButton != null)
             {
                 muteLabel = muteButton.GetComponentInChildren<Text>(true);
@@ -115,6 +126,8 @@ namespace Konoha.Campaign
 
         private void OnDestroy()
         {
+            if (ambience != null && ambience.clip != null)
+                Destroy(ambience.clip);
             if (muteButton != null)
                 muteButton.onClick.RemoveListener(ToggleMute);
             foreach (Button button in clickButtons)
@@ -133,6 +146,8 @@ namespace Konoha.Campaign
             muted = !muted;
             PlayerPrefs.SetInt(MutedKey, muted ? 1 : 0);
             PlayerPrefs.Save();
+            if (ambience != null)
+                ambience.mute = muted;
             RefreshMuteLabel();
             if (!muted)
                 Play(CampaignSound.UiClick, 0.7f);
@@ -318,6 +333,92 @@ namespace Konoha.Campaign
         // --- Synthesis ----------------------------------------------------------------------
 
         // One clip per CampaignSound, in enum order. Public for the EditMode test.
+        // --- Gamelan ambience (0.2.6) --------------------------------------------------------
+
+        public const float GamelanBeat = 0.75f;
+        public const int GamelanBeats = 16;
+
+        // One 12 s gongan in slendro: a saron melody (balungan), a bonang ornament at double
+        // tempo, kempul halfway and the gong on the first beat. Every note is synthesised once
+        // and mixed with wrap-around, so the loop is seamless. Sounds are original, generated.
+        public static AudioClip BuildGamelanLoop()
+        {
+            int length = Mathf.RoundToInt(GamelanBeat * GamelanBeats * SampleRate);
+            var mix = new float[length];
+            // Slendro: five roughly equal steps of 240 cents.
+            float[] scale = new float[10];
+            for (int k = 0; k < scale.Length; k++)
+                scale[k] = 262f * Mathf.Pow(2f, k * 0.2f);
+            int[] balungan = { 2, 3, 2, 1, 0, 1, 2, 3, 4, 3, 2, 1, 2, 1, 0, 1 };
+
+            var saronNotes = new float[scale.Length][];
+            var bonangNotes = new float[scale.Length][];
+            for (int k = 0; k < scale.Length; k++)
+            {
+                saronNotes[k] = Metallophone(scale[k], 1.4f, 2.4f, 2.76f, 0.30f);
+                bonangNotes[k] = Metallophone(scale[k] * 2f, 0.7f, 4.5f, 1.52f, 0.25f);
+            }
+
+            for (int beat = 0; beat < GamelanBeats; beat++)
+            {
+                int note = balungan[beat];
+                int start = Mathf.RoundToInt(beat * GamelanBeat * SampleRate);
+                AddWrapped(mix, saronNotes[note], start, 0.26f);
+                // Mipil: the bonang alternates this note and the next one, twice per beat.
+                int next = balungan[(beat + 1) % GamelanBeats];
+                AddWrapped(mix, bonangNotes[note], start, 0.10f);
+                AddWrapped(mix, bonangNotes[next], start + Mathf.RoundToInt(GamelanBeat * 0.5f * SampleRate), 0.08f);
+            }
+            AddWrapped(mix, Gong(68f, 5f), 0, 0.42f);                                      // gong ageng
+            AddWrapped(mix, Gong(131f, 2.5f), length / 2, 0.20f);                          // kempul
+
+            float peak = 0f;
+            foreach (float v in mix) peak = Mathf.Max(peak, Mathf.Abs(v));
+            float gain = peak > 0.9f ? 0.9f / peak : 1f;
+            for (int i = 0; i < length; i++) mix[i] *= gain;
+
+            AudioClip clip = AudioClip.Create("Ambience_Gamelan", length, 1, SampleRate, false);
+            clip.SetData(mix, 0);
+            return clip;
+        }
+
+        // Bronze key: fundamental plus one inharmonic partial, fast attack, exponential decay.
+        private static float[] Metallophone(float frequency, float seconds, float decay, float partial, float partialLevel)
+        {
+            int n = Mathf.CeilToInt(seconds * SampleRate);
+            var data = new float[n];
+            for (int i = 0; i < n; i++)
+            {
+                float t = i / (float)SampleRate;
+                float env = Mathf.Min(1f, t * 400f) * Mathf.Exp(-decay * t);
+                data[i] = (Mathf.Sin(2f * Mathf.PI * frequency * t) +
+                           partialLevel * Mathf.Sin(2f * Mathf.PI * frequency * partial * t) * Mathf.Exp(-decay * 2f * t)) * env;
+            }
+            return data;
+        }
+
+        // Gong: two slightly detuned low tones beating slowly, long decay.
+        private static float[] Gong(float frequency, float seconds)
+        {
+            int n = Mathf.CeilToInt(seconds * SampleRate);
+            var data = new float[n];
+            for (int i = 0; i < n; i++)
+            {
+                float t = i / (float)SampleRate;
+                float env = Mathf.Min(1f, t * 60f) * Mathf.Exp(-0.8f * t);
+                data[i] = (Mathf.Sin(2f * Mathf.PI * frequency * t) * 0.7f +
+                           Mathf.Sin(2f * Mathf.PI * (frequency + 0.9f) * t) * 0.5f +
+                           Mathf.Sin(2f * Mathf.PI * frequency * 2.02f * t) * 0.15f * Mathf.Exp(-2f * t)) * env;
+            }
+            return data;
+        }
+
+        private static void AddWrapped(float[] mix, float[] note, int start, float level)
+        {
+            for (int i = 0; i < note.Length; i++)
+                mix[(start + i) % mix.Length] += note[i] * level;
+        }
+
         public static AudioClip[] BuildClips()
         {
             var result = new AudioClip[Enum.GetValues(typeof(CampaignSound)).Length];

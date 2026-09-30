@@ -38,5 +38,28 @@ namespace Konoha.Tests
                     if (clip != null) UnityEngine.Object.DestroyImmediate(clip);
             }
         }
+
+        [Test]
+        public void GamelanLoopIsSeamlessLengthAndNeverClips()
+        {
+            AudioClip clip = CampaignAudio.BuildGamelanLoop();
+            try
+            {
+                Assert.That(clip.length, Is.EqualTo(CampaignAudio.GamelanBeat * CampaignAudio.GamelanBeats).Within(0.01f));
+                var data = new float[clip.samples];
+                clip.GetData(data, 0);
+                float peak = 0f;
+                foreach (float value in data)
+                {
+                    Assert.That(float.IsNaN(value), Is.False);
+                    peak = Mathf.Max(peak, Mathf.Abs(value));
+                }
+                Assert.That(peak, Is.InRange(0.1f, 0.91f));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(clip);
+            }
+        }
     }
 }
