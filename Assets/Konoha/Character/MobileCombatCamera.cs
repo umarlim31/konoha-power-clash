@@ -25,6 +25,11 @@ namespace Konoha.Character
         public float resetPitch = 38f;
         public float resetDistance = 22f;
         public float minPitch = 25f;
+        // Pinch-zoom range and look-at height above the hero (orbit only). The defaults are
+        // the original values; Jalur Takhta's close street camera (0.2.8) changes them.
+        public float minOrbitDistance = 13f;
+        public float maxOrbitDistance = 28f;
+        public float orbitFocusHeight = .8f;
         private readonly RaycastHit[] obstacles = new RaycastHit[48];
 
         public void RotateOrbit(Vector2 delta)
@@ -35,7 +40,7 @@ namespace Konoha.Character
         }
         public void ZoomOrbit(float delta)
         {
-            if (allowOrbit) orbitDistance = Mathf.Clamp(orbitDistance - delta * 30f, 13f, 28f);
+            if (allowOrbit) orbitDistance = Mathf.Clamp(orbitDistance - delta * 30f, minOrbitDistance, maxOrbitDistance);
         }
         public void ResetOrbit()
         {
@@ -69,7 +74,7 @@ namespace Konoha.Character
                 : desiredOffset;
 
             Vector3 focus = GetFocusPoint();
-            if (allowOrbit) focus += Vector3.up * .8f;
+            if (allowOrbit) focus += Vector3.up * orbitFocusHeight;
             if (limitFocusToArena)
             {
                 focus.x = Mathf.Clamp(focus.x, focusXLimits.x, focusXLimits.y);
