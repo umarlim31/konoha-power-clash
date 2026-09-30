@@ -31,6 +31,8 @@ namespace Konoha.Networking
         float GetCooldownMultiplier(NetworkObject actor);
         // Server. Extra Basic reach in metres (campaign: attacking from the seat, §9); PvP returns 0.
         float GetBasicRangeBonus(NetworkObject actor);
+        // Any peer. Jalur Takhta plays the solo hero kit (HeroBalance solo profile); PvP false.
+        bool UsesSoloHeroKit { get; }
     }
 
     public static class CombatRules

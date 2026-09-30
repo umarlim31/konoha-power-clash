@@ -217,6 +217,9 @@ namespace Konoha.Networking
             return 0f;
         }
 
+        // PvP keeps the original hero kit.
+        public bool UsesSoloHeroKit => false;
+
         private void Update()
         {
             if (!IsServer || !IsSpawned)
