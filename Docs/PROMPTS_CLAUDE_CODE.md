@@ -23,7 +23,8 @@ Urutan versi:
 | 0.2.1 | (visual) | Material nyata + siap tekstur foto, tanpa hiasan 17-an, kabel dirapikan | ✅ Diuji di tablet; di-merge. Masukan: kabel melintang depan kamera → 0.2.2 |
 | 0.2.2 | (visual) | Kota Hidup: jalan lingkar + lalu lintas, warga, air mancur, bendera merah-putih, ruko, rumah kampung, teluk | ✅ Diuji di tablet ("lumayan lebih bagus"); di-merge |
 | 0.2.3 | (visual) | Tubuh manusia hero & musuh, efek pukulan (percikan, kilat, jeda, getar), Kerbau Rakyat, efek khas tiap skill | ✅ Diuji di tablet (4 hero, menang 3:27); masukan: PAK WI paling lemah → 0.2.4 |
-| 0.2.4 | (balance) | Keseimbangan 4 hero di mode solo (profil solo HeroBalance; PvP tetap) | Dikerjakan (branch `feat/balance-hero-0.2.4`), menunggu uji tablet |
+| 0.2.4 | (balance) | Keseimbangan 4 hero di mode solo (profil solo HeroBalance; PvP tetap) | ✅ Diuji di tablet ("hasilnya udah bagus"); di-merge |
+| 0.2.5 | (visual) | Nusantara Megah: ubin motif, spanduk merah-putih, menara, air terjun Istana, flamboyan & bugenvil, langit cerah, teluk-pulau-kota pesisir | Dikerjakan (branch `feat/nusantara-megah-0.2.5`), menunggu uji tablet |
 | 0.2.2 | (visual) | Karakter + serangan (animasi prosedural, efek benturan, Kerbau Rakyat) | Rencana |
 
 > Catatan: fase "faksi" dari rencana sebelumnya dipecah menjadi 0.0.9.2 dan 0.0.9.3, dan "combat asli" dipisah dari "peta baru". Alasannya: kamu tidak bisa compile sendiri, jadi setiap build harus kecil agar error mudah dilacak.
