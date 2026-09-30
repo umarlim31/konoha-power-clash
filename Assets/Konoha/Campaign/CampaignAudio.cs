@@ -34,7 +34,10 @@ namespace Konoha.Campaign
         Kerbau,
         Petir,
         Wuss,
-        Hantam
+        Hantam,
+        // 0.2.7 street atmosphere: songbird chirps, the bakso seller tapping his bowl.
+        Burung,
+        Mangkok
     }
 
     // Jalur Takhta sound effects (0.0.9.4). Every clip is synthesised in code at start-up
@@ -478,6 +481,20 @@ namespace Konoha.Campaign
                 n * Bell(t, 0.32f) * 0.55f + Sin(Sweep(500f, 180f, t, 0.32f)) * Bell(t, 0.32f) * 0.12f);
             result[(int)CampaignSound.Hantam] = MakeNoisy("Hantam", 0.75f, 24, (t, n) =>
                 Soft(Sweep(90f, 38f, t, 0.75f)) * Decay(t, 5f) * 0.8f + n * Decay(t, 16f) * 0.5f);
+            result[(int)CampaignSound.Burung] = Make("Burung", 0.52f, t =>
+            {
+                // Three quick rising chirps.
+                float local = Mathf.Repeat(t, 0.16f);
+                if (t > 0.48f || local > 0.08f) return 0f;
+                return Sin(Sweep(2600f, 4300f, local, 0.08f)) * Bell(local, 0.08f) * 0.3f;
+            });
+            result[(int)CampaignSound.Mangkok] = Make("Mangkok", 0.7f, t =>
+            {
+                // Ting-ting-ting: a spoon on a china bowl, three taps.
+                float local = Mathf.Repeat(t, 0.19f);
+                if (t > 0.57f) local = t - 0.38f;
+                return (Sin(2350f, local) + Sin(3480f, local) * 0.5f + Sin(5120f, local) * 0.2f) * Decay(local, 22f) * 0.22f;
+            });
             return result;
         }
 

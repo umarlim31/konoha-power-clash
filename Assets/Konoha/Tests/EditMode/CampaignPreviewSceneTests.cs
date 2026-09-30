@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.2.6  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.6"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(35));
+                    Is.EqualTo("JALUR TAKHTA 0.2.7  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.7"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(36));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -168,6 +168,17 @@ namespace Konoha.Tests
                 Assert.That(GameObject.Find("Gedung lama jendela"), Is.Not.Null);
                 Assert.That(GameObject.Find("Tower recessed arcade"), Is.Null);
                 Assert.That(GameObject.Find("MegahTall candi bentar"), Is.Not.Null);
+                // 0.2.7 flicker fixes: overview never runs the occluder, near plane for depth precision,
+                // ground layers at least ~1.5 cm apart where they overlap.
+                Assert.That(Object.FindFirstObjectByType<CampaignArenaView>().occluders, Is.Not.Null);
+                Assert.That(Camera.main.nearClipPlane, Is.GreaterThanOrEqualTo(.5f));
+                float Top(string n) => GameObject.Find(n).GetComponent<Renderer>().bounds.max.y;
+                Assert.That(Top("Gerbang Rakyat boulevard") - Top("Ceremonial main lane"), Is.GreaterThan(.015f));
+                Assert.That(Top("Civic forecourt inlay") - Top("Ceremonial main lane"), Is.GreaterThan(.015f));
+                Assert.That(Top("Ceremonial main lane"), Is.GreaterThan(.015f), "Above the oval promenade (y 0)");
+                Assert.That(Top("Surrounding Konoha Landscape"), Is.LessThan(-.05f));
+                Assert.That(GameObject.Find("Kota rumah pelana"), Is.Not.Null);
+                Assert.That(Object.FindFirstObjectByType<CampaignCityLife>().bowlSpots, Is.Not.Empty);
 
                 // 0.2.3: hero bodies (one per hero, inactive templates), effects and camera shake.
                 var bodies = Object.FindFirstObjectByType<CampaignBodies>();
@@ -216,7 +227,7 @@ namespace Konoha.Tests
                     kota++;
                     Assert.That(decor.GetComponent<Collider>(), Is.Null, "Kota Hidup must not collide: " + decor.name);
                 }
-                Assert.That(kota, Is.InRange(300, 1600), "Kota Hidup budget for the tablet");
+                Assert.That(kota, Is.InRange(300, 2300), "Kota Hidup budget for the tablet (0.2.7 house details)");
                 Assert.That(GameObject.Find("KotaTall spanduk lambang Konoha"), Is.Not.Null);
                 Assert.That(GameObject.Find("Kota ruko"), Is.Not.Null);
                 Assert.That(GameObject.Find("Kota teluk"), Is.Not.Null);

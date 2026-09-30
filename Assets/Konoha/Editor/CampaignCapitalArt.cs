@@ -338,10 +338,10 @@ namespace Konoha.Editor
         private Transform BuildPlazaTakhtaGarda()
         {
             var post = new Vector3(0, 0, 28);
-            Block("Garda parade ground", new Vector3(0, .016f, 27), new Vector3(22, .025f, 14), ivory);
+            Block("Garda parade ground", new Vector3(0, .008f, 27), new Vector3(22, .025f, 14), ivory);
             foreach (int side in new[] { -1, 1 })
             {
-                Block("Parade bronze border", new Vector3(side * 11f, .03f, 27), new Vector3(.08f, .014f, 14), bronze);
+                Block("Parade bronze border", new Vector3(side * 11f, .05f, 27), new Vector3(.08f, .014f, 14), bronze);
                 // Low cover (0.9 m): readable from the camera and jumpable.
                 Block("Garda low cover", new Vector3(side * 5.5f, .45f, 24.5f), new Vector3(3.2f, .9f, .8f), stone, true);
                 Block("Garda low cover coping", new Vector3(side * 5.5f, .93f, 24.5f), new Vector3(3.4f, .1f, 1f), ivory);
@@ -349,7 +349,7 @@ namespace Konoha.Editor
                 Banner(new Vector3(side * 9f, 0, 33f), 3.6f, gardaCloth, bronze);
                 Statue(new Vector3(side * 9.6f, 0, 36.5f));
             }
-            Block("Takhta processional lane", new Vector3(0, .02f, 24), new Vector3(4.5f, .025f, 14), paving);
+            Block("Takhta processional lane", new Vector3(0, .028f, 24), new Vector3(4.5f, .025f, 14), paving);
             Sign("GARDA TAKHTA", new Vector3(0, 3.2f, 21.2f), 0f, .9f);
             BuildGardaLockdown(post);
             return Objective("Garda Takhta", post, 1.2f);
@@ -558,6 +558,8 @@ namespace Konoha.Editor
             sky.SetColor("_SkyTint", new Color(.38f,.54f,.80f));
             RenderSettings.skybox = sky; EditorUtility.SetDirty(sky);
             Camera.main.clearFlags = CameraClearFlags.Skybox; Camera.main.farClipPlane = 340;
+            // 0.2.7: depth precision for the far view (the orbit camera never gets closer than 0.8 m).
+            Camera.main.nearClipPlane = .5f;
             ConfigurePostProcessing(Camera.main);
         }
 
@@ -575,7 +577,9 @@ namespace Konoha.Editor
             grass.SetTexture("_BaseMap",Texture("Grain"));
             EditorUtility.SetDirty(grass);
             grass.SetTextureScale("_BaseMap",new Vector2(150,150));
-            Block("Surrounding Konoha Landscape", new Vector3(0,-.16f,4), new Vector3(600,.3f,600), grass);
+            // 0.2.7: ground layers are at least ~2 cm apart; closer layers z-fought (flickered) at
+            // a distance on the tablet (LIHAT ARENA). Landscape top -0.11, promenade 0, inlays above.
+            Block("Surrounding Konoha Landscape", new Vector3(0,-.26f,4), new Vector3(600,.3f,600), grass);
             // A continuous collision floor extends beyond the logical oval campus boundary.
             // There is no perimeter wall or rendered boundary box.
             // Covers the whole route oval (radii 34 x 58 around z 4) with margin.
@@ -585,13 +589,13 @@ namespace Konoha.Editor
                 new Vector3(0,.001f,4),Vector3.one,paving);
             paving.SetTextureScale("_BaseMap", new Vector2(44,44));
             EditorUtility.SetDirty(paving);
-            Block("Civic forecourt inlay", new Vector3(0,.015f,12), new Vector3(18,.025f,5), ivory);
-            Block("Gerbang Rakyat boulevard", new Vector3(0,.015f,-30.5f), new Vector3(6,.025f,43), ivory);
-            Block("Wing corridor", new Vector3(0,.03f,WingCorridorZ), new Vector3(62,.025f,2.7f), ivory);
+            Block("Civic forecourt inlay", new Vector3(0,.028f,12), new Vector3(18,.025f,5), ivory);
+            Block("Gerbang Rakyat boulevard", new Vector3(0,.028f,-30.5f), new Vector3(6,.025f,43), ivory);
+            Block("Wing corridor", new Vector3(0,.028f,WingCorridorZ), new Vector3(62,.025f,2.7f), ivory);
             for (int side=-1;side<=1;side+=2)
             {
-                Block("Garden promenade",new Vector3(side*20,.015f,1),new Vector3(3,.025f,35),ivory);
-                Block("Garden crosswalk",new Vector3(side*15,.018f,-12.5f),new Vector3(13,.025f,2.1f),ivory);
+                Block("Garden promenade",new Vector3(side*20,.008f,1),new Vector3(3,.025f,35),ivory);
+                Block("Garden crosswalk",new Vector3(side*15,.028f,-12.5f),new Vector3(13,.025f,2.1f),ivory);
                 Pavilion(new Vector3(side*19.5f,0,-16));
                 for(int i=0;i<4;i++)
                 {
@@ -611,11 +615,11 @@ namespace Konoha.Editor
                     Skyline(new Vector3(side*(14+i*9),0,-32-(i%2)*5),5+i*2);
             }
             // Thin inlays sit above the floor and do not introduce invisible steps.
-            Block("Ceremonial main lane",new Vector3(0,.015f,0),new Vector3(3.5f,.025f,23.2f),ivory);
+            Block("Ceremonial main lane",new Vector3(0,.008f,0),new Vector3(3.5f,.025f,23.2f),ivory);
             for(int side=-1;side<=1;side+=2)
-                Block("Processional bronze inlay",new Vector3(side*1.72f,.036f,0),new Vector3(.035f,.015f,23),bronze);
+                Block("Processional bronze inlay",new Vector3(side*1.72f,.05f,0),new Vector3(.035f,.015f,23),bronze);
             for (int i=0;i<18;i++)
-                Block("Paving transverse joint",new Vector3(0,.036f,-11+i*1.25f),new Vector3(3.35f,.014f,.018f),stone);
+                Block("Paving transverse joint",new Vector3(0,.05f,-11+i*1.25f),new Vector3(3.35f,.014f,.018f),stone);
             var plaza = CampaignCapitalMeshes.Lathe("PlazaSteppedDisc",new[]{ new Vector2(0,0),new Vector2(3.9f,0),
                 new Vector2(3.9f,.06f),new Vector2(3.72f,.12f),new Vector2(0,.12f)},64);
             MeshObject("Circular plaza stone",plaza,Vector3.zero,Vector3.one,ivory);
@@ -753,8 +757,8 @@ namespace Konoha.Editor
 
         private void Canal(Vector3 p)
         {
-            Block("Canal dark basin",p+new Vector3(0,.006f,0),new Vector3(6.1f,.01f,5.5f),dark);
-            var surface=Block("Canal reflective water",p+new Vector3(0,.026f,0),new Vector3(5.7f,.018f,5.1f),water);
+            Block("Canal dark basin",p+new Vector3(0,.012f,0),new Vector3(6.1f,.01f,5.5f),dark);
+            var surface=Block("Canal reflective water",p+new Vector3(0,.034f,0),new Vector3(5.7f,.018f,5.1f),water);
             surface.GetComponent<Renderer>().shadowCastingMode=ShadowCastingMode.Off;
             foreach(int side in new[]{-1,1})
             {

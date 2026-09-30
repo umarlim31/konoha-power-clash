@@ -47,6 +47,8 @@ namespace Konoha.Editor
             CityLife = kotaRoot.gameObject.AddComponent<CampaignCityLife>();
             CityLife.ringCorners = (Vector3[])RingRoad.Clone();
             Traffic(CityLife);
+            // The gerobak bakso (CampaignCapitalArt.Nusantara.cs).
+            CityLife.bowlSpots = new[] { new Vector3(11.8f, 1f, -40.2f) };
             Warga(CityLife);
             Fountains(CityLife);
         }
@@ -138,15 +140,15 @@ namespace Konoha.Editor
             float sideCentre = (NorthRoadZ + RingRoad[0].z) * .5f;
             foreach (int side in new[] { -1, 1 })
             {
-                var road = Block("NusantaraGround jalan samping", new Vector3(side * SideRoadX, .014f, sideCentre),
+                var road = Block("NusantaraGround jalan samping", new Vector3(side * SideRoadX, .04f, sideCentre),
                     new Vector3(sideLength, .02f, 9f), sideAsphalt);
                 road.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
-                var walk = Block("NusantaraGround trotoar samping", new Vector3(side * (SideRoadX + 5.5f), .02f, sideCentre),
+                var walk = Block("NusantaraGround trotoar samping", new Vector3(side * (SideRoadX + 5.5f), .05f, sideCentre),
                     new Vector3(sideLength, .03f, 2f), concrete);
                 walk.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
             }
-            Block("NusantaraGround jalan utara", new Vector3(0f, .016f, NorthRoadZ), new Vector3(SideRoadX * 2f + 9f, .02f, 9f), northAsphalt);
-            Block("NusantaraGround trotoar utara", new Vector3(0f, .02f, NorthRoadZ + 5.5f), new Vector3(SideRoadX * 2f + 11f, .03f, 2f), concrete);
+            Block("NusantaraGround jalan utara", new Vector3(0f, .065f, NorthRoadZ), new Vector3(SideRoadX * 2f + 9f, .02f, 9f), northAsphalt);
+            Block("NusantaraGround trotoar utara", new Vector3(0f, .085f, NorthRoadZ + 5.5f), new Vector3(SideRoadX * 2f + 11f, .03f, 2f), concrete);
             foreach (var mat in new[] { sideAsphalt, northAsphalt })
                 EditorUtility.SetDirty(mat);
         }
@@ -179,6 +181,15 @@ namespace Konoha.Editor
                 LocalPart(ruko, "Kota ruko atap", PrimitiveType.Cube, new Vector3(0f, height + .45f, .3f), new Vector3(width + .2f, .14f, depth + .9f), genteng)
                     .transform.localRotation = Quaternion.Euler(-7f, 0f, 0f);
                 LocalPart(ruko, "Kota ruko papan nama", PrimitiveType.Cube, new Vector3(0f, 3.95f, -depth * .5f - .05f), new Vector3(width - .6f, .75f, .06f), flagWhite);
+                // 0.2.7 details: stone plinth, side pilasters, second-floor balcony rail,
+                // an AC unit and a downpipe.
+                LocalPart(ruko, "Kota ruko plint", PrimitiveType.Cube, new Vector3(0f, .2f, 0f), new Vector3(width + .08f, .4f, depth + .08f), stone);
+                foreach (int s in new[] { -1, 1 })
+                    LocalPart(ruko, "Kota ruko pilaster", PrimitiveType.Cube, new Vector3(s * (width * .5f - .12f), height * .5f, -depth * .5f - .06f), new Vector3(.3f, height, .14f), flagWhite);
+                LocalPart(ruko, "Kota ruko balkon", PrimitiveType.Cube, new Vector3(0f, 4.55f, -depth * .5f - .35f), new Vector3(width - .8f, .08f, .7f), concrete);
+                LocalPart(ruko, "Kota ruko pagar balkon", PrimitiveType.Cube, new Vector3(0f, 5.0f, -depth * .5f - .68f), new Vector3(width - .8f, .8f, .04f), steel);
+                LocalPart(ruko, "Kota ruko AC", PrimitiveType.Cube, new Vector3(width * .3f, 6.3f, -depth * .5f - .25f), new Vector3(.8f, .55f, .45f), cartWhite);
+                LocalPart(ruko, "Kota ruko talang", PrimitiveType.Cylinder, new Vector3(-width * .5f + .3f, height * .5f, -depth * .5f - .12f), new Vector3(.1f, height * .5f, .1f), concrete);
                 Label(ruko, names[i], new Vector3(0f, 3.95f, -depth * .5f - .1f), .3f, new Color(.55f, .08f, .06f));
             }
         }
@@ -204,7 +215,46 @@ namespace Konoha.Editor
                         LocalPart(house, "Kota rumah jendela", PrimitiveType.Cube, new Vector3(w * 1.9f, 1.7f, -2.77f), new Vector3(1.1f, 1f, .05f), windowGlass);
                     LocalPart(house, "Kota rumah teras", PrimitiveType.Cube, new Vector3(0f, .1f, -3.6f), new Vector3(6.5f, .2f, 1.6f), concrete);
                     LocalPart(house, "Kota rumah pagar", PrimitiveType.Cube, new Vector3(0f, .5f, -4.55f), new Vector3(6.5f, 1f, .1f), flagWhite);
+                    HouseDetails(house, wall);
                 }
+            }
+        }
+
+        // 0.2.7: what makes a kampung house read as real: closed gables, a stone plinth,
+        // white window and door frames with sills, a ridge cap, fascia boards under the eaves,
+        // a small tiled porch roof on timber posts, and potted plants by the door.
+        private void HouseDetails(Transform house, Material wall)
+        {
+            // Gables: a diamond (cube turned 45 degrees) squashed by its parent to the roof
+            // pitch; the lower half hides inside the wall.
+            const float halfDepth = 2.75f, eave = 3.2f, rise = 1.46f;
+            foreach (int end in new[] { -1, 1 })
+            {
+                var gable = new GameObject("Kota rumah pelana").transform;
+                gable.SetParent(house, false);
+                gable.localPosition = new Vector3(end * 3.2f, eave, 0f);
+                gable.localScale = new Vector3(1f, rise / halfDepth, 1f);
+                LocalPart(gable, "Kota rumah dinding pelana", PrimitiveType.Cube, Vector3.zero,
+                    new Vector3(.1f, halfDepth * 1.414f, halfDepth * 1.414f), wall).transform.localRotation = Quaternion.Euler(45f, 0f, 0f);
+            }
+            LocalPart(house, "Kota rumah plint", PrimitiveType.Cube, new Vector3(0f, .18f, 0f), new Vector3(6.6f, .36f, 5.6f), stone);
+            LocalPart(house, "Kota rumah bubungan", PrimitiveType.Cube, new Vector3(0f, 4.86f, 0f), new Vector3(7f, .16f, .3f), genteng);
+            foreach (int s in new[] { -1, 1 })
+                LocalPart(house, "Kota rumah lisplang", PrimitiveType.Cube, new Vector3(0f, 3.13f, s * 3.12f), new Vector3(6.95f, .18f, .05f), flagWhite);
+            foreach (int w in new[] { -1, 1 })
+            {
+                LocalPart(house, "Kota rumah kusen", PrimitiveType.Cube, new Vector3(w * 1.9f, 1.7f, -2.765f), new Vector3(1.26f, 1.16f, .04f), flagWhite);
+                LocalPart(house, "Kota rumah ambang", PrimitiveType.Cube, new Vector3(w * 1.9f, 1.15f, -2.83f), new Vector3(1.32f, .07f, .16f), flagWhite);
+            }
+            LocalPart(house, "Kota rumah kusen pintu", PrimitiveType.Cube, new Vector3(0f, 1.12f, -2.765f), new Vector3(1.12f, 2.26f, .04f), flagWhite);
+            // Porch roof on two posts.
+            LocalPart(house, "Kota rumah atap teras", PrimitiveType.Cube, new Vector3(0f, 2.72f, -3.55f), new Vector3(6.6f, .1f, 1.9f), genteng)
+                .transform.localRotation = Quaternion.Euler(-12f, 0f, 0f);
+            foreach (int s in new[] { -1, 1 })
+            {
+                LocalPart(house, "Kota rumah tiang teras", PrimitiveType.Cube, new Vector3(s * 3f, 1.4f, -4.3f), new Vector3(.12f, 2.6f, .12f), timber);
+                LocalPart(house, "Kota rumah pot", PrimitiveType.Cylinder, new Vector3(s * 1f, .34f, -3.25f), new Vector3(.34f, .14f, .34f), genteng);
+                LocalPart(house, "Kota rumah tanaman", PrimitiveType.Sphere, new Vector3(s * 1f, .62f, -3.25f), new Vector3(.5f, .5f, .5f), canopyLight);
             }
         }
 
@@ -255,7 +305,7 @@ namespace Konoha.Editor
         // A bay north of the capital with an arched bridge, lighthouses and sailboats.
         private void BayAndBridge()
         {
-            var water = Block("Kota teluk", new Vector3(0f, .002f, 165f), new Vector3(420f, .01f, 110f), bay);
+            var water = Block("Kota teluk", new Vector3(0f, -.07f, 165f), new Vector3(420f, .01f, 110f), bay);
             water.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
 
             const float bridgeZ = 128f, deck = 4.2f;
