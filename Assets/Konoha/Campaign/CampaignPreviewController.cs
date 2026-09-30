@@ -173,7 +173,9 @@ namespace Konoha.Campaign
                     objectiveText.text = director.ReignStarted
                         ? "KURSI LEPAS • DUDUK lagi (Runtuh " + director.ReignRuntuh + "/" +
                             CampaignTuning.Memerintah.KudetaRuntuhLimit + ")"
-                        : "KURSI TERBUKA • Naik ramp dan tekan DUDUK";
+                        : CampaignTuning.Memerintah.SeatWinsRun
+                            ? "KURSI TERBUKA • Naik ramp, DUDUK = MENANG"
+                            : "KURSI TERBUKA • Naik ramp dan tekan DUDUK";
                     break;
                 case CampaignPhase.Memerintah:
                     objectiveText.text = director.CounterRemaining > 0

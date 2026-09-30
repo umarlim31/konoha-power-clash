@@ -16,8 +16,12 @@ Urutan versi:
 | 0.0.9.2 | Prompt 5 | Faksi Majelis Daun | ✅ Selesai (bersama 0.0.9.2.1), lolos di tablet (2026-09-29) |
 | 0.0.9.2.1 | (perbaikan) | Restu Rakyat, kamera stabil, pilih hero di awal | ✅ Selesai, lolos di tablet (2026-09-29) |
 | 0.0.9.3 | Prompt 6 | Faksi Biro Prosedur | ✅ Selesai, lolos di tablet (2026-09-29) |
-| 0.0.9.4 | (perbaikan) | Kamera tidak tertutup atap, efek suara | Dikerjakan (branch `feat/jalur-takhta-0.0.9.4`), menunggu uji tablet |
-| 0.1.0 | Prompt 7 | Garda Takhta + Fase Memerintah + Hasil = MVP | Dikerjakan (branch `feat/jalur-takhta-mvp-0.1.0`, berisi 0.0.9.4), menunggu uji tablet |
+| 0.0.9.4 | (perbaikan) | Kamera tidak tertutup atap, efek suara | ✅ Selesai (bersama 0.1.0) |
+| 0.1.0 | Prompt 7 | Garda Takhta + Fase Memerintah + Hasil = MVP | ✅ Terpasang dan dimainkan di tablet (2026-09-30), dengan masukan → 0.1.1 |
+| 0.1.1 | (perbaikan) | Majelis selalu muncul, DUDUK = MENANG | Dikerjakan (branch `feat/jalur-takhta-0.1.1`), menunggu uji tablet |
+| 0.2.0 | (visual) | Suasana Nusantara (jalan, tiang listrik, umbul-umbul, baliho, warung, sawah, gunung) | Dikerjakan (branch `feat/suasana-nusantara-0.2.0`, berisi 0.1.1), menunggu uji tablet |
+| 0.2.1 | (visual) | Karakter lebih hidup | Rencana |
+| 0.2.2 | (visual) | Efek serangan (MEGA: Kerbau Rakyat) | Rencana |
 
 > Catatan: fase "faksi" dari rencana sebelumnya dipecah menjadi 0.0.9.2 dan 0.0.9.3, dan "combat asli" dipisah dari "peta baru". Alasannya: kamu tidak bisa compile sendiri, jadi setiap build harus kecil agar error mudah dilacak.
 

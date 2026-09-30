@@ -46,6 +46,9 @@ namespace Konoha.Campaign
         public bool ReignStarted { get; private set; }
         public int ReignRuntuh { get; private set; }
         public int CounterattackWaves { get; private set; }
+        // True: DUDUK wins the run (0.1.1). False: the §9 Power phase (tests, later levels).
+        public bool SeatWinsRun { get; set; } = CampaignTuning.Memerintah.SeatWinsRun;
+        private bool wavesArmed;
 
         // Raised with a player-facing message.
         public event Action<string> Notified;
@@ -86,6 +89,7 @@ namespace Konoha.Campaign
             ReignStarted = false;
             ReignRuntuh = 0;
             CounterattackWaves = 0;
+            wavesArmed = false;
         }
 
         // The Gerbang Rakyat defenders are down; the plaza may now be reached.
@@ -143,7 +147,8 @@ namespace Konoha.Campaign
         public void Tick(Vector3 player, float deltaTime)
         {
             if (Run.Phase == CampaignPhase.GerbangRakyat && GateCleared &&
-                Near(player, layout.Plaza, CampaignTuning.PreviewSlice.PlazaRadius))
+                (Near(player, layout.Plaza, CampaignTuning.PreviewSlice.PlazaRadius) ||
+                 player.z > layout.Plaza.z - CampaignTuning.PreviewSlice.PlazaEntryDepth))
                 Run.ReachPlaza();
 
             if (Run.Phase == CampaignPhase.PlazaAspirasi)
@@ -213,15 +218,27 @@ namespace Konoha.Campaign
                 }
             }
 
-            // Counterattack waves keep coming during the whole reign, seated or not.
-            if (ReignStarted && (Run.Phase == CampaignPhase.Memerintah || Run.Phase == CampaignPhase.KursiTerbuka))
+            // Counterattack waves. SeatWinsRun: from KURSI TERBUKA until the hero sits (first
+            // wave after 6 s). Otherwise (§9): during the whole reign, seated or not.
+            bool wavesActive = SeatWinsRun
+                ? Run.Phase == CampaignPhase.KursiTerbuka
+                : ReignStarted && (Run.Phase == CampaignPhase.Memerintah || Run.Phase == CampaignPhase.KursiTerbuka);
+            if (wavesActive && SeatWinsRun && !wavesArmed)
+            {
+                wavesArmed = true;
+                counterattackClock = CampaignTuning.Memerintah.CounterattackIntervalSeconds -
+                    CampaignTuning.Memerintah.FirstWaveSeconds;
+            }
+            if (wavesActive)
             {
                 counterattackClock += deltaTime;
                 if (counterattackClock >= CampaignTuning.Memerintah.CounterattackIntervalSeconds)
                 {
                     counterattackClock -= CampaignTuning.Memerintah.CounterattackIntervalSeconds;
                     CounterattackWaves++;
-                    Notify("SERANGAN BALIK " + CounterattackWaves + "!  Sisa kekuatan lama menyerbu Kursi");
+                    Notify(SeatWinsRun
+                        ? "SERANGAN BALIK " + CounterattackWaves + "!  Cepat DUDUK di Kursi"
+                        : "SERANGAN BALIK " + CounterattackWaves + "!  Sisa kekuatan lama menyerbu Kursi");
                     CounterattackRequested?.Invoke();
                 }
             }
@@ -241,6 +258,14 @@ namespace Konoha.Campaign
         {
             if (CanSit(player) && Run.TrySit())
             {
+                if (SeatWinsRun)
+                {
+                    Run.GainPower(Run.TargetPower);
+                    Seated?.Invoke();
+                    Notify("TAKHTA DIKUASAI!  Kamu duduk di Kursi Kekuasaan");
+                    Won?.Invoke();
+                    return true;
+                }
                 powerClock = 0f;
                 if (!ReignStarted)
                 {

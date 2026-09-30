@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.1.0  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.1.0"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(27));
+                    Is.EqualTo("JALUR TAKHTA 0.2.0  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.0"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(29));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -103,6 +103,18 @@ namespace Konoha.Tests
                     Assert.That(occluder, Is.Not.Null);
                     Assert.That(occluder.bounds.max.y, Is.GreaterThan(.5f), "Floor-level decor is never an occluder: " + occluder.name);
                 }
+                // 0.2.0 Suasana Nusantara: the street dressing exists and never blocks movement.
+                foreach (string landmark in new[] { "NusantaraGround jalan raya", "NusantaraTall warung kopi",
+                    "NusantaraTall gerobak bakso", "Nusantara gunung", "NusantaraGround sawah", "Nusantara motor bebek" })
+                    Assert.That(GameObject.Find(landmark), Is.Not.Null, landmark);
+                int nusantara = 0;
+                foreach (var decor in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                {
+                    if (!decor.name.StartsWith("Nusantara")) continue;
+                    nusantara++;
+                    Assert.That(decor.GetComponent<Collider>(), Is.Null, "Decor must not collide: " + decor.name);
+                }
+                Assert.That(nusantara, Is.InRange(150, 900), "Decor budget for the tablet");
                 var audio = Object.FindFirstObjectByType<CampaignAudio>();
                 Assert.That(audio, Is.Not.Null);
                 Assert.That(audio.muteButton, Is.Not.Null);
