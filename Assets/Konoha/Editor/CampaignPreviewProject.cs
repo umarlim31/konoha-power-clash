@@ -19,7 +19,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.2.7")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.2.8")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +27,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.2.7";
-            PlayerSettings.Android.bundleVersionCode = 36;
+            PlayerSettings.bundleVersion = "0.2.8";
+            PlayerSettings.Android.bundleVersionCode = 37;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -219,7 +219,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.2.7  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.2.8  •  SOLO PREVIEW";
 
             var stage = new GameObject("CampaignStage").AddComponent<CampaignStage>();
             stage.plaza = capital.Plaza;
@@ -309,6 +309,14 @@ namespace Konoha.Editor
             mute.GetComponentInChildren<Text>().fontSize = 16;
             var audio = new GameObject("CampaignAudio").AddComponent<CampaignAudio>();
             audio.muteButton = mute;
+            // 0.2.8: KAMERA JAUH / DEKAT under SUARA (close street camera, remembered).
+            var cameraModeButton = Button("CameraModeToggle", "KAMERA: JAUH", safe, new Vector2(1f, 1f),
+                new Vector2(-14, -114), new Vector2(164, 44));
+            cameraModeButton.GetComponentInChildren<Text>().fontSize = 16;
+            var cameraMode = new GameObject("CampaignCameraMode").AddComponent<CampaignCameraMode>();
+            cameraMode.follow = follow;
+            cameraMode.view = previewCamera;
+            cameraMode.button = cameraModeButton;
             // 0.2.3: human bodies, hit feel and skill effects (campaign only; PvP unchanged).
             var combatFeel = new GameObject("CampaignCombatFeel");
             var fx = combatFeel.AddComponent<CampaignCombatFx>();
@@ -339,7 +347,7 @@ namespace Konoha.Editor
             menu.pvpScene = SpikeProject.ScenePath;
             session.waitForMenu = true;
 
-            audio.clickButtons = new[] { sit, viewButton, resetCamera,
+            audio.clickButtons = new[] { sit, viewButton, resetCamera, cameraModeButton,
                 heroSelect.heroButtons[0], heroSelect.heroButtons[1], heroSelect.heroButtons[2],
                 heroSelect.heroButtons[3], heroSelect.startButton,
                 result.retryButton, result.changeHeroButton, menu.soloButton, menu.pvpButton };

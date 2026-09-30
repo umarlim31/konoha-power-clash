@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.2.7  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.7"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(36));
+                    Is.EqualTo("JALUR TAKHTA 0.2.8  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.8"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(37));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -179,6 +179,22 @@ namespace Konoha.Tests
                 Assert.That(Top("Surrounding Konoha Landscape"), Is.LessThan(-.05f));
                 Assert.That(GameObject.Find("Kota rumah pelana"), Is.Not.Null);
                 Assert.That(Object.FindFirstObjectByType<CampaignCityLife>().bowlSpots, Is.Not.Empty);
+                // 0.2.8: close street camera, opt-in; the JAUH preset equals the tested default (§13).
+                var cameraMode = Object.FindFirstObjectByType<CampaignCameraMode>();
+                Assert.That(cameraMode, Is.Not.Null);
+                Assert.That(cameraMode.button, Is.Not.Null);
+                Assert.That(cameraMode.follow, Is.Not.Null);
+                Assert.That(cameraMode.far.pitch, Is.EqualTo(cameraMode.follow.resetPitch));
+                Assert.That(cameraMode.far.distance, Is.EqualTo(cameraMode.follow.resetDistance));
+                Assert.That(cameraMode.close.distance, Is.LessThan(cameraMode.far.distance));
+                Assert.That(cameraMode.close.minDistance, Is.GreaterThanOrEqualTo(.8f + 1f), "Never inside the hero");
+                // 0.2.8: tumpang roof on the Istana, kampung street furniture without colliders.
+                Assert.That(GameObject.Find("Fictional civic dome"), Is.Null);
+                foreach (string piece in new[] { "Kampung gapura", "Kampung becak", "Kampung pisang batang", "Kampung PJU" })
+                    Assert.That(GameObject.Find(piece), Is.Not.Null, piece);
+                foreach (var decor in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                    if (decor.name.StartsWith("Kampung"))
+                        Assert.That(decor.GetComponent<Collider>(), Is.Null, "Kampung decor must not collide: " + decor.name);
 
                 // 0.2.3: hero bodies (one per hero, inactive templates), effects and camera shake.
                 var bodies = Object.FindFirstObjectByType<CampaignBodies>();
@@ -276,7 +292,7 @@ namespace Konoha.Tests
                     "GardaTakhta", "HeroSelector", "CampaignSkill", "CampaignBasic", "Hero Ground Marker" })
                     Assert.That(GameObject.Find(obsolete), Is.Null, obsolete);
                 foreach (string landmark in new[] { "Circular plaza stone", "Monumen Garuda Konoha",
-                    "Fictional civic dome", "Bridge across reflecting pool", "Majelis Daun interaction boundary",
+                    "Istana mustaka", "Bridge across reflecting pool", "Majelis Daun interaction boundary",
                     "Biro Prosedur interaction boundary", "Tiered Nusantara roof", "Palm curved frond" })
                     Assert.That(GameObject.Find(landmark), Is.Not.Null, landmark);
                 var capital = GameObject.Find("CapitalEnvironment");
