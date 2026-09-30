@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.2.4  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.4"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(33));
+                    Is.EqualTo("JALUR TAKHTA 0.2.5  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.5"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(34));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -135,6 +135,33 @@ namespace Konoha.Tests
                 Assert.That(grading, Is.Not.Null);
                 Assert.That(grading.GetComponent<Volume>().sharedProfile, Is.Not.Null);
                 Assert.That(Camera.main.GetUniversalAdditionalCameraData().renderPostProcessing, Is.True);
+                // 0.2.5 Nusantara Megah: motif tiles, banners, towers, cascades, horizon.
+                Assert.That(GameObject.Find("Gerbang Rakyat boulevard").GetComponent<Renderer>().sharedMaterial.name,
+                    Does.StartWith("MegahUbinMotif"));
+                var flow = Object.FindFirstObjectByType<CampaignWaterFlow>();
+                Assert.That(flow, Is.Not.Null);
+                Assert.That(flow.falls, Has.Length.EqualTo(2));
+                Assert.That(flow.foam, Has.Length.EqualTo(6));
+                int megah = 0, towers = 0, wallBanners = 0;
+                foreach (var decor in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                {
+                    if (!decor.name.StartsWith("Megah")) continue;
+                    megah++;
+                    if (decor.name == "MegahTall menara")
+                    {
+                        towers++;
+                        Assert.That(decor.gameObject.layer, Is.EqualTo(2), "Towers are solid but ignored by the orbit camera");
+                        Assert.That(Mathf.Abs(decor.position.x), Is.GreaterThan(12f), "Towers stay off the route");
+                        continue;
+                    }
+                    if (decor.name == "MegahTall spanduk dinding") wallBanners++;
+                    Assert.That(decor.GetComponent<Collider>(), Is.Null, "Megah decor must not collide: " + decor.name);
+                }
+                Assert.That(towers, Is.EqualTo(6));
+                Assert.That(wallBanners, Is.EqualTo(12));
+                Assert.That(megah, Is.InRange(200, 900), "Megah decor budget for the tablet");
+                Assert.That(Camera.main.farClipPlane, Is.GreaterThanOrEqualTo(RenderSettings.fogEndDistance));
+
                 // 0.2.3: hero bodies (one per hero, inactive templates), effects and camera shake.
                 var bodies = Object.FindFirstObjectByType<CampaignBodies>();
                 Assert.That(bodies, Is.Not.Null);

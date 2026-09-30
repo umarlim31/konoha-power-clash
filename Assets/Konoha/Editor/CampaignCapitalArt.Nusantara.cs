@@ -37,6 +37,8 @@ namespace Konoha.Editor
             SawahDanGunung();
             // 0.2.2 Kota Hidup (CampaignCapitalArt.KotaHidup.cs).
             BuildKotaHidup();
+            // 0.2.5 Nusantara Megah (CampaignCapitalArt.Megah.cs).
+            BuildNusantaraMegah();
         }
 
         private void CreateNusantaraPalette()
@@ -327,9 +329,11 @@ namespace Konoha.Editor
             Block("NusantaraGround sawah", new Vector3(-92f, .006f, -20f), new Vector3(70f, .02f, 90f), sawah);
             Block("NusantaraGround sawah", new Vector3(92f, .006f, -20f), new Vector3(70f, .02f, 90f), sawah);
             Block("NusantaraGround sawah", new Vector3(-75f, .006f, 94f), new Vector3(50f, .02f, 28f), sawah);
-            MeshObject("Nusantara gunung", mountain, new Vector3(-80f, -.5f, 175f), new Vector3(90f, 48f, 90f), haze);
-            MeshObject("Nusantara gunung", mountain, new Vector3(35f, -.5f, 190f), new Vector3(110f, 62f, 110f), haze);
-            MeshObject("Nusantara gunung", mountain, new Vector3(120f, -.5f, 150f), new Vector3(70f, 34f, 70f), haze);
+            // 0.2.5: pushed back and narrowed (the lathe radius is the scale) so they rise
+            // behind the bay instead of burying the bridge, islands and coastal town.
+            MeshObject("Nusantara gunung", mountain, new Vector3(-90f, -.5f, 235f), new Vector3(60f, 50f, 60f), haze);
+            MeshObject("Nusantara gunung", mountain, new Vector3(30f, -.5f, 250f), new Vector3(70f, 62f, 70f), haze);
+            MeshObject("Nusantara gunung", mountain, new Vector3(130f, -.5f, 215f), new Vector3(50f, 40f, 50f), haze);
             foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
                 if (renderer.gameObject.name == "Nusantara gunung")
                     renderer.shadowCastingMode = ShadowCastingMode.Off;

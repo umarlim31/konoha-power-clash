@@ -84,7 +84,7 @@ namespace Konoha.Editor
             "Tiered Nusantara roof", "Roof bronze ridge", "Upturned roof finial",
             "Gerbang Rakyat", "Gerbang Dalam", "Kantor Kepala Biro", "Pintu Kepala Biro",
             "Palm curved frond", "Palm crown", "Palm tapered trunk",
-            "Sign GERBANG", "Sign MENUJU", "Sign KANTOR", "Banner", "NusantaraTall", "KotaTall"
+            "Sign GERBANG", "Sign MENUJU", "Sign KANTOR", "Banner", "NusantaraTall", "KotaTall", "MegahTall"
         };
 
         internal Renderer[] CameraOccluders()
@@ -531,24 +531,24 @@ namespace Konoha.Editor
             RenderSettings.sun = sun;
             GameObject.Find("ArenaFill").GetComponent<Light>().intensity = .18f;
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(.43f, .58f, .72f);
+            RenderSettings.ambientSkyColor = new Color(.45f, .60f, .80f);
             RenderSettings.ambientEquatorColor = new Color(.42f, .44f, .40f);
             RenderSettings.ambientGroundColor = new Color(.23f, .23f, .18f);
             RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogColor = new Color(.70f, .80f, .86f);
-            // The seat must read from the spawn ~100 m away; 0.2.0 stretches the haze so the
-            // gunung on the horizon (about 210 m) stay a faint silhouette.
-            RenderSettings.fogStartDistance = 70; RenderSettings.fogEndDistance = 250;
+            RenderSettings.fogColor = new Color(.72f, .84f, .94f);
+            // 0.2.5: clearer tropical air (owner's concept images) so the bay, islands and
+            // coastal town behind the Istana read; the gunung stay a soft silhouette.
+            RenderSettings.fogStartDistance = 90; RenderSettings.fogEndDistance = 330;
             var sky = AssetDatabase.LoadAssetAtPath<Material>(CampaignCapitalMeshes.Folder + "/TropicalSky.mat");
             if (sky == null)
             {
                 sky = new Material(Shader.Find("Skybox/Procedural"));
                 AssetDatabase.CreateAsset(sky, CampaignCapitalMeshes.Folder + "/TropicalSky.mat");
             }
-            sky.SetFloat("_AtmosphereThickness", .8f); sky.SetFloat("_Exposure", 1.2f);
-            sky.SetColor("_SkyTint", new Color(.50f,.60f,.72f));
+            sky.SetFloat("_AtmosphereThickness", .95f); sky.SetFloat("_Exposure", 1.25f);
+            sky.SetColor("_SkyTint", new Color(.38f,.54f,.80f));
             RenderSettings.skybox = sky; EditorUtility.SetDirty(sky);
-            Camera.main.clearFlags = CameraClearFlags.Skybox; Camera.main.farClipPlane = 260;
+            Camera.main.clearFlags = CameraClearFlags.Skybox; Camera.main.farClipPlane = 340;
             ConfigurePostProcessing(Camera.main);
         }
 
