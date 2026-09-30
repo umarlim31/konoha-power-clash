@@ -27,6 +27,7 @@ namespace Konoha.Editor
         internal static readonly Vector2 BoundaryRadii = new Vector2(34f, 58f);
 
         private Transform root;
+        private Material landscapeGrass;
         private Material stone, ivory, bronze, dark, red, green, leaf, paleLeaf, water, paving, flower;
         private Material majelisCloth, majelisTrim, biroCloth, biroTrim, gardaCloth;
         private Mesh column, dome, roof, arch, feather, frond, pedestal, rim;
@@ -57,6 +58,7 @@ namespace Konoha.Editor
             var art = new CampaignCapitalArt();
             art.ClearSpikeScenery();
             art.CreatePalette();
+            art.ApplyRealSurfaces();
             art.CreateMeshes();
             art.ConfigureLighting();
             art.root = new GameObject("CapitalEnvironment").transform;
@@ -547,6 +549,7 @@ namespace Konoha.Editor
             sky.SetColor("_SkyTint", new Color(.50f,.60f,.72f));
             RenderSettings.skybox = sky; EditorUtility.SetDirty(sky);
             Camera.main.clearFlags = CameraClearFlags.Skybox; Camera.main.farClipPlane = 260;
+            ConfigurePostProcessing(Camera.main);
         }
 
         private static void SetBool(SerializedObject data, string name, bool value)
@@ -559,6 +562,7 @@ namespace Konoha.Editor
         private void GroundAndStreets()
         {
             var grass=Surface("TropicalGardenGround",new Color(.24f,.34f,.16f),.1f);
+            landscapeGrass=grass;
             grass.SetTexture("_BaseMap",Texture("Grain"));
             EditorUtility.SetDirty(grass);
             grass.SetTextureScale("_BaseMap",new Vector2(150,150));
@@ -898,7 +902,8 @@ namespace Konoha.Editor
         }
         private void Roof(Vector3 p,Vector3 size,Material mat)
         {
-            MeshObject("Tiered Nusantara roof",roof,p,size,mat);
+            // 0.2.1: every tiered roof is clay genteng (the passed colour only tints trims).
+            MeshObject("Tiered Nusantara roof",roof,p,size,genteng!=null?genteng:mat);
             Block("Roof bronze ridge",p+new Vector3(0,size.y*.65f,0),new Vector3(size.x*.96f,.085f,.10f),bronze);
             for(int side=-1;side<=1;side+=2)
             {
