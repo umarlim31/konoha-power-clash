@@ -63,6 +63,9 @@ namespace Konoha.Campaign
         public float personalSpace = 2.4f;
         public float fleeDistance = 6f;
         public float hornMinSeconds = 7f, hornMaxSeconds = 16f;
+        // 0.2.7 atmosphere: songbirds around the listener and the bakso seller's bowl.
+        public Vector3[] bowlSpots = new Vector3[0];
+        private float nextBird, nextBowl;
 
         private readonly List<Vector3> threats = new List<Vector3>();
         private Vector3[] jetBaseScale = new Vector3[0];
@@ -94,6 +97,7 @@ namespace Konoha.Campaign
             DriveTraffic(dt);
             MoveWalkers(dt, hero);
             SprayFountains();
+            StreetSounds();
 
             if (Time.unscaledTime >= nextCull)
             {
@@ -199,6 +203,24 @@ namespace Konoha.Campaign
                 remaining -= segment;
             }
             return corners[0];
+        }
+
+        private void StreetSounds()
+        {
+            CampaignAudio audio = CampaignAudio.Instance;
+            if (audio == null)
+                return;
+            float now = Time.time;
+            if (now >= nextBird)
+            {
+                nextBird = now + 5f + (float)random.NextDouble() * 7f;
+                audio.Play(CampaignSound.Burung, .22f, .88f + (float)random.NextDouble() * .3f);
+            }
+            if (bowlSpots.Length > 0 && now >= nextBowl)
+            {
+                nextBowl = now + 7f + (float)random.NextDouble() * 6f;
+                audio.PlayAt(CampaignSound.Mangkok, bowlSpots[random.Next(bowlSpots.Length)], .55f);
+            }
         }
 
         // Cars leaving one end of the road re-enter at the other, so traffic never ends.

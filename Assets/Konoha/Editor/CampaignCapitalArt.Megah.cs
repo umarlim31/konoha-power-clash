@@ -150,6 +150,9 @@ namespace Konoha.Editor
         {
             var shaft = Block("MegahTall menara", p + Vector3.up * (height * .5f), new Vector3(2.4f, height, 2.4f), ivory, true);
             shaft.layer = 2; // Solid, but the orbit camera looks through it (like the walls).
+            // 0.2.7: stone base and a crowning cornice so the shaft stops reading as a chimney.
+            Block("MegahTall menara plint", p + Vector3.up * .6f, new Vector3(2.9f, 1.2f, 2.9f), stone);
+            Block("MegahTall menara kornis", p + Vector3.up * (height - .15f), new Vector3(2.8f, .3f, 2.8f), ivory);
             foreach (float y in new[] { height * .35f, height * .7f })
                 Block("MegahTall menara pita", p + Vector3.up * y, new Vector3(2.5f, .22f, 2.5f), bronze);
             foreach (int f in new[] { -1, 1 })

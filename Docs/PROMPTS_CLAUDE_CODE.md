@@ -25,7 +25,8 @@ Urutan versi:
 | 0.2.3 | (visual) | Tubuh manusia hero & musuh, efek pukulan (percikan, kilat, jeda, getar), Kerbau Rakyat, efek khas tiap skill | ✅ Diuji di tablet (4 hero, menang 3:27); masukan: PAK WI paling lemah → 0.2.4 |
 | 0.2.4 | (balance) | Keseimbangan 4 hero di mode solo (profil solo HeroBalance; PvP tetap) | ✅ Diuji di tablet ("hasilnya udah bagus"); di-merge |
 | 0.2.5 | (visual) | Nusantara Megah: ubin motif, spanduk merah-putih, menara, air terjun Istana, flamboyan & bugenvil, langit cerah, teluk-pulau-kota pesisir | ✅ Diuji di tablet; masukan: "upgrade lagi agar lebih terasa Nusantara" → 0.2.6 |
-| 0.2.6 | (visual+audio) | Rasa Nusantara: gamelan latar, candi bentar, stupa, gedung lama, padma di plaza, flamboyan & ubin motif dihaluskan | Dikerjakan (branch `feat/nusantara-rasa-0.2.6`), menunggu uji tablet |
+| 0.2.6 | (visual+audio) | Rasa Nusantara: gamelan latar, candi bentar, stupa, gedung lama, padma di plaza, flamboyan & ubin motif dihaluskan | ✅ Diuji di tablet (gamelan pas); masukan: kedip-kedip, bangunan lebih nyata → 0.2.7 |
+| 0.2.7 | (visual+audio) | Imersi: perbaikan kedip (z-fighting, occluder di LIHAT ARENA), detail rumah/ruko/menara, suara burung & mangkok bakso | Dikerjakan (branch `feat/imersi-nusantara-0.2.7`), menunggu uji tablet |
 | 0.2.2 | (visual) | Karakter + serangan (animasi prosedural, efek benturan, Kerbau Rakyat) | Rencana |
 
 > Catatan: fase "faksi" dari rencana sebelumnya dipecah menjadi 0.0.9.2 dan 0.0.9.3, dan "combat asli" dipisah dari "peta baru". Alasannya: kamu tidak bisa compile sendiri, jadi setiap build harus kecil agar error mudah dilacak.
