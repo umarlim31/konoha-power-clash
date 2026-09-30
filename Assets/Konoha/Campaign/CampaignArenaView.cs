@@ -13,6 +13,12 @@ namespace Konoha.Campaign
         public CampaignTraversal traversal;
         private bool traversalWasEnabled;
         public Transform safeRoot;
+        // 0.2.7: the overview must not hide/show roofs for a hero it is not following
+        // (that made the map flicker), and a larger near plane gives the far view depth precision.
+        public CampaignOccluders occluders;
+        public float overviewNearClip = 2f;
+        private bool occludersWereEnabled;
+        private float previousNearClip;
         public Button viewButton;
         // Overview framing; the generator widens it for the full route map.
         public Vector3 viewFocus = new Vector3(0, 1.8f, 3.5f);
@@ -47,6 +53,13 @@ namespace Konoha.Campaign
             campaign.enabled = false;
             followWasEnabled = follow.enabled;
             follow.enabled = false;
+            if (occluders != null)
+            {
+                occludersWereEnabled = occluders.enabled;
+                occluders.enabled = false;
+            }
+            previousNearClip = viewCamera.nearClipPlane;
+            viewCamera.nearClipPlane = Mathf.Max(previousNearClip, overviewNearClip);
             previousPosition = follow.transform.position;
             previousRotation = follow.transform.rotation;
             previousFov = viewCamera.fieldOfView;
@@ -87,7 +100,12 @@ namespace Konoha.Campaign
                 follow.transform.SetPositionAndRotation(previousPosition, previousRotation);
                 follow.enabled = followWasEnabled;
             }
-            if (viewCamera != null) viewCamera.fieldOfView = previousFov;
+            if (viewCamera != null)
+            {
+                viewCamera.fieldOfView = previousFov;
+                viewCamera.nearClipPlane = previousNearClip;
+            }
+            if (occluders != null) occluders.enabled = occludersWereEnabled;
             if (viewButton != null) viewButton.GetComponentInChildren<Text>().text = "LIHAT ARENA";
         }
 

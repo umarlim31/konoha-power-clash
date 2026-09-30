@@ -326,9 +326,9 @@ namespace Konoha.Editor
         {
             // 0.2.2: pushed out beyond the side roads and kampung houses; the north field sits
             // between the north road (z 70) and the bay (z 110).
-            Block("NusantaraGround sawah", new Vector3(-92f, .006f, -20f), new Vector3(70f, .02f, 90f), sawah);
-            Block("NusantaraGround sawah", new Vector3(92f, .006f, -20f), new Vector3(70f, .02f, 90f), sawah);
-            Block("NusantaraGround sawah", new Vector3(-75f, .006f, 94f), new Vector3(50f, .02f, 28f), sawah);
+            Block("NusantaraGround sawah", new Vector3(-92f, -.05f, -20f), new Vector3(70f, .02f, 90f), sawah);
+            Block("NusantaraGround sawah", new Vector3(92f, -.05f, -20f), new Vector3(70f, .02f, 90f), sawah);
+            Block("NusantaraGround sawah", new Vector3(-75f, -.05f, 94f), new Vector3(50f, .02f, 28f), sawah);
             // 0.2.5: pushed back and narrowed (the lathe radius is the scale) so they rise
             // behind the bay instead of burying the bridge, islands and coastal town.
             MeshObject("Nusantara gunung", mountain, new Vector3(-90f, -.5f, 235f), new Vector3(60f, 50f, 60f), haze);
