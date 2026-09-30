@@ -308,7 +308,7 @@ namespace Konoha.Campaign
                 default:
                     if (slot == 1) { RoadWorks(position, direction); FloatText("INFRASTRUKTUR!", head, color); }
                     else if (slot == 2) { Blusukan(from, direction, 5.8f); FloatText("BLUSUKAN!", head, color); }
-                    else { ProyekNasional(); FloatText("PROYEK NASIONAL!", head, color, .12f, 1.4f); }
+                    else { ProyekNasional(caster != null ? caster.position : position); FloatText("PROYEK NASIONAL!", head, color, .12f, 1.4f); }
                     break;
             }
             Sound(slot >= 3 ? CampaignSound.Hantam : CampaignSound.Wuss, caster != null ? caster.position : position, slot >= 3 ? 1f : .7f);
@@ -586,22 +586,26 @@ namespace Konoha.Campaign
             Shockwave(from + direction * distance, PakWiColor, .3f, 1.6f, .3f, .15f);
         }
 
-        // PAK WI ultimate: the three proyek structures (NetworkHeroKit BuildNode_A/B/C).
-        private void ProyekNasional()
+        // PAK WI ultimate (solo, 0.2.4): a ground-breaking blast around PAK WI; three
+        // construction sites with cones pop up on the 7 m ring.
+        private void ProyekNasional(Vector3 center)
         {
-            Vector3[] nodes = { new Vector3(-8f, 0f, 4f), new Vector3(8f, 0f, -4f), new Vector3(0f, 0f, 8f) };
-            foreach (Vector3 node in nodes)
+            Shockwave(center, PakWiColor, .5f, HeroBalance.SoloProyekRadius, .55f);
+            Shockwave(center, HitColor, .4f, HeroBalance.SoloProyekRadius * .7f, .4f, .12f);
+            Dust(center, 20, 3f, 2.2f);
+            for (int i = 0; i < 3; i++)
             {
-                Dust(node, 14, 1.8f, 2f);
-                Shockwave(node, PakWiColor, .5f, 3.2f, .45f);
-                var a = Cone(node + new Vector3(-2.6f, 0f, -1.2f));
-                var b = Cone(node + new Vector3(2.6f, 0f, -1.2f));
-                foreach (var trafficCone in new[] { a, b })
-                    Add(trafficCone, 12f, 0f, k => trafficCone.transform.localScale =
-                        Vector3.one * Mathf.Clamp01(Mathf.Min(k * 12f / .25f, (1f - k) * 12f / .3f)));
-                FloatText("PROYEK NASIONAL", node + Vector3.up * 2.4f, PakWiColor, .07f, 2.5f);
+                float angle = i * Mathf.PI * 2f / 3f + .5f;
+                Vector3 site = center + new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * 4.5f;
+                Dust(site, 6, 1f, 1.8f);
+                foreach (float side in new[] { -.7f, .7f })
+                {
+                    var trafficCone = Cone(site + new Vector3(side, 0f, 0f));
+                    Add(trafficCone, 4f, i * .08f, k => trafficCone.transform.localScale =
+                        Vector3.one * Mathf.Clamp01(Mathf.Min(k * 4f / .2f, (1f - k) * 4f / .3f)));
+                }
             }
-            CampaignCameraShake.Shake(.5f, .45f);
+            CampaignCameraShake.Shake(.6f, .45f);
         }
 
         // A flat fan of light showing the BARIS! cone.
