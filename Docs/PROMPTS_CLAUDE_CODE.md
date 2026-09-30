@@ -19,9 +19,9 @@ Urutan versi:
 | 0.0.9.4 | (perbaikan) | Kamera tidak tertutup atap, efek suara | ✅ Selesai (bersama 0.1.0) |
 | 0.1.0 | Prompt 7 | Garda Takhta + Fase Memerintah + Hasil = MVP | ✅ Terpasang dan dimainkan di tablet (2026-09-30), dengan masukan → 0.1.1 |
 | 0.1.1 | (perbaikan) | Majelis selalu muncul, DUDUK = MENANG | Dikerjakan (branch `feat/jalur-takhta-0.1.1`), menunggu uji tablet |
-| 0.2.0 | (visual) | Suasana Nusantara (jalan, tiang listrik, umbul-umbul, baliho, warung, sawah, gunung) | Dikerjakan (branch `feat/suasana-nusantara-0.2.0`, berisi 0.1.1), menunggu uji tablet |
-| 0.2.1 | (visual) | Karakter lebih hidup | Rencana |
-| 0.2.2 | (visual) | Efek serangan (MEGA: Kerbau Rakyat) | Rencana |
+| 0.2.0 | (visual) | Suasana Nusantara (jalan, tiang listrik, umbul-umbul, baliho, warung, sawah, gunung) | ✅ Diuji di tablet (menang 5:33); masukan → 0.2.1 |
+| 0.2.1 | (visual) | Material nyata + siap tekstur foto, tanpa hiasan 17-an, kabel dirapikan | Dikerjakan (branch `feat/material-nyata-0.2.1`), menunggu uji tablet |
+| 0.2.2 | (visual) | Karakter + serangan (animasi prosedural, efek benturan, Kerbau Rakyat) | Rencana |
 
 > Catatan: fase "faksi" dari rencana sebelumnya dipecah menjadi 0.0.9.2 dan 0.0.9.3, dan "combat asli" dipisah dari "peta baru". Alasannya: kamu tidak bisa compile sendiri, jadi setiap build harus kecil agar error mudah dilacak.
 
