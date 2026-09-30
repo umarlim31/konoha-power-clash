@@ -27,7 +27,9 @@ namespace Konoha.Campaign
         Runtuh,
         Start,
         Victory,
-        Surrender
+        Surrender,
+        // 0.2.2 Kota Hidup: passing traffic (motor = higher pitch).
+        Klakson
     }
 
     // Jalur Takhta sound effects (0.0.9.4). Every clip is synthesised in code at start-up
@@ -354,6 +356,10 @@ namespace Konoha.Campaign
                       Decay(t - 0.72f, 2.2f));
             result[(int)CampaignSound.Surrender] = Make("Surrender", 0.35f, t =>
                 Sin(Sweep(600f, 400f, t, 0.35f)) * Bell(t, 0.35f) * 0.25f);
+            // Two short "tin-tin" beeps of a two-tone horn, slightly soft-clipped.
+            result[(int)CampaignSound.Klakson] = Make("Klakson", 0.46f, t =>
+                (Soft(410f * t) + Soft(517f * t)) * 0.2f *
+                Mathf.Min(1f, 3f * (Bell(t, 0.15f) + (t > 0.22f ? Bell(t - 0.22f, 0.22f) : 0f))));
             return result;
         }
 
