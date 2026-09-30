@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.2.2  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.2"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(31));
+                    Is.EqualTo("JALUR TAKHTA 0.2.3  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.3"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(32));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -61,6 +61,16 @@ namespace Konoha.Tests
                 Assert.That(enemy.GetComponent<Konoha.Networking.NetworkWibawaBar>(), Is.Not.Null);
                 foreach (var collider in enemy.GetComponentsInChildren<Collider>(true))
                     Assert.That(collider, Is.InstanceOf<CharacterController>(), "Decor collider on enemy: " + collider.name);
+                // 0.2.3: organisation members have a human body with joints and faction headwear.
+                Assert.That(enemy.body, Is.Not.Null);
+                AssertJoints(enemy.body);
+                Assert.That(enemy.body.motionSource, Is.SameAs(enemy.transform));
+                Assert.That(enemy.primaryRenderers.Length, Is.GreaterThan(3));
+                Assert.That(enemy.accentRenderers.Length, Is.GreaterThan(0));
+                Assert.That(enemy.headwearMajelis, Is.Not.Null);
+                Assert.That(enemy.headwearBiro, Is.Not.Null);
+                Assert.That(enemy.headwearGarda, Is.Not.Null);
+                Assert.That(enemy.visualRoot.Find("Body"), Is.Null, "The old capsule body is gone");
                 foreach (string control in new[] { "AttackButton", "S1Button", "S2Button", "UltimateButton",
                     "DodgeButton", "HeroButton", "CampaignJump", "CampaignSit" })
                     Assert.That(GameObject.Find(control).GetComponent<UnityEngine.UI.Button>(), Is.Not.Null, control);
@@ -125,6 +135,28 @@ namespace Konoha.Tests
                 Assert.That(grading, Is.Not.Null);
                 Assert.That(grading.GetComponent<Volume>().sharedProfile, Is.Not.Null);
                 Assert.That(Camera.main.GetUniversalAdditionalCameraData().renderPostProcessing, Is.True);
+                // 0.2.3: hero bodies (one per hero, inactive templates), effects and camera shake.
+                var bodies = Object.FindFirstObjectByType<CampaignBodies>();
+                Assert.That(bodies, Is.Not.Null);
+                Assert.That(bodies.heroTemplates, Has.Length.EqualTo(4));
+                foreach (var template in bodies.heroTemplates)
+                {
+                    Assert.That(template, Is.Not.Null);
+                    Assert.That(template.gameObject.activeSelf, Is.False, "Templates stay hidden");
+                    AssertJoints(template);
+                    foreach (var part in template.GetComponentsInChildren<Transform>(true))
+                        Assert.That(part.GetComponent<Collider>(), Is.Null, "Body parts never collide: " + part.name);
+                }
+                Assert.That(bodies.fx, Is.Not.Null);
+                foreach (var material in new[] { bodies.fx.glow, bodies.fx.dust, bodies.fx.kerbauHide, bodies.fx.kerbauHorn,
+                    bodies.fx.skin, bodies.fx.cloth, bodies.fx.pants, bodies.fx.hair, bodies.fx.wood, bodies.fx.cone, bodies.fx.white })
+                {
+                    Assert.That(material, Is.Not.Null);
+                    Assert.That(AssetDatabase.Contains(material), Is.True, "Effect materials are saved assets: " + material.name);
+                }
+                Assert.That(bodies.fx.glow.shader.name, Is.EqualTo("Universal Render Pipeline/Unlit"));
+                Assert.That(Camera.main.GetComponent<CampaignCameraShake>(), Is.Not.Null);
+
                 // 0.2.2 Kota Hidup: traffic, warga and fountains exist, never collide, stay within budget.
                 var city = Object.FindFirstObjectByType<CampaignCityLife>();
                 Assert.That(city, Is.Not.Null);
@@ -461,6 +493,13 @@ namespace Konoha.Tests
                 Assert.That(clearance.Contains(position+Vector3.up),Is.False,"Guard cut through monument");
             }
             Assert.That(Vector3.Distance(position,target),Is.LessThan(.15f));
+        }
+
+        private static void AssertJoints(CampaignHumanoid body)
+        {
+            foreach (var joint in new[] { body.pelvis, body.spine, body.head, body.shoulderLeft, body.shoulderRight,
+                body.elbowLeft, body.elbowRight, body.hipLeft, body.hipRight, body.kneeLeft, body.kneeRight })
+                Assert.That(joint, Is.Not.Null, body.name);
         }
     }
 }

@@ -29,7 +29,12 @@ namespace Konoha.Campaign
         Victory,
         Surrender,
         // 0.2.2 Kota Hidup: passing traffic (motor = higher pitch).
-        Klakson
+        Klakson,
+        // 0.2.3 skill effects: kerbau bellow + hooves, lightning crack, dash whoosh, heavy impact.
+        Kerbau,
+        Petir,
+        Wuss,
+        Hantam
     }
 
     // Jalur Takhta sound effects (0.0.9.4). Every clip is synthesised in code at start-up
@@ -360,6 +365,18 @@ namespace Konoha.Campaign
             result[(int)CampaignSound.Klakson] = Make("Klakson", 0.46f, t =>
                 (Soft(410f * t) + Soft(517f * t)) * 0.2f *
                 Mathf.Min(1f, 3f * (Bell(t, 0.15f) + (t > 0.22f ? Bell(t - 0.22f, 0.22f) : 0f))));
+            result[(int)CampaignSound.Kerbau] = MakeNoisy("Kerbau", 1.1f, 21, (t, n) =>
+                // Low nasal bellow (two harmonics, vibrato) over drumming hooves.
+                (Soft((95f + 6f * Sin(5f, t)) * t) * 0.45f + Sin(190f * t + 0.3f * Sin(3f, t)) * 0.18f) *
+                Bell(Mathf.Clamp(t - 0.05f, 0f, 0.85f), 0.85f) +
+                n * 0.55f * Mathf.Pow(Mathf.Abs(Sin(7.5f, t)), 8f) * Decay(t, 1.2f));
+            result[(int)CampaignSound.Petir] = MakeNoisy("Petir", 0.6f, 22, (t, n) =>
+                n * (Decay(t, 9f) + 0.5f * Decay(Mathf.Max(0f, t - 0.07f), 14f)) * 0.8f +
+                Sin(Sweep(2200f, 400f, t, 0.6f)) * Decay(t, 12f) * 0.2f, highPass: true);
+            result[(int)CampaignSound.Wuss] = MakeNoisy("Wuss", 0.32f, 23, (t, n) =>
+                n * Bell(t, 0.32f) * 0.55f + Sin(Sweep(500f, 180f, t, 0.32f)) * Bell(t, 0.32f) * 0.12f);
+            result[(int)CampaignSound.Hantam] = MakeNoisy("Hantam", 0.75f, 24, (t, n) =>
+                Soft(Sweep(90f, 38f, t, 0.75f)) * Decay(t, 5f) * 0.8f + n * Decay(t, 16f) * 0.5f);
             return result;
         }
 

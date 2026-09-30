@@ -19,7 +19,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.2.2")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.2.3")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +27,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.2.2";
-            PlayerSettings.Android.bundleVersionCode = 31;
+            PlayerSettings.bundleVersion = "0.2.3";
+            PlayerSettings.Android.bundleVersionCode = 32;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -219,7 +219,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.2.2  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.2.3  •  SOLO PREVIEW";
 
             var stage = new GameObject("CampaignStage").AddComponent<CampaignStage>();
             stage.plaza = capital.Plaza;
@@ -308,6 +308,27 @@ namespace Konoha.Editor
             mute.GetComponentInChildren<Text>().fontSize = 16;
             var audio = new GameObject("CampaignAudio").AddComponent<CampaignAudio>();
             audio.muteButton = mute;
+            // 0.2.3: human bodies, hit feel and skill effects (campaign only; PvP unchanged).
+            var combatFeel = new GameObject("CampaignCombatFeel");
+            var fx = combatFeel.AddComponent<CampaignCombatFx>();
+            fx.glow = CampaignRigBuilder.Unlit("FxGlow", Color.white);
+            fx.dust = CampaignRigBuilder.Lit("FxDebu", new Color(.72f, .66f, .56f), 0f);
+            fx.kerbauHide = CampaignRigBuilder.Lit("FxKerbauKulit", new Color(.17f, .16f, .17f), .25f);
+            fx.kerbauHorn = CampaignRigBuilder.Lit("FxKerbauTanduk", new Color(.78f, .74f, .64f), .5f);
+            fx.skin = CampaignRigBuilder.Lit("RigKulitSawo", new Color(.62f, .43f, .30f), .3f);
+            fx.cloth = CampaignRigBuilder.Lit("FxKain", Color.white, .2f);
+            fx.pants = CampaignRigBuilder.Lit("RigCelanaGelap", new Color(.10f, .11f, .14f), .15f);
+            fx.hair = CampaignRigBuilder.Lit("RigRambut", new Color(.04f, .035f, .03f), .45f);
+            fx.wood = CampaignRigBuilder.Lit("FxKayuPodium", new Color(.40f, .24f, .12f), .35f);
+            fx.cone = CampaignRigBuilder.Lit("FxOranyeProyek", new Color(.98f, .45f, .08f), .35f);
+            fx.white = CampaignRigBuilder.Lit("FxPutih", new Color(.94f, .94f, .92f), .3f);
+            var bodies = combatFeel.AddComponent<CampaignBodies>();
+            bodies.fx = fx;
+            var templates = new GameObject("CampaignBodyTemplates");
+            templates.transform.SetParent(combatFeel.transform, false);
+            bodies.heroTemplates = CampaignRigBuilder.HeroTemplates(templates.transform);
+            (follow != null ? follow.gameObject : previewCamera.gameObject).AddComponent<CampaignCameraShake>();
+
             var result = CreateResultScreen(safe);
             // Draw order on top of the HUD: result screen < hero screen < mode menu.
             result.panel.transform.SetAsLastSibling();
@@ -486,15 +507,20 @@ namespace Konoha.Editor
 
             var visual = new GameObject("Visual");
             visual.transform.SetParent(root.transform, false);
-            var capsule = Part("Body", PrimitiveType.Capsule, visual.transform, Vector3.up, Vector3.one, body);
-            var sash = Part("Sash", PrimitiveType.Cube, visual.transform, new Vector3(0f, 1.18f, 0.43f),
-                new Vector3(0.52f, 0.72f, 0.08f), accent);
-            Part("Crest", PrimitiveType.Cube, visual.transform, new Vector3(0f, 2.06f, 0f),
-                new Vector3(0.34f, 0.16f, 0.34f), accent);
-            Part("ShoulderL", PrimitiveType.Cube, visual.transform, new Vector3(-0.50f, 1.50f, 0f),
-                new Vector3(0.26f, 0.14f, 0.40f), accent);
-            Part("ShoulderR", PrimitiveType.Cube, visual.transform, new Vector3(0.50f, 1.50f, 0f),
-                new Vector3(0.26f, 0.14f, 0.40f), accent);
+            // 0.2.3: a human body (jas, dasi, sabuk take the faction colours) replaces the capsule.
+            var member = CampaignRigBuilder.Member(visual.transform, body, accent);
+            member.rig.motionSource = root.transform;
+            var capsule = member.primary[0];
+            var sash = member.accent[0];
+            // Faction headwear: peci (Majelis), kepet cap (Biro), baret (Garda / others).
+            var peci = CampaignRigBuilder.HeadPiece(member, "Peci Majelis", PrimitiveType.Cylinder,
+                new Vector3(0f, .27f, -.01f), new Vector3(.25f, .06f, .26f), CampaignRigBuilder.Lit("RigPeciHitam", new Color(.05f, .05f, .06f), .35f), Vector3.zero);
+            var kepet = CampaignRigBuilder.HeadPiece(member, "Topi Biro", PrimitiveType.Cylinder,
+                new Vector3(0f, .27f, 0f), new Vector3(.27f, .05f, .28f), CampaignRigBuilder.Lit("RigTopiBiro", new Color(.22f, .30f, .45f), .3f), Vector3.zero);
+            CampaignRigBuilder.HeadPiece(member, "Pet topi", PrimitiveType.Cube, new Vector3(0f, .24f, .15f), new Vector3(.2f, .02f, .12f),
+                CampaignRigBuilder.Lit("RigTopiBiro", new Color(.22f, .30f, .45f), .3f), new Vector3(-10f, 0f, 0f)).transform.SetParent(kepet.transform, true);
+            var baret = CampaignRigBuilder.HeadPiece(member, "Baret Garda", PrimitiveType.Sphere,
+                new Vector3(.03f, .25f, -.02f), new Vector3(.28f, .09f, .29f), CampaignRigBuilder.Lit("RigBaret", new Color(.10f, .12f, .20f), .2f), new Vector3(0f, 0f, -12f));
             // Raised above the thin floor inlays (corridor top .043 m) so it is never hidden.
             Part("SistemRing", PrimitiveType.Cylinder, root.transform, new Vector3(0f, 0.075f, 0f),
                 new Vector3(1.2f, 0.012f, 1.2f), ringMaterial);
@@ -513,7 +539,8 @@ namespace Konoha.Editor
             // Ketua's gavel on the right hand; the pivot swings it overhead during KETOK PALU.
             var gavelPivot = new GameObject("GavelPivot");
             gavelPivot.transform.SetParent(visual.transform, false);
-            gavelPivot.transform.localPosition = new Vector3(0.62f, 1.35f, 0.15f);
+            // In the raised right hand of the body (CampaignHumanoid hold pose).
+            gavelPivot.transform.localPosition = new Vector3(0.3f, 1.2f, 0.5f);
             Part("GavelHandle", PrimitiveType.Cylinder, gavelPivot.transform, new Vector3(0f, 0f, 0.38f),
                 new Vector3(0.07f, 0.38f, 0.07f), gavelWood).transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             Part("GavelHead", PrimitiveType.Cylinder, gavelPivot.transform, new Vector3(0f, 0f, 0.78f),
@@ -557,6 +584,12 @@ namespace Konoha.Editor
             enemy.visualRoot = visual.transform;
             enemy.bodyRenderer = capsule.GetComponent<Renderer>();
             enemy.accentRenderer = sash.GetComponent<Renderer>();
+            enemy.primaryRenderers = member.primary.ToArray();
+            enemy.accentRenderers = member.accent.ToArray();
+            enemy.body = member.rig;
+            enemy.headwearMajelis = peci;
+            enemy.headwearBiro = kepet;
+            enemy.headwearGarda = baret;
             enemy.nameplate = label;
             enemy.blockRing = blockRing;
             enemy.gavel = gavelPivot;

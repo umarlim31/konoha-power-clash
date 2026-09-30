@@ -231,6 +231,9 @@ namespace Konoha.Networking
                 bestDistanceSqr = distanceSqr;
             }
 
+            // Presentation hook (Jalur Takhta punch animation); no listener in PvP.
+            BasicAttackResolved?.Invoke(this, bestTarget);
+
             if (bestTarget == null)
             {
                 Debug.Log("[KONOHA COMBAT] Attack missed | attacker=" + OwnerClientId);
@@ -642,6 +645,9 @@ namespace Konoha.Networking
 
         // Every peer: a hit landed on this actor (damage after shields, absorbed by shield).
         public static event System.Action<NetworkPlayerCombat, int, int> DamageFeedbackPlayed;
+
+        // Server: a basic attack was thrown (target null on a miss). Presentation only.
+        public static event System.Action<NetworkPlayerCombat, NetworkPlayerCombat> BasicAttackResolved;
 
         private IEnumerator FloatingDamageRoutine(int damage, int absorbed, Vector3 worldPosition)
         {
