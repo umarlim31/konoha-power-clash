@@ -888,13 +888,22 @@ namespace Konoha.Networking
             if (!isActiveAndEnabled)
                 return;
 
-            // Presentation hook (Jalur Takhta sound effects). No listener in PvP.
+            // Presentation hooks (Jalur Takhta sound and skill effects). No listener in PvP.
             AbilityFxPlayed?.Invoke(this, slot, position);
+            AbilityCast?.Invoke(this, slot, position, direction);
             StartCoroutine(AbilityFxRoutine((PrototypeHero)hero, slot, position, direction));
         }
 
         // Every peer: a hero ability played its effect (slot 1 = S1, 2 = S2, 3 = ultimate).
         public static event Action<NetworkHeroKit, int, Vector3> AbilityFxPlayed;
+
+        // Every peer: same moment, with the cast direction (Jalur Takhta skill effects).
+        public static event Action<NetworkHeroKit, int, Vector3, Vector3> AbilityCast;
+
+        // PvP keeps the prototype ground boxes. Jalur Takhta (0.2.3) turns this off and draws
+        // its own skill effects; gameplay objects (Kader blockers, proyek nodes, zone and road
+        // outlines) are still created, the Kader blockers just stay invisible.
+        public static bool LegacyAbilityFx = true;
 
         private IEnumerator AbilityFxRoutine(PrototypeHero hero, int slot, Vector3 position, Vector3 direction)
         {
@@ -936,6 +945,9 @@ namespace Konoha.Networking
 
                 yield break;
             }
+
+            if (!LegacyAbilityFx)
+                yield break;
 
             Color color = Color.Lerp(HeroFxColor(hero), Color.black, 0.20f);
             Vector3 size = slot == 3 ? new Vector3(3.3f, 0.045f, 6.2f) : new Vector3(2.6f, 0.04f, 2.6f);
@@ -1021,6 +1033,12 @@ namespace Konoha.Networking
             Vector3 right = transform.right;
             GameObject a = CreateBox("Kader_A", center + right * 1.2f + Vector3.up, new Vector3(1.1f, 2f, 0.8f), new Color(0.75f,0.18f,0.20f), true);
             GameObject b = CreateBox("Kader_B", center - right * 1.2f + Vector3.up, new Vector3(1.1f, 2f, 0.8f), new Color(0.75f,0.18f,0.20f), true);
+            if (!LegacyAbilityFx)
+            {
+                // Still blocking; Jalur Takhta draws Kader people with shields in their place.
+                a.GetComponent<Renderer>().enabled = false;
+                b.GetComponent<Renderer>().enabled = false;
+            }
             yield return new WaitForSecondsRealtime(duration);
             if (a != null) Destroy(a);
             if (b != null) Destroy(b);
