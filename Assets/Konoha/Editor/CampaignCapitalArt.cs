@@ -30,7 +30,8 @@ namespace Konoha.Editor
         private Material landscapeGrass;
         private Material stone, ivory, bronze, dark, red, green, leaf, paleLeaf, water, paving, flower;
         private Material majelisCloth, majelisTrim, biroCloth, biroTrim, gardaCloth;
-        private Mesh column, dome, roof, arch, feather, frond, pedestal, rim;
+        private Mesh column, dome, roof, arch, feather, frond, pedestal, rim, stupa, lotus;
+        private Material shutterWood;
         internal Transform Plaza, Majelis, Biro, Garda, Throne;
         internal GameObject InnerGateClosed, InnerGateOpen;
         // 0.0.9.3 Biro Prosedur loket hall.
@@ -497,6 +498,14 @@ namespace Konoha.Editor
                 new Vector2(.54f,6.23f), new Vector2(0,6.23f) }, 8);
             roof = CampaignCapitalMeshes.Roof(); arch = CampaignCapitalMeshes.Arch();
             feather = CampaignCapitalMeshes.Feather("SculptedWingFeather", false);
+            // 0.2.6: bell-shaped stupa and its lotus cushion (profiles in metres, scaled per use).
+            stupa = CampaignCapitalMeshes.Lathe("CandiStupa", new[] {
+                new Vector2(0f, 0f), new Vector2(.95f, 0f), new Vector2(1f, .12f), new Vector2(.97f, .45f),
+                new Vector2(.85f, .9f), new Vector2(.6f, 1.25f), new Vector2(.32f, 1.42f), new Vector2(0f, 1.46f) }, 24);
+            lotus = CampaignCapitalMeshes.Lathe("CandiTeratai", new[] {
+                new Vector2(0f, 0f), new Vector2(1.05f, 0f), new Vector2(1.12f, .12f), new Vector2(1f, .26f),
+                new Vector2(.95f, .38f), new Vector2(0f, .38f) }, 24);
+            shutterWood = Surface("GedungLamaJendelaKayu", new Color(.16f, .30f, .22f), .3f);
             frond = CampaignCapitalMeshes.Feather("CurvedPalmFrond", true);
             rim = CampaignCapitalMeshes.Ring("ObjectiveRing", .96f, 1);
         }
@@ -611,11 +620,17 @@ namespace Konoha.Editor
                 new Vector2(3.9f,.06f),new Vector2(3.72f,.12f),new Vector2(0,.12f)},64);
             MeshObject("Circular plaza stone",plaza,Vector3.zero,Vector3.one,ivory);
             MeshObject("Plaza concentric carving",CampaignCapitalMeshes.Ring("PlazaRing",3.38f,3.53f),new Vector3(0,.124f,0),Vector3.one,bronze);
-            for(int i=0;i<16;i++)
+            // 0.2.6: an eight-petal lotus (padma) in bronze with terracotta dots, instead of the
+            // 16 dark marks that read as a clock face.
+            for(int i=0;i<8;i++)
             {
-                float a=i*Mathf.PI/8;
-                var motif=Block("Radial stone inlay",new Vector3(Mathf.Sin(a)*3.05f,.127f,Mathf.Cos(a)*3.05f),new Vector3(.13f,.012f,.36f),dark);
-                motif.transform.rotation=Quaternion.Euler(0,i*22.5f,0);
+                float a=i*Mathf.PI/4;
+                var petal=Block("Radial stone inlay",new Vector3(Mathf.Sin(a)*2.95f,.127f,Mathf.Cos(a)*2.95f),new Vector3(.34f,.012f,.34f),bronze);
+                petal.transform.rotation=Quaternion.Euler(0,i*45f,0);
+                petal.transform.localScale=new Vector3(.3f,.012f,.62f);
+                float b=a+Mathf.PI/8;
+                Block("Plaza terracotta dot",new Vector3(Mathf.Sin(b)*3.1f,.127f,Mathf.Cos(b)*3.1f),new Vector3(.16f,.012f,.16f),genteng!=null?genteng:red)
+                    .transform.rotation=Quaternion.Euler(0,i*45f+22.5f,0);
             }
         }
 
@@ -816,24 +831,42 @@ namespace Konoha.Editor
         {
             Block("Guardian pedestal",p+Vector3.up*1.1f,new Vector3(3.2f,2.2f,3),stone,true);
             Block("Guardian pedestal cornice",p+Vector3.up*2.25f,new Vector3(3.6f,.25f,3.4f),ivory);
-            Ellipsoid("Guardian carved torso",p+new Vector3(0,3.7f,0),new Vector3(1.6f,2.1f,.9f),stone);
-            Ellipsoid("Guardian head",p+new Vector3(0,5.1f,0),new Vector3(.85f,1.05f,.8f),ivory);
-            MeshObject("Guardian ceremonial crown",dome,p+new Vector3(0,5.45f,0),new Vector3(.65f,1.3f,.65f),bronze);
-            foreach(int side in new[]{-1,1})
-            {
-                Ellipsoid("Guardian knee",p+new Vector3(side*.55f,2.75f,-.35f),new Vector3(.7f,.95f,1.1f),stone);
-                Ellipsoid("Guardian arm",p+new Vector3(side*.95f,3.7f,-.20f),new Vector3(.53f,1.5f,.55f),ivory);
-            }
-            Column(p+new Vector3(1.15f,2.4f,-.55f),1.15f);
+            // 0.2.6: a stone stupa on a lotus cushion (as on the terraces of the old candi)
+            // replaces the egg-headed guardian figure.
+            MeshObject("Stupa bantalan teratai",lotus,p+Vector3.up*2.37f,new Vector3(1.35f,1f,1.35f),stone);
+            MeshObject("Stupa genta",stupa,p+Vector3.up*2.75f,new Vector3(1.15f,1.25f,1.15f),stone);
+            Block("Stupa harmika",p+Vector3.up*4.55f,new Vector3(.62f,.34f,.62f),stone);
+            for(int i=0;i<3;i++)
+                Block("Stupa yasti",p+Vector3.up*(4.8f+i*.22f),new Vector3(.42f-i*.1f,.2f,.42f-i*.1f),stone);
+            Block("Stupa puncak",p+Vector3.up*5.55f,new Vector3(.1f,.35f,.1f),stone);
             Banner(p+new Vector3(-1.5f,0,-1.75f),2.1f);
         }
 
+        // 0.2.6: a whitewashed Indonesian heritage building (gedung lama) instead of the tall
+        // box with black slits: rows of shuttered windows, a wooden balcony band, a tiled
+        // porch roof and a tiered genteng roof. Same 4 m solid footprint as before.
         private void Skyline(Vector3 p,float height)
         {
             Block("Distant civic tower",p+Vector3.up*(height*.5f),new Vector3(4,height,4),ivory,true);
-            Roof(p+Vector3.up*height,new Vector3(2.7f,2,2.7f),green);
-            for(int i=0;i<3;i++)
-                Block("Tower recessed arcade",p+new Vector3((i-1)*1.05f,height*.55f,-2.02f),new Vector3(.62f,height*.53f,.05f),dark);
+            Block("Gedung lama plint",p+Vector3.up*.35f,new Vector3(4.12f,.7f,4.12f),stone);
+            Material shutter = shutterWood != null ? shutterWood : dark;
+            for(float y=1.7f;y<height-.9f;y+=2.3f)
+            {
+                foreach(int s in new[]{-1,1})
+                {
+                    // Front (-z) and both sides.
+                    Block("Gedung lama jendela",p+new Vector3(s*.9f,y,-2.02f),new Vector3(.62f,1.1f,.04f),dark);
+                    Block("Gedung lama daun jendela",p+new Vector3(s*.9f+s*.42f,y,-2.04f),new Vector3(.2f,1.1f,.04f),shutter);
+                    Block("Gedung lama ambang",p+new Vector3(s*.9f,y+.66f,-2.05f),new Vector3(.9f,.12f,.08f),ivory);
+                    Block("Gedung lama jendela",p+new Vector3(s*2.02f,y,-.9f),new Vector3(.04f,1.1f,.62f),dark);
+                    Block("Gedung lama jendela",p+new Vector3(s*2.02f,y,.9f),new Vector3(.04f,1.1f,.62f),dark);
+                }
+                if(y>2f) Block("Gedung lama balkon",p+new Vector3(0,y-.72f,-2.25f),new Vector3(4.2f,.1f,.5f),dark);
+            }
+            Block("Gedung lama pintu",p+new Vector3(0,1.1f,-2.02f),new Vector3(.9f,1.9f,.05f),dark);
+            var porch=Block("Gedung lama atap teras",p+new Vector3(0,2.45f,-2.55f),new Vector3(2.4f,.1f,1.2f),genteng);
+            porch.transform.rotation=Quaternion.Euler(-14,0,0);
+            Roof(p+Vector3.up*height,new Vector3(2.9f,2.1f,2.9f),red);
         }
 
         private void Banner(Vector3 p,float h) => Banner(p,h,red,ivory);
