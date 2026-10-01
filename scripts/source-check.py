@@ -40,8 +40,8 @@ for path in root.glob('Assets/**/*'):
     if path.suffix == '.meta' or 'Generated' in path.parts:
         continue
     meta = Path(str(path) + '.meta')
-    if not meta.exists() and art_root in path.parents:
-        warnings.append(f'Hero art without .meta (Unity will create one): {path.relative_to(root)}')
+    if not meta.exists() and (path == art_root or art_root in path.parents):
+        warnings.append(f'Owner art without .meta (Unity will create one): {path.relative_to(root)}')
         continue
     assert meta.exists(), f'Missing Unity identity: {meta}'
     guid = re.search(r'^guid: ([0-9a-f]{32})$', meta.read_text(), re.M)
