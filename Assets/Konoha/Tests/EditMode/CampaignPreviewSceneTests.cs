@@ -14,6 +14,16 @@ namespace Konoha.Tests
 {
     public sealed class CampaignPreviewSceneTests
     {
+        // 0.3.1: owner models under Assets/Konoha/Art/Models replace some code-built decor.
+        private static bool Modelled(string slot) => Konoha.Editor.CampaignModelSlots.FindModelPath(slot) != null;
+
+        private static bool AnyModel()
+        {
+            foreach (var slot in Konoha.Editor.CampaignModelSlots.Slots)
+                if (Modelled(slot.name)) return true;
+            return false;
+        }
+
         [Test]
         public void ManualBuildPreparationPersistsCapitalAssetsAndPlayableRoutes()
         {
@@ -27,9 +37,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.3.1  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.3.1"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(40));
+                    Is.EqualTo("JALUR TAKHTA 0.3.2  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.3.2"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(41));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -162,13 +172,13 @@ namespace Konoha.Tests
                 }
                 Assert.That(towers, Is.EqualTo(6));
                 Assert.That(wallBanners, Is.EqualTo(12));
-                Assert.That(megah, Is.InRange(200, 900), "Megah decor budget for the tablet");
+                Assert.That(megah, Is.InRange(AnyModel() ? 50 : 200, 900), "Megah decor budget for the tablet");
                 Assert.That(Camera.main.farClipPlane, Is.GreaterThanOrEqualTo(RenderSettings.fogEndDistance));
                 // 0.2.6 Rasa Nusantara: stupa instead of the guardian figure, heritage buildings,
                 // lotus inlay, candi bentar at the boulevard mouth.
                 Assert.That(GameObject.Find("Guardian head"), Is.Null);
                 Assert.That(GameObject.Find("Stupa genta"), Is.Not.Null);
-                Assert.That(GameObject.Find("Gedung lama jendela"), Is.Not.Null);
+                Assert.That(GameObject.Find(Modelled("GedungLama") ? "Model GedungLama" : "Gedung lama jendela"), Is.Not.Null);
                 Assert.That(GameObject.Find("Tower recessed arcade"), Is.Null);
                 Assert.That(GameObject.Find("MegahTall candi bentar"), Is.Not.Null);
                 // 0.2.7 flicker fixes: overview never runs the occluder, near plane for depth precision,
@@ -180,7 +190,7 @@ namespace Konoha.Tests
                 Assert.That(Top("Civic forecourt inlay") - Top("Ceremonial main lane"), Is.GreaterThan(.015f));
                 Assert.That(Top("Ceremonial main lane"), Is.GreaterThan(.015f), "Above the oval promenade (y 0)");
                 Assert.That(Top("Surrounding Konoha Landscape"), Is.LessThan(-.05f));
-                Assert.That(GameObject.Find("Kota rumah pelana"), Is.Not.Null);
+                Assert.That(GameObject.Find(Modelled("RumahKampung") ? "Model RumahKampung" : "Kota rumah pelana"), Is.Not.Null);
                 Assert.That(Object.FindFirstObjectByType<CampaignCityLife>().bowlSpots, Is.Not.Empty);
                 // 0.2.8: close street camera, opt-in; the JAUH preset equals the tested default (§13).
                 var cameraMode = Object.FindFirstObjectByType<CampaignCameraMode>();
@@ -205,7 +215,7 @@ namespace Konoha.Tests
                 }
                 // 0.2.8: tumpang roof on the Istana, kampung street furniture without colliders.
                 Assert.That(GameObject.Find("Fictional civic dome"), Is.Null);
-                foreach (string piece in new[] { "Kampung gapura", "Kampung becak", "Kampung pisang batang", "Kampung PJU" })
+                foreach (string piece in new[] { "Kampung gapura", "Kampung becak", Modelled("PohonPisang") ? "Model PohonPisang" : "Kampung pisang batang", "Kampung PJU" })
                     Assert.That(GameObject.Find(piece), Is.Not.Null, piece);
                 foreach (var decor in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
                     if (decor.name.StartsWith("Kampung"))
@@ -235,10 +245,10 @@ namespace Konoha.Tests
                 Assert.That(AssetDatabase.Contains(kain.GetComponent<MeshFilter>().sharedMesh), Is.True);
                 Assert.That(kain.GetComponent<Renderer>().sharedMaterial.GetTexture("_BaseMap"), Is.Not.Null, "Batik on the kain");
                 Assert.That(torso.GetComponent<MeshFilter>().sharedMesh.name, Is.EqualTo("RigTorso"));
-                Assert.That(GameObject.Find("Lentera atap"), Is.Not.Null);
+                Assert.That(GameObject.Find(Modelled("Lentera") ? "Model Lentera" : "Lentera atap"), Is.Not.Null);
                 Assert.That(GameObject.Find("Civic lamp glass"), Is.Null);
                 Assert.That(GameObject.Find("Radial stone inlay"), Is.Null);
-                Assert.That(GameObject.Find("NusantaraTall tajuk ketapang"), Is.Not.Null);
+                Assert.That(GameObject.Find(Modelled("PohonKetapang") ? "Model PohonKetapang" : "NusantaraTall tajuk ketapang"), Is.Not.Null);
                 Assert.That(bodies.fx, Is.Not.Null);
                 foreach (var material in new[] { bodies.fx.glow, bodies.fx.dust, bodies.fx.kerbauHide, bodies.fx.kerbauHorn,
                     bodies.fx.skin, bodies.fx.cloth, bodies.fx.pants, bodies.fx.hair, bodies.fx.wood, bodies.fx.cone, bodies.fx.white })
@@ -274,7 +284,7 @@ namespace Konoha.Tests
                     kota++;
                     Assert.That(decor.GetComponent<Collider>(), Is.Null, "Kota Hidup must not collide: " + decor.name);
                 }
-                Assert.That(kota, Is.InRange(300, 2300), "Kota Hidup budget for the tablet (0.2.7 house details)");
+                Assert.That(kota, Is.InRange(AnyModel() ? 50 : 300, 2300), "Kota Hidup budget for the tablet (0.2.7 house details)");
                 Assert.That(GameObject.Find("KotaTall spanduk lambang Konoha"), Is.Not.Null);
                 Assert.That(GameObject.Find("Kota ruko"), Is.Not.Null);
                 Assert.That(GameObject.Find("Kota teluk"), Is.Not.Null);

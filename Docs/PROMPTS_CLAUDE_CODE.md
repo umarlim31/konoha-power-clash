@@ -30,8 +30,8 @@ Urutan versi:
 | 0.2.8 | (kamera+visual) | Kamera DEKAT (jalanan) bisa dipilih, atap tumpang Istana, gapura kampung, becak, pohon pisang, lampu PJU | ✅ Diuji di tablet; di-merge |
 | 0.2.9 | (UI) | Tombol skill ikon bulat (kerbau, perisai, petir, mikrofon, kerucut, dll.) + sapuan cooldown | ✅ Diuji di tablet (ikon tampil); di-merge. Masukan: tubuh & kain masih balok, jalan tanpa motif → 0.3.0 |
 | 0.3.0 | (visual) | Tubuh membulat (badan/kain lathe, kapsul, sepatu oval), kain batik MEGA, jalan polos tanpa motif, lentera Jawa, pohon ketapang | ✅ Diuji di tablet ("hasilnya bagus aman"); di-merge |
-| 0.3.1 | (aset) | 16 slot model 3D bangunan, pohon & properti (FBX/OBJ dari owner, fallback kode, collider tetap) + `Docs/PANDUAN_MODEL_3D.md` | Dikerjakan (branch `feat/slot-model-0.3.1`), menunggu uji tablet |
-| 0.2.2 | (visual) | Karakter + serangan (animasi prosedural, efek benturan, Kerbau Rakyat) | Rencana |
+| 0.3.1 | (aset) | 16 slot model 3D bangunan, pohon & properti (FBX/OBJ dari owner, fallback kode, collider tetap) + `Docs/PANDUAN_MODEL_3D.md` + paket model Nusantara | ✅ Uji A & B lolos di tablet ("lancar"); di-merge bersama paket model |
+| 0.3.2 | (polish) | Baris MODEL 3D ringkas (tidak keluar layar), kota pesisir di teluk memakai model ruko/rumah | Dikerjakan (branch `feat/poles-0.3.2`), menunggu uji tablet |
 
 > Catatan: fase "faksi" dari rencana sebelumnya dipecah menjadi 0.0.9.2 dan 0.0.9.3, dan "combat asli" dipisah dari "peta baru". Alasannya: kamu tidak bisa compile sendiri, jadi setiap build harus kecil agar error mudah dilacak.
 
