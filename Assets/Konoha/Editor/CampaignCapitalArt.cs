@@ -624,18 +624,8 @@ namespace Konoha.Editor
                 new Vector2(3.9f,.06f),new Vector2(3.72f,.12f),new Vector2(0,.12f)},64);
             MeshObject("Circular plaza stone",plaza,Vector3.zero,Vector3.one,ivory);
             MeshObject("Plaza concentric carving",CampaignCapitalMeshes.Ring("PlazaRing",3.38f,3.53f),new Vector3(0,.124f,0),Vector3.one,bronze);
-            // 0.2.6: an eight-petal lotus (padma) in bronze with terracotta dots, instead of the
-            // 16 dark marks that read as a clock face.
-            for(int i=0;i<8;i++)
-            {
-                float a=i*Mathf.PI/4;
-                var petal=Block("Radial stone inlay",new Vector3(Mathf.Sin(a)*2.95f,.127f,Mathf.Cos(a)*2.95f),new Vector3(.34f,.012f,.34f),bronze);
-                petal.transform.rotation=Quaternion.Euler(0,i*45f,0);
-                petal.transform.localScale=new Vector3(.3f,.012f,.62f);
-                float b=a+Mathf.PI/8;
-                Block("Plaza terracotta dot",new Vector3(Mathf.Sin(b)*3.1f,.127f,Mathf.Cos(b)*3.1f),new Vector3(.16f,.012f,.16f),genteng!=null?genteng:red)
-                    .transform.rotation=Quaternion.Euler(0,i*45f+22.5f,0);
-            }
+            // 0.3.0: no ornamental pattern on the walking surface (owner: plain roads); the
+            // stepped disc and its single bronze ring stay.
         }
 
         private void Monument(Vector3 p)
@@ -893,11 +883,26 @@ namespace Konoha.Editor
             }
         }
 
+        private Material lanternGlass;
+
+        // 0.3.0: a square Javanese lantern (lentera) with a small pyramid roof replaces the
+        // round glass globe under a dome cap (it read as a mushroom). Same post, no collider.
         private void Lamp(Vector3 p)
         {
+            if(lanternGlass==null)
+            {
+                lanternGlass=Surface("LenteraKaca",new Color(1f,.88f,.62f),.65f);
+                EditorUtility.SetDirty(lanternGlass);
+            }
             Column(p,.54f);
-            Ellipsoid("Civic lamp glass",p+Vector3.up*1.67f,new Vector3(.25f,.33f,.25f),ivory);
-            MeshObject("Lamp bronze cap",dome,p+Vector3.up*1.8f,new Vector3(.24f,.21f,.24f),bronze);
+            Vector3 top=p+Vector3.up*1.54f;
+            Block("Lentera dudukan",top+Vector3.up*.03f,new Vector3(.36f,.06f,.36f),bronze);
+            Block("Lentera kaca",top+Vector3.up*.25f,new Vector3(.25f,.36f,.25f),lanternGlass);
+            foreach(int x in new[]{-1,1}) foreach(int z in new[]{-1,1})
+                Block("Lentera tiang",top+new Vector3(x*.135f,.25f,z*.135f),new Vector3(.035f,.4f,.035f),dark);
+            Block("Lentera lis",top+Vector3.up*.46f,new Vector3(.34f,.04f,.34f),dark);
+            MeshObject("Lentera atap",roof,top+Vector3.up*.48f,new Vector3(.22f,.17f,.22f),bronze);
+            Ellipsoid("Lentera mustaka",top+Vector3.up*.66f,new Vector3(.06f,.09f,.06f),bronze);
         }
 
         private void Steps(Vector3 p,float width,int count,float rise,float run)
