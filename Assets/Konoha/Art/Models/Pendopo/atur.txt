@@ -1,0 +1,4 @@
+putar=0
+skala=1.1
+naik=-0.41
+kredit=Original Negara Konoha Nusantara asset — generated for this project; no external model used.

@@ -170,6 +170,7 @@ namespace Konoha.Editor
             {
                 float x = -60f + i * 8f;
                 // Yaw 180: the shop fronts (local -z) face the road and the capital (+z).
+                int first = root.childCount;
                 var ruko = Group("Kota ruko", new Vector3(x, 0f, z), 180f);
                 Material wall = wallTints[i % wallTints.Length];
                 LocalPart(ruko, "Kota ruko dinding", PrimitiveType.Cube, new Vector3(0f, height * .5f, 0f), new Vector3(width, height, depth), wall);
@@ -191,6 +192,7 @@ namespace Konoha.Editor
                 LocalPart(ruko, "Kota ruko AC", PrimitiveType.Cube, new Vector3(width * .3f, 6.3f, -depth * .5f - .25f), new Vector3(.8f, .55f, .45f), cartWhite);
                 LocalPart(ruko, "Kota ruko talang", PrimitiveType.Cylinder, new Vector3(-width * .5f + .3f, height * .5f, -depth * .5f - .12f), new Vector3(.1f, height * .5f, .1f), concrete);
                 Label(ruko, names[i], new Vector3(0f, 3.95f, -depth * .5f - .1f), .3f, new Color(.55f, .08f, .06f));
+                CampaignModelSlots.Apply("Ruko", root, first, ruko.position, 180f);
             }
         }
 
@@ -203,6 +205,7 @@ namespace Konoha.Editor
                 for (float z = -48f; z <= 62f; z += 11f, n++)
                 {
                     // Front door towards the road (towards the capital).
+                    int first = root.childCount;
                     var house = Group("Kota rumah", new Vector3(side * HouseRowX, 0f, z), side > 0 ? 90f : -90f);
                     Material wall = wallTints[(n * 3 + 1) % wallTints.Length];
                     LocalPart(house, "Kota rumah dinding", PrimitiveType.Cube, new Vector3(0f, 1.6f, 0f), new Vector3(6.5f, 3.2f, 5.5f), wall);
@@ -216,6 +219,7 @@ namespace Konoha.Editor
                     LocalPart(house, "Kota rumah teras", PrimitiveType.Cube, new Vector3(0f, .1f, -3.6f), new Vector3(6.5f, .2f, 1.6f), concrete);
                     LocalPart(house, "Kota rumah pagar", PrimitiveType.Cube, new Vector3(0f, .5f, -4.55f), new Vector3(6.5f, 1f, .1f), flagWhite);
                     HouseDetails(house, wall);
+                    CampaignModelSlots.Apply("RumahKampung", root, first, house.position, side > 0 ? 90f : -90f);
                 }
             }
         }

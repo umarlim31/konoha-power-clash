@@ -231,6 +231,7 @@ namespace Konoha.Editor
         private void WarungDanGerobak()
         {
             // Warung kopi facing the boulevard, west of the gate.
+            int warungFirst = root.childCount;
             var warung = Group("NusantaraTall warung kopi", new Vector3(-12.5f, 0f, -40.5f), -90f);
             LocalPart(warung, "Nusantara lantai warung", PrimitiveType.Cube, new Vector3(0f, .05f, 0f), new Vector3(4.2f, .1f, 2.8f), timber);
             LocalPart(warung, "Nusantara meja warung", PrimitiveType.Cube, new Vector3(0f, .55f, -.95f), new Vector3(3.8f, .9f, .5f), timber);
@@ -257,6 +258,7 @@ namespace Konoha.Editor
             foreach (int x in new[] { -1, 1 })
                 LocalPart(warung, "Nusantara kaki bangku", PrimitiveType.Cube, new Vector3(x * 1.4f, .22f, -1.9f), new Vector3(.08f, .44f, .32f), timber);
             Label(warung, "WARKOP RAKYAT", new Vector3(0f, 3.05f, -1.75f), .32f, Color.white);
+            CampaignModelSlots.Apply("WarungKopi", root, warungFirst, warung.position, -90f);
 
             // Parked motor bebek in front of the warung.
             Motor(new Vector3(-9.6f, 0f, -43.2f), 70f, flagRed);
@@ -264,6 +266,7 @@ namespace Konoha.Editor
             Motor(new Vector3(-10.2f, 0f, -36.6f), 100f, cable);
 
             // Gerobak bakso with its umbrella, east of the gate.
+            int cartFirst = root.childCount;
             var cart = Group("NusantaraTall gerobak bakso", new Vector3(11.8f, 0f, -41f), 90f);
             LocalPart(cart, "Nusantara badan gerobak", PrimitiveType.Cube, new Vector3(0f, .95f, 0f), new Vector3(1.5f, .9f, .75f), cartWhite);
             LocalPart(cart, "Nusantara kaca gerobak", PrimitiveType.Cube, new Vector3(0f, 1.65f, 0f), new Vector3(1.4f, .5f, .65f), cartGlass);
@@ -280,10 +283,12 @@ namespace Konoha.Editor
             LocalPart(cart, "NusantaraTall tiang payung", PrimitiveType.Cylinder, new Vector3(.4f, 2.4f, 0f), new Vector3(.05f, .5f, .05f), steel);
             LocalPart(cart, "NusantaraTall payung", PrimitiveType.Cylinder, new Vector3(.4f, 2.9f, 0f), new Vector3(2.2f, .04f, 2.2f), terpalOrange);
             Label(cart, "BAKSO MANTAP", new Vector3(0f, 1.05f, -.39f), .22f, new Color(.75f, .1f, .1f));
+            CampaignModelSlots.Apply("GerobakBakso", root, cartFirst, cart.position, 90f);
         }
 
         private void Motor(Vector3 p, float yaw, Material paint)
         {
+            int first = root.childCount;
             var motor = Group("Nusantara motor bebek", p, yaw);
             LocalPart(motor, "Nusantara bodi motor", PrimitiveType.Cube, new Vector3(0f, .55f, 0f), new Vector3(.34f, .34f, 1.15f), paint);
             LocalPart(motor, "Nusantara tameng motor", PrimitiveType.Cube, new Vector3(0f, .75f, .52f), new Vector3(.36f, .6f, .12f), paint);
@@ -298,12 +303,14 @@ namespace Konoha.Editor
             }
             LocalPart(motor, "Nusantara standar", PrimitiveType.Cube, new Vector3(.2f, .15f, 0f), new Vector3(.03f, .3f, .03f), chrome)
                 .transform.localRotation = Quaternion.Euler(0f, 0f, -25f);
+            CampaignModelSlots.Apply("MotorBebek", root, first, p, yaw);
         }
 
         // Rain tree (trembesi): the common wide-umbrella shade tree of Indonesian roads.
         // Deliberately not a beringin, which is also a real party symbol.
         private void Trembesi(Vector3 p, float twist)
         {
+            int first = root.childCount;
             Cylinder("NusantaraTall batang trembesi", p + Vector3.up * 1.7f, new Vector3(.75f, 1.7f, .75f), bark);
             for (int i = 0; i < 3; i++)
             {
@@ -319,6 +326,7 @@ namespace Konoha.Editor
             for (int i = 0; i < crowns.Length; i++)
                 Ellipsoid("NusantaraTall tajuk trembesi", p + Quaternion.Euler(0f, twist, 0f) * crowns[i],
                     new Vector3(5.2f, 1.8f, 5.2f) * (i == 0 ? 1.15f : .9f), i % 2 == 0 ? canopy : canopyLight);
+            CampaignModelSlots.Apply("PohonTrembesi", root, first, p, twist);
         }
 
         // Rice fields on both sides of the capital and volcanoes on the hazy horizon.
