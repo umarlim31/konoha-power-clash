@@ -27,8 +27,9 @@ Urutan versi:
 | 0.2.5 | (visual) | Nusantara Megah: ubin motif, spanduk merah-putih, menara, air terjun Istana, flamboyan & bugenvil, langit cerah, teluk-pulau-kota pesisir | ✅ Diuji di tablet; masukan: "upgrade lagi agar lebih terasa Nusantara" → 0.2.6 |
 | 0.2.6 | (visual+audio) | Rasa Nusantara: gamelan latar, candi bentar, stupa, gedung lama, padma di plaza, flamboyan & ubin motif dihaluskan | ✅ Diuji di tablet (gamelan pas); masukan: kedip-kedip, bangunan lebih nyata → 0.2.7 |
 | 0.2.7 | (visual+audio) | Imersi: perbaikan kedip (z-fighting, occluder di LIHAT ARENA), detail rumah/ruko/menara, suara burung & mangkok bakso | ✅ Diuji di tablet; di-merge |
-| 0.2.8 | (kamera+visual) | Kamera DEKAT (jalanan) bisa dipilih, atap tumpang Istana, gapura kampung, becak, pohon pisang, lampu PJU | Dikerjakan (branch `feat/kamera-jalan-0.2.8`), menunggu uji tablet |
-| 0.2.9 | (aset) | Slot model 3D untuk bangunan & properti (FBX/OBJ dari owner, fallback kode) + panduan | Rencana |
+| 0.2.8 | (kamera+visual) | Kamera DEKAT (jalanan) bisa dipilih, atap tumpang Istana, gapura kampung, becak, pohon pisang, lampu PJU | ✅ Diuji di tablet; di-merge |
+| 0.2.9 | (UI) | Tombol skill ikon bulat (kerbau, perisai, petir, mikrofon, kerucut, dll.) + sapuan cooldown | Dikerjakan (branch `feat/ikon-skill-0.2.9`), menunggu uji tablet |
+| 0.3.0 | (aset) | Slot model 3D untuk bangunan & properti (FBX/OBJ dari owner, fallback kode) + panduan | Rencana |
 | 0.2.2 | (visual) | Karakter + serangan (animasi prosedural, efek benturan, Kerbau Rakyat) | Rencana |
 
 > Catatan: fase "faksi" dari rencana sebelumnya dipecah menjadi 0.0.9.2 dan 0.0.9.3, dan "combat asli" dipisah dari "peta baru". Alasannya: kamu tidak bisa compile sendiri, jadi setiap build harus kecil agar error mudah dilacak.

@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.2.8  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.8"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(37));
+                    Is.EqualTo("JALUR TAKHTA 0.2.9  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.9"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(38));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -188,6 +188,18 @@ namespace Konoha.Tests
                 Assert.That(cameraMode.far.distance, Is.EqualTo(cameraMode.follow.resetDistance));
                 Assert.That(cameraMode.close.distance, Is.LessThan(cameraMode.far.distance));
                 Assert.That(cameraMode.close.minDistance, Is.GreaterThanOrEqualTo(.8f + 1f), "Never inside the hero");
+                // 0.2.9: round icon buttons; every control is square and wired.
+                var skillHud = Object.FindFirstObjectByType<CampaignSkillHud>();
+                Assert.That(skillHud, Is.Not.Null);
+                Assert.That(skillHud.buttons, Has.Length.EqualTo(7));
+                foreach (var entry in skillHud.buttons)
+                {
+                    Assert.That(entry.button, Is.Not.Null, entry.slot.ToString());
+                    var size = ((RectTransform)entry.button.transform).sizeDelta;
+                    Assert.That(size.x, Is.EqualTo(size.y), "Round buttons are square: " + entry.slot);
+                    Assert.That(entry.button.transform.GetChild(0).GetComponent<UnityEngine.UI.Text>(), Is.Not.Null,
+                        "The caption stays the first child (the hero code writes cooldowns there)");
+                }
                 // 0.2.8: tumpang roof on the Istana, kampung street furniture without colliders.
                 Assert.That(GameObject.Find("Fictional civic dome"), Is.Null);
                 foreach (string piece in new[] { "Kampung gapura", "Kampung becak", "Kampung pisang batang", "Kampung PJU" })

@@ -19,7 +19,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.2.8")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.2.9")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +27,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.2.8";
-            PlayerSettings.Android.bundleVersionCode = 37;
+            PlayerSettings.bundleVersion = "0.2.9";
+            PlayerSettings.Android.bundleVersionCode = 38;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -182,20 +182,21 @@ namespace Konoha.Editor
 
             // Real hero controls. The names are the ones the networked hero components bind
             // to (NetworkPlayerCombat, NetworkHeroKit, NetworkPlayerMovement).
+            // 0.2.9: round icon buttons in an arc around a big BASIC (CampaignSkillHud draws them).
             var basic = Button("AttackButton", "BASIC", safe, new Vector2(1f, 0f),
-                new Vector2(-24, 30), new Vector2(150, 96));
+                new Vector2(-30, 34), new Vector2(150, 150));
             var ultimate = Button("UltimateButton", "ULT 0%", safe, new Vector2(1f, 0f),
-                new Vector2(-24, 136), new Vector2(150, 60));
+                new Vector2(-60, 218), new Vector2(100, 100));
             var s1 = Button("S1Button", "S1", safe, new Vector2(1f, 0f),
-                new Vector2(-186, 30), new Vector2(140, 60));
+                new Vector2(-205, 30), new Vector2(100, 100));
             var s2 = Button("S2Button", "S2", safe, new Vector2(1f, 0f),
-                new Vector2(-186, 100), new Vector2(140, 60));
+                new Vector2(-190, 162), new Vector2(100, 100));
             var dodge = Button("DodgeButton", "DODGE", safe, new Vector2(1f, 0f),
-                new Vector2(-338, 30), new Vector2(140, 60));
+                new Vector2(-330, 30), new Vector2(88, 88));
             var jump = Button("CampaignJump", "LOMPAT", safe, new Vector2(1f, 0f),
-                new Vector2(-338, 100), new Vector2(140, 60));
+                new Vector2(-318, 146), new Vector2(88, 88));
             var sit = Button("CampaignSit", "DUDUK", safe, new Vector2(1f, 0f),
-                new Vector2(-186, 170), new Vector2(140, 56));
+                new Vector2(-300, 262), new Vector2(88, 88));
             var heroButton = Button("HeroButton", "GANTI HERO", safe, new Vector2(0f, 1f),
                 new Vector2(14, -66), new Vector2(164, 52));
             foreach (var small in new[] { ultimate, s1, s2, dodge, jump, sit, heroButton })
@@ -206,6 +207,17 @@ namespace Konoha.Editor
             dodge.GetComponent<Image>().color = new Color(0.18f, 0.25f, 0.29f, 0.96f);
             heroButton.GetComponent<Image>().color = new Color(0.18f, 0.25f, 0.29f, 0.96f);
             traversal.jumpButton = jump;
+            var skillHud = new GameObject("CampaignSkillHud").AddComponent<CampaignSkillHud>();
+            skillHud.buttons = new[]
+            {
+                new CampaignSkillHud.Entry { slot = CampaignSkillHud.Slot.Basic, button = basic },
+                new CampaignSkillHud.Entry { slot = CampaignSkillHud.Slot.Skill1, button = s1 },
+                new CampaignSkillHud.Entry { slot = CampaignSkillHud.Slot.Skill2, button = s2 },
+                new CampaignSkillHud.Entry { slot = CampaignSkillHud.Slot.Ultimate, button = ultimate },
+                new CampaignSkillHud.Entry { slot = CampaignSkillHud.Slot.Dodge, button = dodge },
+                new CampaignSkillHud.Entry { slot = CampaignSkillHud.Slot.Jump, button = jump },
+                new CampaignSkillHud.Entry { slot = CampaignSkillHud.Slot.Seat, button = sit }
+            };
 
             var resetCamera = Button("ResetCamera", "KAMERA AWAL", safe, new Vector2(1f, 1f),
                 new Vector2(-14, -14), new Vector2(164, 44));
@@ -219,7 +231,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.2.8  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.2.9  •  SOLO PREVIEW";
 
             var stage = new GameObject("CampaignStage").AddComponent<CampaignStage>();
             stage.plaza = capital.Plaza;
