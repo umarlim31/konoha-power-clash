@@ -34,6 +34,7 @@ namespace Konoha.Editor
         private void GapuraKampung(Vector3 p, int side, string text, Material red, Material white)
         {
             // Faces the side road (towards the capital): local -z points to -x on the east side.
+            int first = root.childCount;
             var gate = Group("Kampung gapura", p, side > 0 ? 90f : -90f);
             foreach (int s in new[] { -1, 1 })
             {
@@ -44,11 +45,13 @@ namespace Konoha.Editor
             LocalPart(gate, "Kampung gapura balok", PrimitiveType.Cube, new Vector3(0f, 3.85f, 0f), new Vector3(4.2f, .8f, .35f), white);
             LocalPart(gate, "Kampung gapura list", PrimitiveType.Cube, new Vector3(0f, 4.3f, 0f), new Vector3(4.4f, .12f, .4f), red);
             Label(gate, text, new Vector3(0f, 3.85f, -.2f), .22f, new Color(.6f, .06f, .05f));
+            CampaignModelSlots.Apply("GapuraKampung", root, first, p, side > 0 ? 90f : -90f);
         }
 
         // Becak: the passenger seat in front under a folding hood, the driver pedals behind.
         private void Becak(Vector3 p, float yaw, Material paint)
         {
+            int first = root.childCount;
             var becak = Group("Kampung becak", p, yaw);
             LocalPart(becak, "Kampung becak kursi", PrimitiveType.Cube, new Vector3(0f, .75f, .45f), new Vector3(1f, .5f, .7f), paint);
             LocalPart(becak, "Kampung becak sandaran", PrimitiveType.Cube, new Vector3(0f, 1.1f, .1f), new Vector3(1f, .7f, .12f), paint);
@@ -67,11 +70,13 @@ namespace Konoha.Editor
             LocalPart(becak, "Kampung becak roda belakang", PrimitiveType.Cylinder, new Vector3(0f, .35f, -1f), new Vector3(.7f, .03f, .7f), rubber)
                 .transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
             LocalPart(becak, "Kampung becak pijakan", PrimitiveType.Cube, new Vector3(0f, .38f, .95f), new Vector3(.9f, .05f, .3f), paint);
+            CampaignModelSlots.Apply("Becak", root, first, p, yaw);
         }
 
         // Banana tree: a soft green trunk and long drooping leaves.
         private void Pisang(Vector3 p, float twist)
         {
+            int first = root.childCount;
             Cylinder("Kampung pisang batang", p + Vector3.up * 1.3f, new Vector3(.22f, 1.3f, .22f), canopyLight);
             for (int i = 0; i < 7; i++)
             {
@@ -80,17 +85,20 @@ namespace Konoha.Editor
                     new Vector3(.5f, .03f, 1.7f), i % 2 == 0 ? canopy : canopyLight);
                 leaf.transform.rotation = Quaternion.Euler(28f + (i % 3) * 8f, yaw, 0f);
             }
+            CampaignModelSlots.Apply("PohonPisang", root, first, p, twist);
         }
 
         // PJU street light: steel pole with a curved arm over the road and a lamp head.
         private void Pju(Vector3 p, float yaw)
         {
+            int first = root.childCount;
             var lamp = Group("Kampung PJU", p, yaw);
             LocalPart(lamp, "Kampung PJU tiang", PrimitiveType.Cylinder, new Vector3(0f, 3.6f, 0f), new Vector3(.14f, 3.6f, .14f), steel);
             LocalPart(lamp, "Kampung PJU lengan", PrimitiveType.Cube, new Vector3(0f, 7.25f, -.8f), new Vector3(.08f, .08f, 1.7f), steel)
                 .transform.localRotation = Quaternion.Euler(-12f, 0f, 0f);
             LocalPart(lamp, "Kampung PJU lampu", PrimitiveType.Cube, new Vector3(0f, 7.35f, -1.65f), new Vector3(.3f, .12f, .6f), steel);
             LocalPart(lamp, "Kampung PJU kaca", PrimitiveType.Cube, new Vector3(0f, 7.28f, -1.65f), new Vector3(.24f, .03f, .5f), porcelain);
+            CampaignModelSlots.Apply("LampuPJU", root, first, p, yaw);
         }
 
         private Material ketapangRed;
@@ -104,6 +112,7 @@ namespace Konoha.Editor
                 ketapangRed = Surface("KetapangDaunTua", new Color(.58f, .22f, .10f), .1f);
                 UnityEditor.EditorUtility.SetDirty(ketapangRed);
             }
+            int first = root.childCount;
             Cylinder("NusantaraTall batang ketapang", p + Vector3.up * 3.1f, new Vector3(.32f, 3.1f, .32f), bark);
             float[] heights = { 3.1f, 4.1f, 5.0f, 5.8f };
             float[] reach = { 2.5f, 2.0f, 1.4f, .7f };
@@ -124,6 +133,7 @@ namespace Konoha.Editor
                         new Vector3(size, .42f, size), leaves);
                 }
             }
+            CampaignModelSlots.Apply("PohonKetapang", root, first, p, twist);
         }
     }
 }

@@ -57,6 +57,7 @@ namespace Konoha.Editor
             if (!AssetDatabase.IsValidFolder(CampaignCapitalMeshes.Folder))
                 AssetDatabase.CreateFolder(SpikeProject.Generated, "Capital");
             var art = new CampaignCapitalArt();
+            CampaignModelSlots.Begin();
             art.ClearSpikeScenery();
             art.CreatePalette();
             art.ApplyRealSurfaces();
@@ -799,6 +800,7 @@ namespace Konoha.Editor
         private void Palm(Vector3 p,float height,float twist)
         {
             // Tapered trunk and pointed bent fronds replace the sphere-tree silhouette.
+            int first=root.childCount;
             var trunk=CampaignCapitalMeshes.Lathe("PalmTrunk",new[]{new Vector2(0,0),new Vector2(.17f,0),new Vector2(.12f,1),new Vector2(0,1)},12);
             var palm = MeshObject("Palm tapered trunk",trunk,p,new Vector3(1,height,1),dark);
             var trunkCollider = palm.AddComponent<BoxCollider>();
@@ -809,6 +811,8 @@ namespace Konoha.Editor
                 go.transform.rotation=Quaternion.Euler(i%2==0?-9:12,twist+i*36,0);
             }
             Ellipsoid("Palm crown",p+Vector3.up*(height-.05f),new Vector3(.48f,.55f,.48f),leaf);
+            // 0.3.1: Art/Models/PohonPalem replaces what is drawn; the trunk collider stays.
+            CampaignModelSlots.Apply("PohonPalem",root,first,p,twist,new Vector3(4.5f,height+.9f,4.5f));
         }
 
         private void Planter(Vector3 p,Vector3 size)
@@ -843,6 +847,7 @@ namespace Konoha.Editor
         // porch roof and a tiered genteng roof. Same 4 m solid footprint as before.
         private void Skyline(Vector3 p,float height)
         {
+            int first=root.childCount;
             Block("Distant civic tower",p+Vector3.up*(height*.5f),new Vector3(4,height,4),ivory,true);
             Block("Gedung lama plint",p+Vector3.up*.35f,new Vector3(4.12f,.7f,4.12f),stone);
             Material shutter = shutterWood != null ? shutterWood : dark;
@@ -863,6 +868,8 @@ namespace Konoha.Editor
             var porch=Block("Gedung lama atap teras",p+new Vector3(0,2.45f,-2.55f),new Vector3(2.4f,.1f,1.2f),genteng);
             porch.transform.rotation=Quaternion.Euler(-14,0,0);
             Roof(p+Vector3.up*height,new Vector3(2.9f,2.1f,2.9f),red);
+            // 0.3.1: Art/Models/GedungLama; the solid 4 m block keeps colliding.
+            CampaignModelSlots.Apply("GedungLama",root,first,p,0f,new Vector3(4.4f,height+2.2f,4.4f));
         }
 
         private void Banner(Vector3 p,float h) => Banner(p,h,red,ivory);
@@ -894,6 +901,7 @@ namespace Konoha.Editor
                 lanternGlass=Surface("LenteraKaca",new Color(1f,.88f,.62f),.65f);
                 EditorUtility.SetDirty(lanternGlass);
             }
+            int first=root.childCount;
             Column(p,.54f);
             Vector3 top=p+Vector3.up*1.54f;
             Block("Lentera dudukan",top+Vector3.up*.03f,new Vector3(.36f,.06f,.36f),bronze);
@@ -903,6 +911,7 @@ namespace Konoha.Editor
             Block("Lentera lis",top+Vector3.up*.46f,new Vector3(.34f,.04f,.34f),dark);
             MeshObject("Lentera atap",roof,top+Vector3.up*.48f,new Vector3(.22f,.17f,.22f),bronze);
             Ellipsoid("Lentera mustaka",top+Vector3.up*.66f,new Vector3(.06f,.09f,.06f),bronze);
+            CampaignModelSlots.Apply("Lentera",root,first,p,0f);
         }
 
         private void Steps(Vector3 p,float width,int count,float rise,float run)
@@ -933,6 +942,7 @@ namespace Konoha.Editor
 
         private void Pavilion(Vector3 p)
         {
+            int first=root.childCount;
             Block("Pavilion stone landing",p+Vector3.up*.075f,new Vector3(4.8f,.15f,4.8f),ivory,true);
             foreach(int x in new[]{-1,1}) foreach(int z in new[]{-1,1})
                 Column(p+new Vector3(x*1.85f,.15f,z*1.85f),1.05f,true);
@@ -943,6 +953,8 @@ namespace Konoha.Editor
                 Block("Pavilion carved bench",p+new Vector3(side*1.25f,.52f,.65f),new Vector3(.45f,.20f,1.55f),dark,true);
                 Block("Bench pedestal",p+new Vector3(side*1.25f,.25f,.65f),new Vector3(.32f,.5f,1.1f),stone,true);
             }
+            // 0.3.1: Art/Models/Pendopo; landing, columns and benches keep their colliders.
+            CampaignModelSlots.Apply("Pendopo",root,first,p,0f);
         }
         private void Roof(Vector3 p,Vector3 size,Material mat)
         {

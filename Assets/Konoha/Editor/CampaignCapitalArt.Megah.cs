@@ -190,6 +190,7 @@ namespace Konoha.Editor
         // of deep red flowers (0.2.5 used a few huge orange blobs that looked like toys).
         private void Flamboyan(Vector3 p, float twist)
         {
+            int first = root.childCount;
             Cylinder("MegahTall batang flamboyan", p + Vector3.up * 1.6f, new Vector3(.3f, 1.6f, .3f), bark);
             for (int i = 0; i < 4; i++)
             {
@@ -206,6 +207,7 @@ namespace Konoha.Editor
                 Ellipsoid("MegahTall tajuk flamboyan", at, blossom ? new Vector3(1f, .45f, 1f) : new Vector3(1.5f, .6f, 1.5f),
                     blossom ? flamboyan : (i % 2 == 0 ? canopy : canopyLight));
             }
+            CampaignModelSlots.Apply("PohonFlamboyan", root, first, p, twist);
         }
 
         private void Bugenvil(Vector3 p)
