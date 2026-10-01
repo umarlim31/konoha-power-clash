@@ -17,7 +17,7 @@ Selama folder masih kosong, game tetap memakai bentuk buatan kode, jadi tidak ad
 | Folder (slot) | Mengganti | Ukuran kotak (lebar × tinggi × panjang, meter) | Batas segitiga per model | Jumlah di peta |
 |---|---|---|---|---|
 | `Lentera` | lentera taman di boulevard & plaza | 0,5 × 2,3 × 0,5 (termasuk tiang) | 2.000 | ±22 |
-| `PohonPalem` | pohon kelapa/palem | 4,5 × (tinggi asli + 0,9) × 4,5 | 3.000 | ±40 |
+| `PohonPalem` | pohon kelapa/palem (titik asal model = pangkal batang, karena batangnya bisa ditabrak) | 4,5 × (tinggi asli + 0,9) × 4,5 | 3.000 | ±40 |
 | `PohonKetapang` | pohon ketapang di tepi jalan samping | 6 × 6,4 × 6 | 12.000 | 6 |
 | `PohonFlamboyan` | flamboyan di boulevard | 5,5 × 5,2 × 5,5 | 12.000 | 6 |
 | `PohonTrembesi` | trembesi besar | 11 × 7,6 × 11 | 20.000 | 4 |
@@ -30,12 +30,17 @@ Selama folder masih kosong, game tetap memakai bentuk buatan kode, jadi tidak ad
 | `GapuraKampung` | gapura gang kampung | 4,5 × 4,5 × 0,8 | 10.000 | 2 |
 | `RumahKampung` | rumah kampung di luar jalan samping | 7 × 5,3 × 6 | 5.000 | 22 |
 | `Ruko` | ruko dua lantai di seberang jalan raya | 7,8 × 7,7 × 8,4 | 6.000 | 16 |
-| `GedungLama` | gedung lama berjendela krepyak | 4,4 × (tinggi asli + 2,2) × 4,4 | 15.000 | 6 |
-| `Pendopo` | pendopo di taman sayap | 5,4 × 5,3 × 5,4 | 20.000 | 2 |
+| `GedungLama` | gedung lama berjendela krepyak (lebarnya dipaskan ke dinding tabrak 4 × 4 m; tinggi mengikuti model) | 4,4 × bebas × 4,4 | 15.000 | 6 |
+| `Pendopo` | pendopo di taman sayap (tiang sudut yang bisa ditabrak ada di ±1,85 m, lantai tabrak setinggi 0,15 m, dan 2 bangku tabrak di dalam) | 5,4 × 5,3 × 5,4 | 20.000 | 2 |
 
 Istana, Gerbang Rakyat, Gerbang Dalam, monumen, menara, dan Kursi **sengaja tidak punya slot**. Bangunan-bangunan itu bagian dari rute, dan bentuknya menentukan tempat berjalan.
 
 **Kenapa batas segitiga kecil?** Satu model dipakai berkali-kali. Contohnya, 22 rumah × 5.000 segitiga = 110.000 segitiga hanya untuk rumah. Cari model berlabel **low poly**. Di Sketchfab, jumlah segitiga tertera di halaman model ("Triangles").
+
+**Catatan teknis (0.3.1):**
+- Semua bagian satu model digabung menjadi **satu objek per tempat**, supaya tablet tetap ringan walaupun model terdiri dari ratusan bagian.
+- Warna dari file `.mtl` (baris `Kd`) dipakai sesuai nama bahannya.
+- Tulisan nama toko ruko, nama gang di gapura, dan "WARKOP RAKYAT" tetap dipasang di depan model.
 
 ## Dari mana mencari model
 - **Quaternius** (quaternius.com) dan **Kenney** (kenney.nl): model low poly berlisensi **CC0**, bebas dipakai termasuk untuk komersial, dan ringan. Paling cocok untuk pohon, lampu, dan kendaraan.

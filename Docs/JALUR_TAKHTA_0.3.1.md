@@ -30,6 +30,51 @@ Permintaan owner: slot model 3D untuk bangunan dan properti, supaya owner bisa m
 - **`atur.txt` opsional** per slot: `skala`, `putar`, `naik`, `ukuran=asli`, `kredit`.
 - Model pohon dan bangunan tinggi ikut memudar saat menutupi kamera, sama seperti bentuk kodenya.
 
+## Integrasi paket model owner (NEGARA_KONOHA_NUSANTARA_SLOT_MODELS_v0.3.1)
+
+**Audit paket (16 OBJ + MTL):**
+- Semua 16 folder memakai nama slot yang tepat.
+- Semua model di bawah batas segitiga: terberat Trembesi 3.400 dari batas 20.000; Palem 2.208 dari 3.000.
+- Geometri: tidak ada mesh bolong, segitiga cacat, atau bahan yang tidak terdefinisi. Semua model berdiri di y=0, depan +Z.
+- Tidak ada tekstur; warna diambil dari `Kd` di file MTL.
+
+**Perbaikan pemuat model dari hasil audit:**
+1. **Penggabungan mesh.** Model OBJ terpecah menjadi banyak bagian (Palem 141 bagian × ±40 pohon ≈ 5.600 objek). Sekarang semua bagian satu model digabung menjadi **satu mesh per slot**, dengan satu submesh per bahan. Hasilnya satu objek per tempat, jauh lebih ringan untuk tablet.
+2. **Warna MTL dibaca langsung berdasarkan nama bahan.** Ini menjaga agar warna tidak hilang atau berubah putih kalau import OBJ di Unity tidak membawa `Kd`. Kaca dibuat mengkilap; logam dan perunggu agak mengkilap.
+3. **PohonPalem memakai titik asal model (pangkal batang).** Sebelumnya model ditaruh di tengah tajuknya, sehingga batang bergeser ±0,3 m dari collider batang yang tetap.
+4. **GedungLama dipaskan berdasarkan lebar** (4,4 m), tidak berdasarkan tinggi. Untuk gedung setinggi 5 m, cara lama mengecilkan model ke 0,85. Akibatnya dinding tabrak 4 × 4 m menonjol 0,4 m di luar dinding yang terlihat.
+5. **Tulisan nama tetap tampil:**
+   - nama toko ruko, di tepi kanopi;
+   - nama gang di papan gapura;
+   - "WARKOP RAKYAT" di tepi atap warung.
+6. `Pendopo/atur.txt` ditambah `skala=1.1` dan `naik=-0.41`. Dengan itu tiang sudut model tepat di collider tiang (±1,85 m) dan lantainya setinggi lantai tabrak (0,15 m), jadi hero tidak tenggelam di lantai.
+
+**Ukuran hasil pemasangan (perkiraan dari ukuran file):**
+
+| Slot | Skala | Ukuran (meter) |
+|---|---|---|
+| Lentera | 0,98 | 2,3 tinggi |
+| Palem | ±0,9 | 5,9 tinggi |
+| Ketapang | 1,41 | 6,4 tinggi |
+| Flamboyan | 1,23 | 5,2 tinggi |
+| Trembesi | 0,97 | 11 × 4,8 tinggi |
+| Pisang | 0,88 | 2,7 tinggi |
+| Becak | 1,04 | — |
+| Motor | 0,97 | — |
+| Gerobak | 0,96 | — |
+| Warung | 0,93 | — |
+| PJU | 1,02 | 7,2 tinggi |
+| Gapura | 0,85 | 3,6 tinggi (dibatasi tebal kotak 0,8 m) |
+| Rumah | 0,96 | — |
+| Ruko | 1,01 | — |
+| Gedung Lama | 1,01 | 8,6 tinggi |
+| Pendopo | 1,0 | — |
+
+**Yang perlu diperhatikan di Uji B:**
+- **Pendopo:** model punya 8 tiang, tetapi tabrakan lama hanya 4 tiang sudut, jadi 4 tiang tengah bisa ditembus. Tabrakan lama juga punya 2 bangku di dalam pendopo yang tidak ada di model, jadi bisa terasa menabrak "udara". Tabrakan sengaja tidak diubah tanpa persetujuan owner.
+- **Gapura** jadi lebih pendek (3,6 m) karena modelnya lebih tebal dari kotak slot. Bisa dinaikkan dengan `skala=1.2` di `atur.txt`.
+- **Trembesi** lebih pendek (4,8 m) daripada versi kode (±7,5 m), tetapi lebarnya sama 11 m.
+
 ## Sengaja tidak diubah
 - Tampilan game tanpa model: identik dengan 0.3.0.
 - Rute, collider, musuh, kamera, HUD, dan PvP.
