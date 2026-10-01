@@ -33,7 +33,8 @@ namespace Konoha.Editor
             public readonly List<Renderer> accent = new List<Renderer>();
         }
 
-        private static Material peciBlack;
+        private static Material peciBlack, lips;
+        private const string MeshFolder = SpikeProject.Generated + "/Rig";
 
         internal static Material Lit(string name, Color color, float smooth = .2f)
         {
@@ -74,6 +75,7 @@ namespace Konoha.Editor
         internal static Parts Build(Transform parent, Style style)
         {
             peciBlack = Lit("RigPeciHitam", new Color(.05f, .05f, .06f), .35f);
+            lips = Lit("RigBibir", new Color(.42f, .20f, .17f), .3f);
             var root = new GameObject(style.name).transform;
             root.SetParent(parent, false);
             root.localScale = new Vector3(style.width, style.height, style.width);
@@ -82,58 +84,69 @@ namespace Konoha.Editor
             parts.rig = rig;
             Material sleeve = style.sleeve != null ? style.sleeve : style.shirt;
 
+            // 0.3.0: rounded body (owner: the kain and trousers still looked like blocks).
+            // Pelvis is an ellipsoid, limbs are capsules, the torso and kain are lathe meshes
+            // with a waist, chest and flared hem; shoes are flattened ellipsoids.
             var pelvis = Pivot("Pinggul", root, new Vector3(0f, .95f, 0f));
-            Part(parts, "Pinggul", PrimitiveType.Cube, pelvis, Vector3.zero, new Vector3(.38f, .18f, .24f), style.pants, false);
+            Part(parts, "Pinggul", PrimitiveType.Sphere, pelvis, new Vector3(0f, -.02f, 0f), new Vector3(.37f, .24f, .25f), style.pants, false);
 
             Transform[] hips = new Transform[2], knees = new Transform[2];
             for (int s = 0; s < 2; s++)
             {
                 float x = s == 0 ? -.1f : .1f;
                 hips[s] = Pivot(s == 0 ? "Paha kiri" : "Paha kanan", pelvis, new Vector3(x, -.04f, 0f));
-                Part(parts, "Paha", PrimitiveType.Cylinder, hips[s], new Vector3(0f, -.23f, 0f), new Vector3(.17f, .23f, .17f), style.pants, style.heroShadows);
+                Part(parts, "Paha", PrimitiveType.Capsule, hips[s], new Vector3(0f, -.22f, 0f), new Vector3(.18f, .25f, .18f), style.pants, style.heroShadows);
                 knees[s] = Pivot(s == 0 ? "Lutut kiri" : "Lutut kanan", hips[s], new Vector3(0f, -.46f, 0f));
-                Part(parts, "Betis", PrimitiveType.Cylinder, knees[s], new Vector3(0f, -.21f, 0f), new Vector3(.14f, .21f, .14f), style.pants, style.heroShadows);
-                Part(parts, "Sepatu", PrimitiveType.Cube, knees[s], new Vector3(0f, -.43f, .05f), new Vector3(.14f, .08f, .27f), style.shoes, false);
+                Part(parts, "Betis", PrimitiveType.Capsule, knees[s], new Vector3(0f, -.2f, 0f), new Vector3(.14f, .22f, .14f), style.pants, style.heroShadows);
+                Part(parts, "Sepatu", PrimitiveType.Sphere, knees[s], new Vector3(0f, -.42f, .05f), new Vector3(.13f, .1f, .27f), style.shoes, false);
             }
             if (style.skirt != null)
-                Part(parts, "Kain", PrimitiveType.Cylinder, pelvis, new Vector3(0f, -.43f, 0f), new Vector3(.46f, .44f, .36f), style.skirt, style.heroShadows);
+            {
+                // Ankle-length wrapped kain: close at the ankles, soft hip, waist under the kebaya.
+                MeshPart(parts, "Kain", KainMesh(), pelvis, new Vector3(0f, -.86f, 0f), new Vector3(.23f, .86f, .19f), style.skirt, style.heroShadows);
+                // Kebaya tail falling over the hip.
+                MeshPart(parts, "Ujung kebaya", KebayaTailMesh(), pelvis, new Vector3(0f, -.14f, 0f), new Vector3(.225f, .2f, .165f), style.shirt, false);
+            }
 
             var spine = Pivot("Punggung", pelvis, new Vector3(0f, .06f, 0f));
-            parts.primary.Add(Part(parts, "Badan", PrimitiveType.Cube, spine, new Vector3(0f, .28f, 0f), new Vector3(.44f, .5f, .25f), style.shirt, true));
+            parts.primary.Add(MeshPart(parts, "Badan", TorsoMesh(), spine, Vector3.zero, new Vector3(.25f, .55f, .155f), style.shirt, true));
             if (style.belly > 0f)
                 parts.primary.Add(Part(parts, "Perut", PrimitiveType.Sphere, spine, new Vector3(0f, .16f, .05f),
-                    new Vector3(.44f + .06f * style.belly, .38f, .3f + .12f * style.belly), style.shirt, false));
-            Part(parts, "Leher", PrimitiveType.Cylinder, spine, new Vector3(0f, .56f, 0f), new Vector3(.1f, .05f, .1f), style.skin, false);
+                    new Vector3(.42f + .06f * style.belly, .38f, .28f + .12f * style.belly), style.shirt, false));
+            Part(parts, "Leher", PrimitiveType.Capsule, spine, new Vector3(0f, .56f, 0f), new Vector3(.1f, .06f, .1f), style.skin, false);
 
             var head = Pivot("Kepala", spine, new Vector3(0f, .62f, 0f));
             parts.head = head;
-            Part(parts, "Wajah", PrimitiveType.Sphere, head, new Vector3(0f, .13f, .01f), new Vector3(.23f, .27f, .25f), style.skin, style.heroShadows);
-            Part(parts, "Hidung", PrimitiveType.Cube, head, new Vector3(0f, .12f, .13f), new Vector3(.045f, .07f, .05f), style.skin, false);
+            Part(parts, "Wajah", PrimitiveType.Sphere, head, new Vector3(0f, .13f, .01f), new Vector3(.22f, .27f, .24f), style.skin, style.heroShadows);
+            Part(parts, "Dagu", PrimitiveType.Sphere, head, new Vector3(0f, .04f, .05f), new Vector3(.13f, .1f, .13f), style.skin, false);
+            Part(parts, "Hidung", PrimitiveType.Capsule, head, new Vector3(0f, .12f, .12f), new Vector3(.04f, .035f, .045f), style.skin, false);
+            Part(parts, "Mulut", PrimitiveType.Sphere, head, new Vector3(0f, .06f, .108f), new Vector3(.065f, .016f, .02f), lips, false);
             foreach (int s in new[] { -1, 1 })
             {
-                Part(parts, "Mata", PrimitiveType.Sphere, head, new Vector3(s * .055f, .16f, .115f), Vector3.one * .035f, style.hair, false);
-                Part(parts, "Alis", PrimitiveType.Cube, head, new Vector3(s * .055f, .2f, .12f), new Vector3(.07f, .015f, .02f), style.hair, false);
-                Part(parts, "Telinga", PrimitiveType.Sphere, head, new Vector3(s * .12f, .13f, 0f), new Vector3(.05f, .08f, .04f), style.skin, false);
+                Part(parts, "Mata", PrimitiveType.Sphere, head, new Vector3(s * .052f, .155f, .105f), new Vector3(.04f, .028f, .03f), style.hair, false);
+                Part(parts, "Alis", PrimitiveType.Capsule, head, new Vector3(s * .055f, .195f, .112f), new Vector3(.015f, .035f, .015f), style.hair, false)
+                    .transform.localRotation = Quaternion.Euler(0f, 0f, 90f - s * 8f);
+                Part(parts, "Telinga", PrimitiveType.Sphere, head, new Vector3(s * .115f, .13f, 0f), new Vector3(.04f, .075f, .05f), style.skin, false);
             }
-            Part(parts, "Rambut", PrimitiveType.Sphere, head, new Vector3(0f, .19f, -.02f), new Vector3(.25f, .2f, .27f), style.hair, false);
+            Part(parts, "Rambut", PrimitiveType.Sphere, head, new Vector3(0f, .18f, -.025f), new Vector3(.245f, .22f, .265f), style.hair, false);
             if (style.headwear == Headwear.Bun)
-                Part(parts, "Sanggul", PrimitiveType.Sphere, head, new Vector3(0f, .18f, -.17f), new Vector3(.17f, .15f, .15f), style.hair, false);
+                Part(parts, "Sanggul", PrimitiveType.Sphere, head, new Vector3(0f, .16f, -.16f), new Vector3(.17f, .14f, .13f), style.hair, false);
             else if (style.headwear == Headwear.Peci)
                 Part(parts, "Peci", PrimitiveType.Cylinder, head, new Vector3(0f, .27f, -.01f), new Vector3(.25f, .06f, .26f), peciBlack, false);
 
             Transform[] shoulders = new Transform[2], elbows = new Transform[2];
             for (int s = 0; s < 2; s++)
             {
-                float x = s == 0 ? -.28f : .28f;
+                float x = s == 0 ? -.25f : .25f;
                 shoulders[s] = Pivot(s == 0 ? "Bahu kiri" : "Bahu kanan", spine, new Vector3(x, .47f, 0f));
-                parts.primary.Add(Part(parts, "Pundak", PrimitiveType.Sphere, shoulders[s], Vector3.zero, new Vector3(.17f, .14f, .17f), style.shirt, false));
-                Renderer upper = Part(parts, "Lengan atas", PrimitiveType.Cylinder, shoulders[s], new Vector3(0f, -.15f, 0f), new Vector3(.12f, .15f, .12f), sleeve, false);
+                parts.primary.Add(Part(parts, "Pundak", PrimitiveType.Sphere, shoulders[s], new Vector3(s == 0 ? .015f : -.015f, -.01f, 0f), new Vector3(.15f, .14f, .16f), style.shirt, false));
+                Renderer upper = Part(parts, "Lengan atas", PrimitiveType.Capsule, shoulders[s], new Vector3(0f, -.15f, 0f), new Vector3(.12f, .17f, .12f), sleeve, false);
                 if (sleeve == style.shirt) parts.primary.Add(upper);
                 elbows[s] = Pivot(s == 0 ? "Siku kiri" : "Siku kanan", shoulders[s], new Vector3(0f, -.3f, 0f));
-                Renderer fore = Part(parts, "Lengan bawah", PrimitiveType.Cylinder, elbows[s], new Vector3(0f, -.14f, 0f),
-                    new Vector3(.105f, .14f, .105f), style.longSleeves ? sleeve : style.skin, false);
+                Renderer fore = Part(parts, "Lengan bawah", PrimitiveType.Capsule, elbows[s], new Vector3(0f, -.14f, 0f),
+                    new Vector3(.1f, .16f, .1f), style.longSleeves ? sleeve : style.skin, false);
                 if (style.longSleeves && sleeve == style.shirt) parts.primary.Add(fore);
-                Part(parts, "Tangan", PrimitiveType.Sphere, elbows[s], new Vector3(0f, -.31f, .01f), new Vector3(.1f, .11f, .1f), style.skin, false);
+                Part(parts, "Tangan", PrimitiveType.Sphere, elbows[s], new Vector3(0f, -.31f, .01f), new Vector3(.085f, .11f, .095f), style.skin, false);
             }
 
             rig.pelvis = pelvis;
@@ -166,8 +179,8 @@ namespace Konoha.Editor
             {
                 name = "BodyTemplate MEGA", skin = langsat, hair = hair,
                 shirt = Lit("RigKebayaMerah", new Color(.60f, .08f, .12f), .35f),
-                pants = Lit("RigKainBatik", new Color(.30f, .16f, .09f), .15f), shoes = shoes,
-                skirt = Lit("RigKainBatik", new Color(.30f, .16f, .09f), .15f),
+                pants = Lit("RigKainPolos", new Color(.30f, .16f, .09f), .15f), shoes = shoes,
+                skirt = KainBatik(),
                 headwear = Headwear.Bun, width = 1.04f
             });
             Accent(mega, "Selendang", PrimitiveType.Cube, new Vector3(0f, .3f, 0f), new Vector3(.12f, .62f, .27f), Lit("RigSelendang", new Color(.85f, .20f, .20f), .3f), new Vector3(0f, 0f, 32f));
@@ -183,7 +196,7 @@ namespace Konoha.Editor
             });
             foreach (int s in new[] { -1, 1 })
                 Accent(gemoy, "Saku", PrimitiveType.Cube, new Vector3(s * .11f, .38f, .135f), new Vector3(.12f, .1f, .02f), Lit("RigSafariSaku", new Color(.68f, .60f, .45f), .2f), Vector3.zero);
-            Accent(gemoy, "Sabuk", PrimitiveType.Cube, new Vector3(0f, .04f, 0f), new Vector3(.47f, .06f, .36f), gold, Vector3.zero);
+            Accent(gemoy, "Sabuk", PrimitiveType.Cylinder, new Vector3(0f, .03f, .01f), new Vector3(.44f, .03f, .36f), gold, Vector3.zero);
 
             // ABAH: dark green jas over a white koko collar, peci, grey temples.
             var abah = Build(parent, new Style
@@ -192,7 +205,7 @@ namespace Konoha.Editor
                 shirt = Lit("RigJasHijau", new Color(.08f, .26f, .20f), .3f),
                 pants = darkPants, shoes = shoes, headwear = Headwear.Peci, width = .96f
             });
-            Accent(abah, "Kerah koko", PrimitiveType.Cube, new Vector3(0f, .42f, .1f), new Vector3(.16f, .2f, .06f), Lit("RigPutih", new Color(.93f, .92f, .88f), .2f), Vector3.zero);
+            Accent(abah, "Kerah koko", PrimitiveType.Sphere, new Vector3(0f, .43f, .105f), new Vector3(.15f, .2f, .06f), Lit("RigPutih", new Color(.93f, .92f, .88f), .2f), Vector3.zero);
             Accent(abah, "Syal", PrimitiveType.Cube, new Vector3(-.08f, .3f, .135f), new Vector3(.07f, .45f, .02f), Lit("RigSyalHijau", new Color(.20f, .62f, .42f), .2f), new Vector3(0f, 0f, -4f));
 
             // PAK WI: white shirt with rolled sleeves, black trousers, orange project vest.
@@ -202,8 +215,10 @@ namespace Konoha.Editor
                 shirt = Lit("RigPutih", new Color(.93f, .92f, .88f), .2f),
                 pants = darkPants, shoes = shoes, longSleeves = false, width = .95f
             });
-            Accent(pakWi, "Rompi proyek", PrimitiveType.Cube, new Vector3(0f, .3f, 0f), new Vector3(.46f, .38f, .27f), Lit("RigRompiOranye", new Color(.95f, .45f, .10f), .3f), Vector3.zero);
-            Accent(pakWi, "Pita reflektor", PrimitiveType.Cube, new Vector3(0f, .24f, 0f), new Vector3(.47f, .04f, .28f), Lit("RigReflektor", new Color(.85f, .88f, .82f), .8f), Vector3.zero);
+            // Vest follows the torso shape (slightly larger), with a reflective band around it.
+            MeshPart(pakWi, "Rompi proyek", TorsoMesh(), pakWi.rig.spine, new Vector3(0f, .1f, 0f), new Vector3(.265f, .4f, .17f),
+                Lit("RigRompiOranye", new Color(.95f, .45f, .10f), .3f), false);
+            Accent(pakWi, "Pita reflektor", PrimitiveType.Cylinder, new Vector3(0f, .25f, 0f), new Vector3(.415f, .02f, .275f), Lit("RigReflektor", new Color(.85f, .88f, .82f), .8f), Vector3.zero);
 
             var result = new[] { mega.rig, gemoy.rig, abah.rig, pakWi.rig };
             foreach (var rig in result)
@@ -222,7 +237,7 @@ namespace Konoha.Editor
                 shoes = Lit("RigSepatu", new Color(.06f, .05f, .05f), .6f), heroShadows = false
             });
             parts.accent.Add(Accent(parts, "Dasi", PrimitiveType.Cube, new Vector3(0f, .3f, .13f), new Vector3(.07f, .32f, .02f), accent, Vector3.zero));
-            parts.accent.Add(Accent(parts, "Sabuk", PrimitiveType.Cube, new Vector3(0f, .04f, 0f), new Vector3(.45f, .06f, .26f), accent, Vector3.zero));
+            parts.accent.Add(Accent(parts, "Sabuk", PrimitiveType.Cylinder, new Vector3(0f, .03f, 0f), new Vector3(.41f, .025f, .27f), accent, Vector3.zero));
             return parts;
         }
 
@@ -262,6 +277,120 @@ namespace Konoha.Editor
             renderer.sharedMaterial = mat;
             renderer.shadowCastingMode = shadow ? ShadowCastingMode.On : ShadowCastingMode.Off;
             return renderer;
+        }
+
+        private static Renderer MeshPart(Parts parts, string name, Mesh mesh, Transform parent, Vector3 local, Vector3 scale,
+            Material mat, bool shadow)
+        {
+            var go = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = local;
+            go.transform.localScale = scale;
+            go.GetComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = go.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = mat;
+            renderer.shadowCastingMode = shadow ? ShadowCastingMode.On : ShadowCastingMode.Off;
+            return renderer;
+        }
+
+        // Unit lathe profiles (radius, height), bottom to top so faces point outward.
+        // Torso: waist, ribcage, chest, shoulder slope, neck opening.
+        private static Mesh TorsoMesh() => Lathe("RigTorso", new[]
+        {
+            new Vector2(0f, 0f), new Vector2(.80f, 0f), new Vector2(.74f, .2f), new Vector2(.80f, .5f),
+            new Vector2(.90f, .74f), new Vector2(.86f, .88f), new Vector2(.62f, .97f), new Vector2(.36f, 1f), new Vector2(0f, 1f)
+        });
+
+        // Kain: wrapped close at the ankles, widening over the knees to a soft hip, waist at the top.
+        private static Mesh KainMesh() => Lathe("RigKain", new[]
+        {
+            new Vector2(0f, 0f), new Vector2(.84f, 0f), new Vector2(.87f, .03f), new Vector2(.85f, .15f),
+            new Vector2(.9f, .45f), new Vector2(1f, .7f), new Vector2(1.06f, .84f), new Vector2(.94f, .96f), new Vector2(.8f, 1f), new Vector2(0f, 1f)
+        });
+
+        // Short kebaya tail: wider at the lower edge, hugging the waist at the top.
+        private static Mesh KebayaTailMesh() => Lathe("RigUjungKebaya", new[]
+        {
+            new Vector2(0f, 0f), new Vector2(1.05f, 0f), new Vector2(1.04f, .15f), new Vector2(.95f, .6f),
+            new Vector2(.86f, 1f), new Vector2(0f, 1f)
+        });
+
+        private static Mesh Lathe(string name, Vector2[] profile, int sides = 20)
+        {
+            EnsureMeshFolder();
+            string path = MeshFolder + "/" + name + ".asset";
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh == null) { mesh = new Mesh { name = name }; AssetDatabase.CreateAsset(mesh, path); }
+            var vertices = new List<Vector3>();
+            var uv = new List<Vector2>();
+            var triangles = new List<int>();
+            for (int row = 0; row < profile.Length; row++)
+                for (int i = 0; i <= sides; i++)
+                {
+                    float a = i * Mathf.PI * 2f / sides;
+                    vertices.Add(new Vector3(Mathf.Cos(a) * profile[row].x, profile[row].y, Mathf.Sin(a) * profile[row].x));
+                    uv.Add(new Vector2(i / (float)sides, profile[row].y));
+                    if (row == 0 || i == sides) continue;
+                    int b = row * (sides + 1) + i, p = b - sides - 1;
+                    triangles.AddRange(new[] { p, b, p + 1, p + 1, b, b + 1 });
+                }
+            mesh.Clear();
+            mesh.SetVertices(vertices);
+            mesh.SetUVs(0, uv);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            EditorUtility.SetDirty(mesh);
+            return mesh;
+        }
+
+        private static void EnsureMeshFolder()
+        {
+            if (!AssetDatabase.IsValidFolder(MeshFolder))
+                AssetDatabase.CreateFolder(SpikeProject.Generated, "Rig");
+        }
+
+        // MEGA's kain: brown sogan batik with diagonal parang-like bands and small cream dots.
+        // Clothing only; roads stay plain (owner, 0.3.0).
+        private static Material KainBatik()
+        {
+            EnsureMeshFolder();
+            const int size = 128;
+            string path = MeshFolder + "/RigKainBatikTex.asset";
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (tex == null) { tex = new Texture2D(size, size, TextureFormat.RGBA32, true); AssetDatabase.CreateAsset(tex, path); }
+            tex.name = "RigKainBatikTex";
+            tex.wrapMode = TextureWrapMode.Repeat;
+            tex.filterMode = FilterMode.Bilinear;
+            var brown = new Color(.32f, .17f, .09f);
+            var dark = new Color(.16f, .08f, .05f);
+            var cream = new Color(.80f, .64f, .40f);
+            var pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    int d = (x + y) % 32;
+                    Color c = brown;
+                    if (d < 2 || (d > 13 && d < 16)) c = dark;
+                    else if (d >= 4 && d <= 11)
+                    {
+                        // wavy cream band with a dark eye in the middle
+                        float wave = Mathf.Sin((x - y) * Mathf.PI / 16f);
+                        float centre = 7.5f + wave * 2.2f;
+                        c = Mathf.Abs(d - centre) < 1.2f ? dark : cream;
+                    }
+                    else if (d >= 17 && d <= 29 && ((x / 4 + y / 4) % 4 == 0) && (x % 4 == 1) && (y % 4 == 1))
+                        c = cream;
+                    pixels[y * size + x] = c;
+                }
+            tex.SetPixels(pixels);
+            tex.Apply(true, false);
+            EditorUtility.SetDirty(tex);
+            Material mat = Lit("RigKainBatik", Color.white, .15f);
+            mat.SetTexture("_BaseMap", tex);
+            mat.SetTextureScale("_BaseMap", new Vector2(6f, 4f));
+            EditorUtility.SetDirty(mat);
+            return mat;
         }
     }
 }

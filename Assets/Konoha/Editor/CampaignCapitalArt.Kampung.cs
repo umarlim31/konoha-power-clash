@@ -20,6 +20,9 @@ namespace Konoha.Editor
                 // PJU along the side roads, on the verge between the capital and the road.
                 for (float z = -40f; z <= 60f; z += 20f)
                     Pju(new Vector3(side * 36.2f, 0f, z), side > 0 ? -90f : 90f); // arm (local -z) over the road
+                // 0.3.0: ketapang shade trees on the verge between the PJU poles (outside the route).
+                foreach (float z in new[] { -30f, 30f, 50f })
+                    Ketapang(new Vector3(side * 33.8f, 0f, z), z * 11f + side * 25f);
             }
             // PJU along the near side of the jalan raya, clear of the candi bentar.
             for (float x = -90f; x <= 90f; x += 18f)
@@ -88,6 +91,39 @@ namespace Konoha.Editor
                 .transform.localRotation = Quaternion.Euler(-12f, 0f, 0f);
             LocalPart(lamp, "Kampung PJU lampu", PrimitiveType.Cube, new Vector3(0f, 7.35f, -1.65f), new Vector3(.3f, .12f, .6f), steel);
             LocalPart(lamp, "Kampung PJU kaca", PrimitiveType.Cube, new Vector3(0f, 7.28f, -1.65f), new Vector3(.24f, .03f, .5f), porcelain);
+        }
+
+        private Material ketapangRed;
+
+        // Ketapang (Terminalia catappa): a straight trunk with flat, layered tiers of leaves,
+        // a few of them turning red. The typical shade tree of Indonesian roads and schoolyards.
+        private void Ketapang(Vector3 p, float twist)
+        {
+            if (ketapangRed == null)
+            {
+                ketapangRed = Surface("KetapangDaunTua", new Color(.58f, .22f, .10f), .1f);
+                UnityEditor.EditorUtility.SetDirty(ketapangRed);
+            }
+            Cylinder("NusantaraTall batang ketapang", p + Vector3.up * 3.1f, new Vector3(.32f, 3.1f, .32f), bark);
+            float[] heights = { 3.1f, 4.1f, 5.0f, 5.8f };
+            float[] reach = { 2.5f, 2.0f, 1.4f, .7f };
+            var random = new System.Random(Mathf.RoundToInt(p.x * 17f + p.z * 5f));
+            for (int tier = 0; tier < heights.Length; tier++)
+            {
+                int clumps = tier == heights.Length - 1 ? 1 : 4;
+                for (int i = 0; i < clumps; i++)
+                {
+                    float angle = twist + tier * 45f + i * 90f;
+                    var direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                    float radius = clumps == 1 ? 0f : reach[tier] * (.6f + (float)random.NextDouble() * .25f);
+                    if (tier < 2 && clumps > 1)
+                        Stick("NusantaraTall dahan ketapang", p + Vector3.up * (heights[tier] - .25f), p + Vector3.up * heights[tier] + direction * radius, .08f, bark);
+                    float size = reach[tier] * (clumps == 1 ? 1.6f : 1.05f);
+                    Material leaves = tier == 1 && i == 2 ? ketapangRed : ((tier + i) % 2 == 0 ? canopy : canopyLight);
+                    Ellipsoid("NusantaraTall tajuk ketapang", p + Vector3.up * heights[tier] + direction * radius,
+                        new Vector3(size, .42f, size), leaves);
+                }
+            }
         }
     }
 }

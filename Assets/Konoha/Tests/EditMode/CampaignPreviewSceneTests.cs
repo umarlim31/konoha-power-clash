@@ -27,9 +27,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.2.9  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.2.9"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(38));
+                    Is.EqualTo("JALUR TAKHTA 0.3.0  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.3.0"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(39));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -135,9 +135,12 @@ namespace Konoha.Tests
                 Assert.That(grading, Is.Not.Null);
                 Assert.That(grading.GetComponent<Volume>().sharedProfile, Is.Not.Null);
                 Assert.That(Camera.main.GetUniversalAdditionalCameraData().renderPostProcessing, Is.True);
-                // 0.2.5 Nusantara Megah: motif tiles, banners, towers, cascades, horizon.
+                // 0.2.5 Nusantara Megah: banners, towers, cascades, horizon.
+                // 0.3.0: roads are plain stone paving again (no batik/motif tiles).
                 Assert.That(GameObject.Find("Gerbang Rakyat boulevard").GetComponent<Renderer>().sharedMaterial.name,
-                    Does.StartWith("MegahUbinMotif"));
+                    Is.EqualTo("MegahJalanBatu"));
+                Assert.That(GameObject.Find("Civic forecourt inlay").GetComponent<Renderer>().sharedMaterial.name,
+                    Is.EqualTo("MegahPelataranBatu"));
                 var flow = Object.FindFirstObjectByType<CampaignWaterFlow>();
                 Assert.That(flow, Is.Not.Null);
                 Assert.That(flow.falls, Has.Length.EqualTo(2));
@@ -220,6 +223,22 @@ namespace Konoha.Tests
                     foreach (var part in template.GetComponentsInChildren<Transform>(true))
                         Assert.That(part.GetComponent<Collider>(), Is.Null, "Body parts never collide: " + part.name);
                 }
+                // 0.3.0: rounded bodies; MEGA's kain is a saved lathe mesh with a batik texture.
+                Transform kain = null, torso = null;
+                foreach (var part in bodies.heroTemplates[0].GetComponentsInChildren<Transform>(true))
+                {
+                    if (part.name == "Kain") kain = part;
+                    if (part.name == "Badan") torso = part;
+                }
+                Assert.That(kain, Is.Not.Null, "MEGA wears a kain");
+                Assert.That(kain.GetComponent<MeshFilter>().sharedMesh.name, Is.EqualTo("RigKain"));
+                Assert.That(AssetDatabase.Contains(kain.GetComponent<MeshFilter>().sharedMesh), Is.True);
+                Assert.That(kain.GetComponent<Renderer>().sharedMaterial.GetTexture("_BaseMap"), Is.Not.Null, "Batik on the kain");
+                Assert.That(torso.GetComponent<MeshFilter>().sharedMesh.name, Is.EqualTo("RigTorso"));
+                Assert.That(GameObject.Find("Lentera atap"), Is.Not.Null);
+                Assert.That(GameObject.Find("Civic lamp glass"), Is.Null);
+                Assert.That(GameObject.Find("Radial stone inlay"), Is.Null);
+                Assert.That(GameObject.Find("NusantaraTall tajuk ketapang"), Is.Not.Null);
                 Assert.That(bodies.fx, Is.Not.Null);
                 foreach (var material in new[] { bodies.fx.glow, bodies.fx.dust, bodies.fx.kerbauHide, bodies.fx.kerbauHorn,
                     bodies.fx.skin, bodies.fx.cloth, bodies.fx.pants, bodies.fx.hair, bodies.fx.wood, bodies.fx.cone, bodies.fx.white })

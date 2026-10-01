@@ -7,7 +7,7 @@ namespace Konoha.Editor
 {
     // 0.2.5 "Nusantara Megah": the owner's concept images applied to the tested route
     // (nothing on the walking route moves or gains collision):
-    //  - ornamental navy-and-gold tiles on the boulevard and the Istana forecourt,
+    //  - (0.3.0: the navy-gold motif tiles were removed; roads are plain stone paving),
     //  - red-white banners with the FICTIONAL Konoha crest along the Gerbang Dalam wall and on
     //    the Istana colonnade (never the state emblem, see CLAUDE.md),
     //  - towers with pavilion roofs around the Istana and at the ends of the inner wall,
@@ -17,20 +17,18 @@ namespace Konoha.Editor
     // Static decor is named "Megah ..." (tall pieces "MegahTall ..." for the camera occluder).
     internal sealed partial class CampaignCapitalArt
     {
-        private Material motif, flamboyan, cloud, cascade;
+        private Material flamboyan, cloud, cascade;
 
         private void BuildNusantaraMegah()
         {
-            motif = Surface("MegahUbinMotif", Color.white, .35f);
-            motif.SetTexture("_BaseMap", ColorTexture("MegahUbinMotif", MotifTile));
             flamboyan = Surface("MegahFlamboyan", new Color(.72f, .14f, .08f), .15f);
             cloud = Surface("MegahAwan", new Color(.97f, .97f, .98f), 0f);
             cascade = Surface("MegahAirTerjun", new Color(.62f, .84f, .92f), .9f);
             cascade.SetTexture("_BaseMap", Texture("Water"));
-            foreach (var mat in new[] { motif, flamboyan, cloud, cascade })
+            foreach (var mat in new[] { flamboyan, cloud, cascade })
                 EditorUtility.SetDirty(mat);
 
-            MotifPaving();
+            PlainPaving();
             WallBanners();
             IstanaBanners();
             Towers();
@@ -44,58 +42,28 @@ namespace Konoha.Editor
             BuildKampung();
         }
 
-        // --- Ornamental tiles -------------------------------------------------------------
+        // --- Plain stone paving (0.3.0) -------------------------------------------------
 
-        private void MotifPaving()
+        // Owner (0.3.0): no batik motif on the roads; the boulevard and forecourt use the same
+        // plain stone paving as the rest of the plaza, a touch darker so the route still reads.
+        // One material per surface so the 1.36 m paving repeat stays square on each block.
+        private void PlainPaving()
         {
-            // 1.5 m tiles (0.2.6, was 3 m): boulevard 6 x 43 m, forecourt 18 x 5 m (top face: x -> u, z -> v).
-            SetMotif("Gerbang Rakyat boulevard", new Vector2(4f, 43f / 1.5f));
-            SetMotif("Civic forecourt inlay", new Vector2(12f, 5f / 1.5f));
+            PlainPaving("Gerbang Rakyat boulevard", "MegahJalanBatu", new Vector2(6f / 1.36f, 43f / 1.36f));
+            PlainPaving("Civic forecourt inlay", "MegahPelataranBatu", new Vector2(18f / 1.36f, 5f / 1.36f));
         }
 
-        private void SetMotif(string blockName, Vector2 tiles)
+        private void PlainPaving(string blockName, string materialName, Vector2 tiles)
         {
             Transform inlay = root.Find(blockName);
             if (inlay == null)
                 return;
-            // One material per tiling so both surfaces keep square 3 m tiles.
-            string path = CampaignCapitalMeshes.Folder + "/MegahUbinMotif_" + blockName.Replace(' ', '_') + ".mat";
-            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (mat == null) { mat = new Material(motif); AssetDatabase.CreateAsset(mat, path); }
-            else mat.CopyPropertiesFromMaterial(motif);
-            mat.name = System.IO.Path.GetFileNameWithoutExtension(path);
+            Color tint = paving.GetColor("_BaseColor") * .9f;
+            tint.a = 1f;
+            var mat = KotaVariant(paving, materialName, tint);
             mat.SetTextureScale("_BaseMap", tiles);
             EditorUtility.SetDirty(mat);
             inlay.GetComponent<Renderer>().sharedMaterial = mat;
-        }
-
-        // Navy tile with a gold eight-point star, gold grid lines and cream kawung circles
-        // that meet at the tile corners.
-        private static Color MotifTile(int x, int y)
-        {
-            // 0.2.6: muted like weathered glazed tiles (0.2.5 was too loud).
-            Color navy = new Color(.22f, .27f, .36f), gold = new Color(.70f, .58f, .36f), cream = new Color(.78f, .74f, .64f);
-            float n = Mathf.PerlinNoise(x * .08f, y * .08f) * .05f;
-            if (x < 5 || y < 5 || x > 250 || y > 250)
-                return gold * (.9f + n);
-            float cx = x - 128f, cy = y - 128f;
-            float r = Mathf.Sqrt(cx * cx + cy * cy);
-            // Kawung: quarter circles in every corner.
-            for (int k = 0; k < 4; k++)
-            {
-                float qx = (k % 2 == 0 ? 0f : 256f) - x, qy = (k < 2 ? 0f : 256f) - y;
-                float d = Mathf.Sqrt(qx * qx + qy * qy);
-                if (d < 44f)
-                    return d > 38f ? gold : cream * (.95f + n);
-            }
-            // Eight-point star: a square and a 45 degree square, radius 70.
-            bool square = Mathf.Abs(cx) < 50f && Mathf.Abs(cy) < 50f;
-            bool diamond = Mathf.Abs(cx) + Mathf.Abs(cy) < 70f;
-            if (r < 14f) return gold;
-            if (r < 30f) return navy * (1f + n);
-            if (square || diamond)
-                return (Mathf.Abs(cx) > 44f || Mathf.Abs(cy) > 44f || Mathf.Abs(cx) + Mathf.Abs(cy) > 64f) ? cream : gold * (.95f + n);
-            return new Color(navy.r + n, navy.g + n, navy.b + n);
         }
 
         // --- Banners ------------------------------------------------------------------------
