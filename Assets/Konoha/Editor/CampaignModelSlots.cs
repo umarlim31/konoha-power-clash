@@ -166,7 +166,8 @@ namespace Konoha.Editor
 
         // Replaces the visible parts of root's children [firstChild..] with the slot model.
         // Returns false (and changes nothing) when the slot has no usable model.
-        public static bool Apply(string slotName, Transform root, int firstChild, Vector3 anchor, float yaw, Vector3? boxOverride = null)
+        public static bool Apply(string slotName, Transform root, int firstChild, Vector3 anchor, float yaw, Vector3? boxOverride = null,
+            bool? castShadows = null)
         {
             var slot = Find(slotName);
             if (slot == null || root == null) return false;
@@ -189,7 +190,7 @@ namespace Konoha.Editor
                 model.GetComponent<MeshFilter>().sharedMesh = entry.mesh;
                 var renderer = model.GetComponent<MeshRenderer>();
                 renderer.sharedMaterials = entry.materials;
-                renderer.shadowCastingMode = slot.castShadows ? ShadowCastingMode.On : ShadowCastingMode.Off;
+                renderer.shadowCastingMode = (castShadows ?? slot.castShadows) ? ShadowCastingMode.On : ShadowCastingMode.Off;
 
                 Quaternion turn = Quaternion.Euler(0f, slot.frontYaw + entry.settings.yaw, 0f);
                 Bounds bounds = TurnedBounds(entry.mesh.bounds, turn);
@@ -234,16 +235,19 @@ namespace Konoha.Editor
         {
             var installed = new List<string>();
             var problems = new List<string>();
+            int placedTotal = 0;
             foreach (var slot in Slots)
             {
                 if (!Entries.TryGetValue(slot.name, out var entry) || entry == null) continue;
                 if (entry.problem != null) problems.Add(slot.name + " " + entry.problem);
-                else if (entry.placed > 0) installed.Add(slot.name + " x" + entry.placed);
+                else if (entry.placed > 0) { installed.Add(slot.name + " x" + entry.placed); placedTotal += entry.placed; }
             }
             if (installed.Count == 0 && problems.Count == 0) return "";
-            string text = "MODEL 3D: " + (installed.Count > 0 ? string.Join(", ", installed) : "-");
-            if (problems.Count > 0) text += "  •  TIDAK DIPAKAI: " + string.Join(", ", problems);
-            return text;
+            // 0.3.2: short when everything is in (the full list ran off the tablet screen);
+            // only problems are spelled out.
+            if (problems.Count == 0)
+                return "MODEL 3D: " + installed.Count + "/" + Slots.Length + " slot terpasang (" + placedTotal + " objek)";
+            return "MODEL 3D: " + installed.Count + "/" + Slots.Length + " terpasang  •  TIDAK DIPAKAI: " + string.Join(", ", problems);
         }
 
         private static Entry Load(Slot slot)
