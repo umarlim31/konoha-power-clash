@@ -868,8 +868,9 @@ namespace Konoha.Editor
             var porch=Block("Gedung lama atap teras",p+new Vector3(0,2.45f,-2.55f),new Vector3(2.4f,.1f,1.2f),genteng);
             porch.transform.rotation=Quaternion.Euler(-14,0,0);
             Roof(p+Vector3.up*height,new Vector3(2.9f,2.1f,2.9f),red);
-            // 0.3.1: Art/Models/GedungLama; the solid 4 m block keeps colliding.
-            CampaignModelSlots.Apply("GedungLama",root,first,p,0f,new Vector3(4.4f,height+2.2f,4.4f));
+            // 0.3.1: Art/Models/GedungLama; the solid 4 m block keeps colliding, so the footprint
+            // (not the height) decides the fit: the model's walls must stand on that collider.
+            CampaignModelSlots.Apply("GedungLama",root,first,p,0f,new Vector3(4.4f,40f,4.4f));
         }
 
         private void Banner(Vector3 p,float h) => Banner(p,h,red,ivory);

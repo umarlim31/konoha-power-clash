@@ -39,6 +39,16 @@ namespace Konoha.Tests
         }
 
         [Test]
+        public void MtlColoursAreReadByMaterialName()
+        {
+            var colors = new Dictionary<string, Color>(System.StringComparer.OrdinalIgnoreCase);
+            CampaignModelSlots.ParseMtl("newmtl red\nKa 0.1 0 0\nKd 0.7400 0.0300 0.0400\nd 1.0\n\nnewmtl  wood2\r\nKd 0.5 0.3 0.1\r\nnewmtl empty\n", colors);
+            Assert.That(colors.Count, Is.EqualTo(2));
+            Assert.That(colors["RED"].r, Is.EqualTo(.74f).Within(.0001f));
+            Assert.That(colors["wood2"].b, Is.EqualTo(.1f).Within(.0001f));
+        }
+
+        [Test]
         public void FitScaleKeepsTheModelInsideTheBox()
         {
             // A 100-unit tall tree in a 5 x 6.4 x 5 box: height decides.

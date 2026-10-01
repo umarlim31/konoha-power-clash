@@ -38,6 +38,9 @@ namespace Konoha.Editor
             public bool castShadows = true;
             // Occluder name prefix, so the camera fades the model like the code-built shape.
             public string occluder;
+            // Height (fraction of the fitted model) where the code-built name sign (shop name,
+            // gang name, warung name) is kept on the model's front; 0 drops the signs.
+            public float signHeight;
             public int maxTriangles;
             public int instances;
         }
@@ -52,7 +55,7 @@ namespace Konoha.Editor
         public static readonly Slot[] Slots =
         {
             new Slot { name = "Lentera", label = "lentera taman", box = new Vector3(.5f, 2.3f, .5f), castShadows = false, maxTriangles = 2000, instances = 22 },
-            new Slot { name = "PohonPalem", label = "pohon kelapa/palem", box = new Vector3(4.5f, 6.5f, 4.5f), occluder = "Palm crown model", maxTriangles = 3000, instances = 40 },
+            new Slot { name = "PohonPalem", label = "pohon kelapa/palem", box = new Vector3(4.5f, 6.5f, 4.5f), useOrigin = true, occluder = "Palm crown model", maxTriangles = 3000, instances = 40 },
             new Slot { name = "PohonKetapang", label = "pohon ketapang", box = new Vector3(6f, 6.4f, 6f), occluder = "NusantaraTall model", maxTriangles = 12000, instances = 6 },
             new Slot { name = "PohonFlamboyan", label = "pohon flamboyan", box = new Vector3(5.5f, 5.2f, 5.5f), occluder = "MegahTall model", maxTriangles = 12000, instances = 6 },
             new Slot { name = "PohonTrembesi", label = "pohon trembesi", box = new Vector3(11f, 7.6f, 11f), occluder = "NusantaraTall model", maxTriangles = 20000, instances = 4 },
@@ -60,12 +63,12 @@ namespace Konoha.Editor
             new Slot { name = "Becak", label = "becak", box = new Vector3(1.2f, 1.9f, 2.3f), maxTriangles = 10000, instances = 2 },
             new Slot { name = "MotorBebek", label = "motor bebek parkir", box = new Vector3(.7f, 1.2f, 1.4f), castShadows = false, maxTriangles = 8000, instances = 3 },
             new Slot { name = "GerobakBakso", label = "gerobak bakso", box = new Vector3(2.2f, 3.1f, 2.2f), frontYaw = 180f, occluder = "NusantaraTall model", maxTriangles = 10000, instances = 1 },
-            new Slot { name = "WarungKopi", label = "warung kopi", box = new Vector3(4.6f, 3.3f, 4f), frontYaw = 180f, occluder = "NusantaraTall model", maxTriangles = 20000, instances = 1 },
+            new Slot { name = "WarungKopi", label = "warung kopi", box = new Vector3(4.6f, 3.3f, 4f), frontYaw = 180f, occluder = "NusantaraTall model", signHeight = .73f, maxTriangles = 20000, instances = 1 },
             new Slot { name = "LampuPJU", label = "lampu jalan PJU", box = new Vector3(.6f, 7.6f, 2.2f), frontYaw = 180f, useOrigin = true, castShadows = false, maxTriangles = 2000, instances = 22 },
-            new Slot { name = "GapuraKampung", label = "gapura kampung", box = new Vector3(4.5f, 4.5f, .8f), frontYaw = 180f, occluder = "NusantaraTall model", maxTriangles = 10000, instances = 2 },
+            new Slot { name = "GapuraKampung", label = "gapura kampung", box = new Vector3(4.5f, 4.5f, .8f), frontYaw = 180f, occluder = "NusantaraTall model", signHeight = .77f, maxTriangles = 10000, instances = 2 },
             new Slot { name = "RumahKampung", label = "rumah kampung", box = new Vector3(7f, 5.3f, 6f), frontYaw = 180f, occluder = "KotaTall model", maxTriangles = 5000, instances = 22 },
-            new Slot { name = "Ruko", label = "ruko dua lantai", box = new Vector3(7.8f, 7.7f, 8.4f), frontYaw = 180f, occluder = "KotaTall model", maxTriangles = 6000, instances = 16 },
-            new Slot { name = "GedungLama", label = "gedung lama", box = new Vector3(4.4f, 11f, 4.4f), frontYaw = 180f, occluder = "NusantaraTall model", maxTriangles = 15000, instances = 6 },
+            new Slot { name = "Ruko", label = "ruko dua lantai", box = new Vector3(7.8f, 7.7f, 8.4f), frontYaw = 180f, occluder = "KotaTall model", signHeight = .56f, maxTriangles = 6000, instances = 16 },
+            new Slot { name = "GedungLama", label = "gedung lama", box = new Vector3(4.4f, 40f, 4.4f), frontYaw = 180f, occluder = "NusantaraTall model", maxTriangles = 15000, instances = 6 },
             new Slot { name = "Pendopo", label = "pendopo taman", box = new Vector3(5.4f, 5.3f, 5.4f), occluder = "NusantaraTall model", maxTriangles = 20000, instances = 2 },
         };
 
@@ -77,7 +80,11 @@ namespace Konoha.Editor
             public string problem;
             public int triangles, placed;
             public Texture2D colorFallback;
-            public readonly Dictionary<Material, Material> materials = new Dictionary<Material, Material>();
+            // One combined mesh per slot (a submesh per material) and its URP materials:
+            // one renderer per placed model instead of one per part of the file.
+            public Mesh mesh;
+            public Material[] materials;
+            public readonly Dictionary<string, Color> mtlColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
         }
 
         private static readonly Dictionary<string, Entry> Entries = new Dictionary<string, Entry>();
@@ -174,34 +181,41 @@ namespace Konoha.Editor
 
                 holder = new GameObject("Model " + slot.name);
                 holder.transform.SetParent(root, false);
-                // Measure at the world origin; the holder moves to the spot after fitting.
+                // Fit in the holder's own frame; the holder moves to the spot afterwards.
                 holder.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
-                var model = Object.Instantiate(entry.source, holder.transform, false);
-                model.name = slot.name;
-                model.transform.localPosition = Vector3.zero;
-                // Keep the file's own root rotation (e.g. Blender's Z-up correction) under the turn.
-                model.transform.localRotation = Quaternion.Euler(0f, slot.frontYaw + entry.settings.yaw, 0f) *
-                    entry.source.transform.localRotation;
-                Clean(model);
+                var model = new GameObject(slot.occluder != null ? slot.occluder + " " + slot.name : slot.name,
+                    typeof(MeshFilter), typeof(MeshRenderer));
+                model.transform.SetParent(holder.transform, false);
+                model.GetComponent<MeshFilter>().sharedMesh = entry.mesh;
+                var renderer = model.GetComponent<MeshRenderer>();
+                renderer.sharedMaterials = entry.materials;
+                renderer.shadowCastingMode = slot.castShadows ? ShadowCastingMode.On : ShadowCastingMode.Off;
 
-                if (!TryBounds(holder.transform, out Bounds bounds))
+                Quaternion turn = Quaternion.Euler(0f, slot.frontYaw + entry.settings.yaw, 0f);
+                Bounds bounds = TurnedBounds(entry.mesh.bounds, turn);
+                if (bounds.size.sqrMagnitude < 1e-6f)
                     throw new InvalidOperationException("model tanpa bagian yang terlihat");
-                float scale = entry.settings.originalSize ? 1f : FitScale(bounds.size, boxOverride ?? slot.box);
-                model.transform.localScale *= scale * entry.settings.scale;
-                TryBounds(holder.transform, out bounds);
-                model.transform.localPosition += new Vector3(slot.useOrigin ? 0f : -bounds.center.x,
-                    -bounds.min.y + entry.settings.lift, slot.useOrigin ? 0f : -bounds.center.z);
+                float scale = (entry.settings.originalSize ? 1f : FitScale(bounds.size, boxOverride ?? slot.box)) * entry.settings.scale;
+                model.transform.localRotation = turn;
+                model.transform.localScale = Vector3.one * scale;
+                model.transform.localPosition = new Vector3(slot.useOrigin ? 0f : -bounds.center.x * scale,
+                    -bounds.min.y * scale + entry.settings.lift, slot.useOrigin ? 0f : -bounds.center.z * scale);
                 holder.transform.SetPositionAndRotation(anchor, Quaternion.Euler(0f, yaw, 0f));
+                GameObjectUtility.SetStaticEditorFlags(model, StaticEditorFlags.BatchingStatic);
 
-                foreach (var renderer in model.GetComponentsInChildren<Renderer>(true))
+                // Keep the Indonesian name signs (TOKO KELONTONG, GANG MERDEKA, WARKOP RAKYAT) on
+                // the front of the model at the slot's sign height.
+                if (slot.signHeight > 0f)
                 {
-                    renderer.sharedMaterials = Convert(entry, slot, renderer.sharedMaterials);
-                    renderer.shadowCastingMode = slot.castShadows ? ShadowCastingMode.On : ShadowCastingMode.Off;
-                    if (slot.occluder != null) renderer.gameObject.name = slot.occluder + " " + slot.name;
+                    float front = (bounds.min.z - (slot.useOrigin ? 0f : bounds.center.z)) * scale - .04f;
+                    float height = bounds.size.y * scale * slot.signHeight + entry.settings.lift;
+                    foreach (var part in fallback)
+                        foreach (var sign in part.GetComponentsInChildren<TextMesh>(true))
+                        {
+                            sign.transform.SetParent(holder.transform, true);
+                            sign.transform.localPosition = new Vector3(0f, height, front);
+                        }
                 }
-                foreach (var part in model.GetComponentsInChildren<Transform>(true))
-                    GameObjectUtility.SetStaticEditorFlags(part.gameObject, StaticEditorFlags.BatchingStatic);
-
                 foreach (var part in fallback) Strip(part, true);
                 entry.placed++;
                 return true;
@@ -259,7 +273,10 @@ namespace Konoha.Editor
                     entry.problem = "terlalu berat (" + entry.triangles + " > " + slot.maxTriangles + " segitiga)";
                     return entry;
                 }
-                entry.colorFallback = OnlyColorTexture(Path.GetDirectoryName(path).Replace('\\', '/'));
+                string folder = Path.GetDirectoryName(path).Replace('\\', '/');
+                entry.colorFallback = OnlyColorTexture(folder);
+                ReadMtlColors(path, entry.mtlColors);
+                Combine(slot, entry);
             }
             catch (Exception exception)
             {
@@ -289,16 +306,6 @@ namespace Konoha.Editor
             return count;
         }
 
-        // Imported cameras, lights, colliders and animators would disturb the camera,
-        // lighting, the route and performance; static props need none of them.
-        private static void Clean(GameObject model)
-        {
-            foreach (var collider in model.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(collider);
-            foreach (var camera in model.GetComponentsInChildren<Camera>(true)) Object.DestroyImmediate(camera);
-            foreach (var light in model.GetComponentsInChildren<Light>(true)) Object.DestroyImmediate(light);
-            foreach (var animator in model.GetComponentsInChildren<Animator>(true)) Object.DestroyImmediate(animator);
-        }
-
         // Removes what is drawn, keeps what collides. A part (and its subtree) without any
         // collider is deleted, except group roots at the top, which other code may look up by name.
         private static void Strip(Transform part, bool top)
@@ -322,42 +329,124 @@ namespace Konoha.Editor
             foreach (var child in children) Strip(child, false);
         }
 
-        private static bool TryBounds(Transform root, out Bounds bounds)
+        // Merges every mesh of the file (cameras, lights, colliders and animation are simply not
+        // taken) into one mesh with a submesh per material, in the file's own root space.
+        private static void Combine(Slot slot, Entry entry)
         {
-            bounds = default;
-            bool found = false;
-            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            var groups = new List<KeyValuePair<Material, List<CombineInstance>>>();
+            Matrix4x4 toRoot = entry.source.transform.worldToLocalMatrix;
+            Matrix4x4 rootTurn = Matrix4x4.Rotate(entry.source.transform.localRotation) * Matrix4x4.Scale(entry.source.transform.localScale);
+            foreach (var renderer in entry.source.GetComponentsInChildren<Renderer>(true))
             {
-                if (!found) { bounds = renderer.bounds; found = true; }
-                else bounds.Encapsulate(renderer.bounds);
+                Mesh mesh = null;
+                if (renderer is MeshRenderer && renderer.TryGetComponent(out MeshFilter filter)) mesh = filter.sharedMesh;
+                else if (renderer is SkinnedMeshRenderer skinned) mesh = skinned.sharedMesh;
+                if (mesh == null) continue;
+                // Keep the root's own rotation and scale (e.g. a Z-up correction), drop its position.
+                Matrix4x4 matrix = rootTurn * toRoot * renderer.transform.localToWorldMatrix;
+                Material[] materials = renderer.sharedMaterials;
+                for (int sub = 0; sub < mesh.subMeshCount; sub++)
+                {
+                    if (mesh.GetTopology(sub) != MeshTopology.Triangles) continue;
+                    Material material = materials.Length == 0 ? null : materials[Mathf.Min(sub, materials.Length - 1)];
+                    var group = groups.Find(g => g.Key == material);
+                    if (group.Value == null)
+                    {
+                        group = new KeyValuePair<Material, List<CombineInstance>>(material, new List<CombineInstance>());
+                        groups.Add(group);
+                    }
+                    group.Value.Add(new CombineInstance { mesh = mesh, subMeshIndex = sub, transform = matrix });
+                }
             }
-            return found && bounds.size.sqrMagnitude > 1e-6f;
+            if (groups.Count == 0) throw new InvalidOperationException("tidak ada mesh");
+
+            var parts = new CombineInstance[groups.Count];
+            entry.materials = new Material[groups.Count];
+            for (int i = 0; i < groups.Count; i++)
+            {
+                var part = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+                part.CombineMeshes(groups[i].Value.ToArray(), true, true);
+                parts[i] = new CombineInstance { mesh = part, transform = Matrix4x4.identity };
+                entry.materials[i] = CreateLit(slot, groups[i].Key, entry.colorFallback, entry.mtlColors, i);
+            }
+            var combined = new Mesh { name = slot.name + "Gabungan", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+            combined.CombineMeshes(parts, false, false);
+            if (combined.vertexCount < 65000) combined.indexFormat = UnityEngine.Rendering.IndexFormat.UInt16;
+            combined.RecalculateBounds();
+            foreach (var part in parts) Object.DestroyImmediate(part.mesh);
+
+            EnsureFolder();
+            string path = MaterialFolder + "/" + slot.name + "Gabungan.asset";
+            var saved = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (saved == null) { AssetDatabase.CreateAsset(combined, path); saved = combined; }
+            else
+            {
+                EditorUtility.CopySerialized(combined, saved);
+                saved.name = slot.name + "Gabungan";
+                Object.DestroyImmediate(combined);
+            }
+            EditorUtility.SetDirty(saved);
+            entry.mesh = saved;
         }
 
-        // Every model material becomes a saved URP Lit copy: no pink materials from OBJ/MTL or
-        // non-URP FBX shaders, one shared material per source material, cut-out for leaves.
-        private static Material[] Convert(Entry entry, Slot slot, Material[] source)
+        // Axis-aligned bounds of a box after a turn about Y.
+        private static Bounds TurnedBounds(Bounds bounds, Quaternion turn)
         {
-            var result = new Material[source.Length];
-            for (int i = 0; i < source.Length; i++)
+            var result = new Bounds(turn * bounds.center, Vector3.zero);
+            Vector3 e = bounds.extents;
+            for (int i = 0; i < 8; i++)
             {
-                Material original = source[i];
-                if (original != null && entry.materials.TryGetValue(original, out var known))
-                {
-                    result[i] = known;
-                    continue;
-                }
-                var converted = CreateLit(slot, original, entry.colorFallback, entry.materials.Count);
-                if (original != null) entry.materials[original] = converted;
-                result[i] = converted;
+                var corner = new Vector3((i & 1) == 0 ? -e.x : e.x, (i & 2) == 0 ? -e.y : e.y, (i & 4) == 0 ? -e.z : e.z);
+                result.Encapsulate(turn * (bounds.center + corner));
             }
             return result;
         }
 
-        private static Material CreateLit(Slot slot, Material original, Texture2D colorFallback, int index)
+        // Kd colours from the .mtl next to an .obj, by material name. Unity's OBJ import does not
+        // always carry them over, so they are applied to the converted materials by name.
+        private static void ReadMtlColors(string modelPath, Dictionary<string, Color> colors)
+        {
+            if (Path.GetExtension(modelPath).ToLowerInvariant() != ".obj") return;
+            string folder = Path.GetDirectoryName(modelPath);
+            var files = new List<string>();
+            foreach (string line in File.ReadAllLines(modelPath))
+                if (line.StartsWith("mtllib ", StringComparison.Ordinal))
+                    files.Add(Path.Combine(folder, line.Substring(7).Trim()));
+            files.Add(Path.ChangeExtension(modelPath, ".mtl"));
+            foreach (string file in files)
+            {
+                if (!File.Exists(file)) continue;
+                ParseMtl(File.ReadAllText(file), colors);
+            }
+        }
+
+        public static void ParseMtl(string text, Dictionary<string, Color> colors)
+        {
+            string current = null;
+            foreach (string raw in text.Split('\n'))
+            {
+                string[] parts = raw.Trim().Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2 && parts[0] == "newmtl") current = parts[1];
+                else if (parts.Length >= 4 && parts[0] == "Kd" && current != null &&
+                    float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float r) &&
+                    float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float g) &&
+                    float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out float b))
+                    colors[current] = new Color(r, g, b, 1f);
+            }
+        }
+
+        private static void EnsureFolder()
         {
             if (!AssetDatabase.IsValidFolder(MaterialFolder))
                 AssetDatabase.CreateFolder(SpikeProject.Generated, "Models");
+        }
+
+        // Every model material becomes a saved URP Lit copy: no pink materials from OBJ/MTL or
+        // non-URP FBX shaders; MTL Kd colours by name; cut-out and two-sided for leaf textures.
+        private static Material CreateLit(Slot slot, Material original, Texture2D colorFallback,
+            Dictionary<string, Color> mtlColors, int index)
+        {
+            EnsureFolder();
             string baseName = original != null ? original.name : "Bahan";
             foreach (char bad in Path.GetInvalidFileNameChars()) baseName = baseName.Replace(bad, '_');
             string path = MaterialFolder + "/" + slot.name + "_" + index + "_" + baseName + ".mat";
@@ -378,11 +467,17 @@ namespace Konoha.Editor
                 if (original.HasProperty("_BumpMap")) normal = original.GetTexture("_BumpMap");
             }
             if (texture == null && colorFallback != null) texture = colorFallback;
+            string key = original != null ? original.name.Replace(" (Instance)", "").Trim() : "";
+            if (mtlColors.TryGetValue(key, out Color mtl)) color = mtl;
             color.a = 1f;
+            string lower = key.ToLowerInvariant();
+            bool glass = lower.Contains("glass") || lower.Contains("kaca");
+            bool metal = lower.Contains("metal") || lower.Contains("silver") || lower.Contains("gold") ||
+                lower.Contains("bronze") || lower.Contains("chrome") || lower.Contains("steel");
             mat.SetColor("_BaseColor", color);
             mat.SetTexture("_BaseMap", texture);
-            mat.SetFloat("_Smoothness", .2f);
-            mat.SetFloat("_Metallic", 0f);
+            mat.SetFloat("_Smoothness", glass ? .85f : metal ? .55f : .15f);
+            mat.SetFloat("_Metallic", metal ? .35f : 0f);
             if (normal != null)
             {
                 mat.SetTexture("_BumpMap", normal);
@@ -447,7 +542,8 @@ namespace Konoha.Editor
             importer.importBlendShapes = false;
             importer.importAnimation = false;
             importer.animationType = ModelImporterAnimationType.None;
-            importer.isReadable = false;
+            // Readable in the editor so the parts can be merged; the source file itself is not in the build.
+            importer.isReadable = true;
             importer.meshCompression = ModelImporterMeshCompression.Medium;
             importer.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
             importer.materialLocation = ModelImporterMaterialLocation.InPrefab;
