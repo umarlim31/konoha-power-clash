@@ -636,10 +636,11 @@ namespace Konoha.Campaign
             Transform t = root.transform;
             foreach (int s in new[] { -1, 1 })
             {
-                Primitive(PrimitiveType.Cylinder, t, new Vector3(s * .11f, .46f, 0f), new Vector3(.16f, .45f, .16f), pants);
-                Primitive(PrimitiveType.Cylinder, t, new Vector3(s * .28f, 1.2f, .12f), new Vector3(.12f, .3f, .12f), shirt, shirtColor, new Vector3(-50f, 0f, 0f));
+                // 0.3.0: rounded limbs and torso like the hero bodies.
+                Primitive(PrimitiveType.Capsule, t, new Vector3(s * .11f, .47f, 0f), new Vector3(.16f, .47f, .16f), pants);
+                Primitive(PrimitiveType.Capsule, t, new Vector3(s * .27f, 1.2f, .12f), new Vector3(.12f, .32f, .12f), shirt, shirtColor, new Vector3(-50f, 0f, 0f));
             }
-            Primitive(PrimitiveType.Cube, t, new Vector3(0f, 1.2f, 0f), new Vector3(.46f, .6f, .26f), shirt, shirtColor, Vector3.zero, true);
+            Primitive(PrimitiveType.Capsule, t, new Vector3(0f, 1.2f, 0f), new Vector3(.44f, .34f, .27f), shirt, shirtColor, Vector3.zero, true);
             Primitive(PrimitiveType.Sphere, t, new Vector3(0f, 1.68f, 0f), new Vector3(.23f, .27f, .24f), skin);
             Primitive(PrimitiveType.Sphere, t, new Vector3(0f, 1.75f, -.02f), new Vector3(.25f, .18f, .26f), hair);
             if (shield)
