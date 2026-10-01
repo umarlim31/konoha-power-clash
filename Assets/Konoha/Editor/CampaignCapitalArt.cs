@@ -720,12 +720,14 @@ namespace Konoha.Editor
             for(int i=-5;i<=5;i++) Column(p+new Vector3(i*1.65f,1,-3.4f),1.43f,true);
             Block("Civic entablature",p+new Vector3(0,5.2f,-.4f),new Vector3(21,.4f,8),ivory);
             Block("Bronze cornice",p+new Vector3(0,5.48f,-.4f),new Vector3(21.3f,.13f,8.2f),bronze);
-            MeshObject("Fictional civic dome",dome,p+new Vector3(0,5.6f,0),new Vector3(6.4f,5,5),green);
-            MeshObject("Dome drum",column,p+new Vector3(0,5.6f,0),new Vector3(14,.22f,11),ivory);
-            Column(p+new Vector3(0,10.2f,0),.45f);
+            // 0.2.8: a three-tier tumpang roof (as on Javanese/Balinese halls and the owner's
+            // concept palace) with a gold mustaka, instead of the green dome.
+            Roof(p+new Vector3(0,5.7f,-.4f),new Vector3(11f,2.6f,4.5f),red);
+            Roof(p+new Vector3(0,7.55f,-.4f),new Vector3(7.2f,2.1f,3.2f),red);
+            Roof(p+new Vector3(0,9.2f,-.4f),new Vector3(4.2f,1.7f,2f),red);
+            MeshObject("Istana mustaka",dome,p+new Vector3(0,10.55f,-.4f),new Vector3(.55f,1.1f,.55f),bronze);
             for(int side=-1;side<=1;side+=2)
             {
-                Roof(p+new Vector3(side*9,4.4f,.3f),new Vector3(3.1f,2.1f,4.3f),green);
                 Banner(p+new Vector3(side*5.6f,1,-3.65f),4.1f);
             }
             for(int i=-4;i<=4;i++)

@@ -40,6 +40,8 @@ namespace Konoha.Editor
             CoastalTown();
             Islands();
             CandiBentar();
+            // 0.2.8 kampung and street furniture (CampaignCapitalArt.Kampung.cs).
+            BuildKampung();
         }
 
         // --- Ornamental tiles -------------------------------------------------------------
