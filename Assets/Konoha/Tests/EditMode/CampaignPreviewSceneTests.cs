@@ -37,9 +37,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.4.0  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.4.0"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(44));
+                    Is.EqualTo("JALUR TAKHTA 0.5.0  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.5.0"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(45));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -116,6 +116,15 @@ namespace Konoha.Tests
                 Assert.That(lobi.lawanButton, Is.Not.Null);
                 Assert.That(lobi.rangkulButton, Is.Not.Null);
                 Assert.That(lobi.panel.activeSelf, Is.True, "Hidden by the component at runtime, built visible");
+                // 0.5.0 Jalan Nyaleg: step list, light pillar on the target, three blusukan rings.
+                var checklist = Object.FindFirstObjectByType<CampaignChecklist>();
+                Assert.That(checklist, Is.Not.Null);
+                Assert.That(checklist.hideWhenActive, Is.SameAs(lobi.panel));
+                Assert.That(preview.beacon, Is.Not.Null);
+                Assert.That(preview.blusukanZones, Has.Length.EqualTo(preview.stage.blusukanPoints.Length));
+                Assert.That(preview.blusukanLabels, Has.Length.EqualTo(preview.stage.blusukanPoints.Length));
+                foreach (string scene in new[] { "Kota pos ronda", "Kota gerobak sayur", "Kota rumah duka", "Kota motor jatuh" })
+                    Assert.That(GameObject.Find(scene), Is.Not.Null, scene);
                 Assert.That(EditorBuildSettings.scenes, Has.Length.EqualTo(2));
                 Assert.That(EditorBuildSettings.scenes[0].path, Is.EqualTo(CampaignPreviewProject.ScenePath));
                 Assert.That(EditorBuildSettings.scenes[1].path, Is.EqualTo(SpikeProject.ScenePath));
@@ -292,7 +301,7 @@ namespace Konoha.Tests
                     kota++;
                     Assert.That(decor.GetComponent<Collider>(), Is.Null, "Kota Hidup must not collide: " + decor.name);
                 }
-                Assert.That(kota, Is.InRange(AnyModel() ? 50 : 300, 2800), "Kota Hidup budget for the tablet (0.2.7 house details, 0.3.4 warga faces)");
+                Assert.That(kota, Is.InRange(AnyModel() ? 50 : 300, 4200), "Kota Hidup budget for the tablet (0.2.7 house details, 0.3.4 warga faces, 0.5.0 scenes)");
                 Assert.That(GameObject.Find("KotaTall spanduk lambang Konoha"), Is.Not.Null);
                 Assert.That(GameObject.Find("Kota ruko"), Is.Not.Null);
                 Assert.That(GameObject.Find("Kota teluk"), Is.Not.Null);
@@ -322,8 +331,8 @@ namespace Konoha.Tests
                 Assert.That(preview.innerGateOpen.activeSelf, Is.False);
                 Assert.That(preview.innerGateClosed.GetComponentsInChildren<BoxCollider>(), Has.Length.EqualTo(2));
                 Assert.That(preview.innerGateOpen.GetComponentsInChildren<Collider>(true), Is.Empty);
-                foreach (string sign in new[] { "Sign GERBANG RAKYAT", "Sign PLAZA ASPIRASI", "Sign MAJELIS DAUN",
-                    "Sign BIRO PROSEDUR", "Sign GERBANG DALAM", "Sign GARDA TAKHTA", "Sign ISTANA TAKHTA" })
+                foreach (string sign in new[] { "Sign GERBANG RAKYAT", "Sign PLAZA ASPIRASI", "Sign MARKAS KOALISI",
+                    "Sign KANTOR KELURAHAN", "Sign GERBANG DALAM", "Sign GARDA ISTANA", "Sign ISTANA TAKHTA" })
                     Assert.That(GameObject.Find(sign), Is.Not.Null, sign);
 
                 var monument = Object.FindFirstObjectByType<CampaignMonument>();

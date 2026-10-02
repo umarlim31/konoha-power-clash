@@ -8,6 +8,28 @@ Keputusan terkunci:
 3. Untuk 0.4.0, RANGKUL dibayar dengan **Modal saja**. Koneksi menyusul.
 4. Tingkat satir **tajam**. Sasarannya kebijakan, perilaku, dan sistem. **Tidak ada tuduhan pidana spesifik terhadap orang nyata.** Bingkai fiksi Negara Konoha tetap dipakai: nama, lembaga, dan lambang semuanya rekaan.
 
+## Amandemen 0.5.0 — "Jalan Nyaleg" (owner, 2026-10-02)
+
+Hasil uji 0.4.0: pemain bingung harus ke mana. "Majelis Daun" dan "Biro Prosedur" tidak dikenali dan terasa aneh. Owner meminta keduanya diganti dengan alur yang lebih menarik dan benar-benar mencerminkan Indonesia, serta kehidupan warga kota dan kampung yang terasa nyata.
+
+Keputusan (berlaku di atas §4 di bawah):
+- **Alur = jalan nyaleg yang dikenal semua orang Indonesia.** Setiap tahap bernomor dan terlihat di daftar langkah:
+  1. **Gang:** usir *Preman Bayaran* (dulu Kroni).
+  2. **Blusukan (baru):** sapa 3 kelompok warga (pos ronda, ibu-ibu di tukang sayur, pangkalan ojol) untuk SUARA 3/3.
+  3. **Rekomendasi Koalisi:** dulu Majelis Daun. Mekaniknya sama (Elite Partai saling melindungi, Ketum mengetok palu). RANGKUL = **BAYAR MAHAR**.
+  4. **Berkas di Kantor Kelurahan:** dulu Biro Prosedur. Loket FOTOKOPI KTP, CAP RT/RW, dan LEGALISIR, Petugas "Jam Istirahat", serta Pak Lurah "BALIK BESOK!". RANGKUL = **BAYAR CALO**.
+  5. **Pelantikan:** Garda Istana.
+  6. **DUDUK di Kursi**, lalu Koran Konoha.
+- **Arahan:** daftar langkah ✓ selalu tampil, dan pilar cahaya emas berdiri di tujuan berikutnya.
+- **Kehidupan warga:**
+  - warga *kepo* merekam perkelahian dengan HP;
+  - rumah duka (bendera kuning, tenda, kursi plastik, pelayat);
+  - ibu-ibu ngerumpi di tukang sayur, bapak-bapak di pos ronda, pangkalan ojol;
+  - motor bonceng tiga;
+  - kerumunan di lokasi motor jatuh.
+- Nama kode internal (`MajelisDaun`, `BiroProsedur`, `CampaignSector`) **tidak** diubah supaya save, test, dan arsitektur tetap stabil. Yang berubah hanya nama yang dilihat pemain.
+- Rencana 0.4.1–0.4.4 (Kartu Kebijakan, Krisis, Sidang Kilat) tetap berlaku, dan nomornya bergeser menjadi 0.5.x.
+
 Penjelasan alasan dan diagnosis alur lama ada di `Docs/REKOMENDASI_ALUR_JALUR_TAKHTA_v2.md`.
 
 ---

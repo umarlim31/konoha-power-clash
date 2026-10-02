@@ -103,6 +103,13 @@ namespace Konoha.Campaign
             0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<bool> tookLoan = new NetworkVariable<bool>(
             false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        // 0.5.0 BLUSUKAN progress.
+        private NetworkVariable<int> blusukanMask = new NetworkVariable<int>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<int> blusukanCurrent = new NetworkVariable<int>(
+            -1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<float> blusukanProgress = new NetworkVariable<float>(
+            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private readonly HashSet<ulong> countedDefeats = new HashSet<ulong>();
         private bool majelisBought;
         private bool biroBought;
@@ -214,6 +221,21 @@ namespace Konoha.Campaign
         public bool HasSeal(CampaignSector sector) => (sealMask.Value & (1 << (int)sector)) != 0;
 
         // 0.4.0 Musim Pemilu (read by the HUD, the LAWAN / RANGKUL panel and the Koran).
+        public int BlusukanCount => stage != null ? stage.blusukanPoints.Length : 0;
+        public bool BlusukanGreeted(int index) => (blusukanMask.Value & (1 << index)) != 0;
+        public int BlusukanCurrent => blusukanCurrent.Value;
+        public float BlusukanProgress => blusukanProgress.Value;
+        public int SuaraCount
+        {
+            get
+            {
+                int count = 0;
+                for (int i = 0; i < BlusukanCount; i++)
+                    if (BlusukanGreeted(i)) count++;
+                return count;
+            }
+        }
+        public bool BlusukanDone => SuaraCount >= BlusukanCount;
         public int Modal => modal.Value;
         public int Jatah => jatah.Value;
         public int Restu => restuScore.Value;
@@ -388,6 +410,9 @@ namespace Konoha.Campaign
             seatedObjectId.Value = seated != null ? seated.NetworkObjectId : ulong.MaxValue;
             counterRemaining.Value = CountAlive(counterEnemies);
 
+            blusukanMask.Value = objectives.BlusukanMask;
+            blusukanCurrent.Value = objectives.BlusukanCurrent;
+            blusukanProgress.Value = objectives.BlusukanProgress;
             modal.Value = run.Modal;
             jatah.Value = run.Jatah;
             restuScore.Value = run.Restu;
@@ -467,7 +492,7 @@ namespace Konoha.Campaign
             MajelisChange change = majelis.Evaluate(seniors, leaderAlive, officers);
 
             if ((change & MajelisChange.BlockBroken) != 0)
-                OnObjectiveMessage("BLOK MAJELIS PECAH!  Serangan kini masuk penuh");
+                OnObjectiveMessage("SOLIDARITAS ELITE PECAH!  Serangan kini masuk penuh");
 
             if ((change & MajelisChange.LeaderDown) != 0)
             {
@@ -475,7 +500,7 @@ namespace Konoha.Campaign
                     if (enemy != null && enemy.IsSpawned && enemy.Role == UnitRole.Kroni)
                         enemy.ServerSurrender();
                 if ((change & MajelisChange.Cleared) == 0)
-                    OnObjectiveMessage("KETUA TUMBANG!  Staf Fraksi menyerah, kalahkan sisa pejabat");
+                    OnObjectiveMessage("KETUM TUMBANG!  Kader menyerah, kalahkan sisa elite");
             }
 
             bool block = majelis.BlockHolds && !majelis.Cleared;
@@ -503,10 +528,9 @@ namespace Konoha.Campaign
                     combat.ServerHeal(combat.MaxWibawaValue);
             }
             GrantPlayersPengaruh(CampaignTuning.Restu.PengaruhBonus);
-            OnObjectiveMessage("RESTU RAKYAT!  Damage +" +
-                Mathf.RoundToInt((CampaignTuning.Restu.HeroDamageMultiplier - 1f) * 100f) + "%, damage diterima -" +
-                Mathf.RoundToInt((1f - CampaignTuning.Restu.HeroDamageTakenMultiplier) * 100f) + "%, Pengaruh +" +
-                CampaignTuning.Restu.PengaruhBonus + ".  Menuju PLAZA");
+            OnObjectiveMessage("PREMAN KABUR!  Warga memberi RESTU (damage +" +
+                Mathf.RoundToInt((CampaignTuning.Restu.HeroDamageMultiplier - 1f) * 100f) + "%) dan sumbangan +" +
+                CampaignTuning.Politik.ModalGateBonus + " MODAL.  Sekarang BLUSUKAN: sapa warga yang bercahaya");
         }
 
         private void GrantPlayersPengaruh(int amount)
@@ -619,14 +643,14 @@ namespace Konoha.Campaign
 
             bool contested = heroLoket >= 0 && (contestedMask & (1 << heroLoket)) != 0;
             if (contested && !biroContestedAnnounced && !biro.IsStamped(heroLoket))
-                OnObjectiveMessage("ANTRIAN!  Usir petugas dari loket " + (heroLoket + 1));
+                OnObjectiveMessage("DISEROBOT!  Usir penyerobot antrean di " + LoketName(heroLoket));
             biroContestedAnnounced = contested;
 
             BiroChange change = biro.TickLokets(heroLoket, contested, deltaTime);
             if ((change & BiroChange.AllStamped) != 0)
                 OpenBiroOffice();
             else if ((change & BiroChange.LoketStamped) != 0)
-                OnObjectiveMessage("LOKET " + (biro.LastStamped + 1) + " TERCAP  (" + biro.StampedCount + "/" +
+                OnObjectiveMessage(LoketName(biro.LastStamped) + " BERES  (" + biro.StampedCount + "/" +
                     biro.LoketCount + ")");
 
             int arsipAlive = CountAlive(biroEnemies, UnitRole.Kroni);
@@ -655,7 +679,7 @@ namespace Konoha.Campaign
                 biroLeader.ServerSetLeash(stage.biro.position, CampaignTuning.Biro.LeashRadius);
                 biroLeader.ServerConfigureSalahLoket(stage.loketPoints);
             }
-            OnObjectiveMessage("3 LOKET TERCAP!  Pintu KEPALA BIRO terbuka, awas SALAH LOKET");
+            OnObjectiveMessage("3 LOKET BERES!  Pintu PAK LURAH terbuka, awas \"BALIK BESOK!\"");
         }
 
         // §8.3 Garda Takhta: Panglima + Pengawal on the parade ground (placed when the inner gate opens).
@@ -738,7 +762,7 @@ namespace Konoha.Campaign
                 foreach (Vector3 point in stage.gardaReinforcePoints)
                     AddIfSpawned(gardaEnemies, SpawnEnemy(UnitRole.Kroni, FactionId.GardaTakhta, point, post,
                         stage.chair.position, post, CampaignTuning.Garda.LockdownRadius));
-                OnObjectiveMessage("BALA BANTUAN!  Panglima memanggil Kroni");
+                OnObjectiveMessage("BALA BANTUAN!  Panglima memanggil PREMAN BAYARAN");
             }
 
             if ((change & GardaChange.LeaderDown) != 0)
@@ -959,7 +983,7 @@ namespace Konoha.Campaign
             else
             {
                 runStartedAt.Value = NetworkManager.ServerTime.Time;
-                OnObjectiveMessage("Perjalanan baru dimulai! Kalahkan Kroni di GERBANG RAKYAT");
+                OnObjectiveMessage("Musim pemilu baru! Usir PREMAN BAYARAN yang memalak warga di gang");
             }
             SyncState();
         }
@@ -982,7 +1006,7 @@ namespace Konoha.Campaign
             heroLocked.Value = true;
             runStartedAt.Value = NetworkManager.ServerTime.Time;
             runEndedAt.Value = -1d;
-            OnObjectiveMessage("Perjalanan dimulai! Kalahkan Kroni di GERBANG RAKYAT");
+            OnObjectiveMessage("Musim pemilu dimulai! Usir PREMAN BAYARAN yang memalak warga di gang");
         }
 
         // Result screen: ULANG (same hero) or GANTI HERO (back to the hero screen).
@@ -1033,6 +1057,18 @@ namespace Konoha.Campaign
                 StandDown(biroEnemies);
             }
             SyncState();
+        }
+
+        // 0.5.0 Kantor Kelurahan loket names (index order of stage.loketPoints).
+        public static string LoketName(int index)
+        {
+            switch (index)
+            {
+                case 0: return "FOTOKOPI KTP";
+                case 1: return "CAP RT/RW";
+                case 2: return "LEGALISIR";
+                default: return "LOKET " + (index + 1);
+            }
         }
 
         private void StandDown(List<CampaignEnemy> list)

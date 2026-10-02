@@ -217,6 +217,11 @@ namespace Konoha.Campaign
             if (amount > 0) Modal += amount;
         }
 
+        public void SpendModal(int amount)
+        {
+            if (amount > 0) Modal = Math.Max(0, Modal - amount);
+        }
+
         public void AdjustRestu(int delta) => Restu = Math.Max(0, Math.Min(100, Restu + delta));
 
         public SectorPath GetPath(CampaignSector sector)

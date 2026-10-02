@@ -11,14 +11,18 @@ namespace Konoha.Campaign
         public Vector3 Biro { get; }
         public Vector3 Garda { get; }
         public Vector3 Chair { get; }
+        // 0.5.0 BLUSUKAN groups of warga; empty: no blusukan step (older layouts, tests).
+        public Vector3[] Blusukan { get; }
 
-        public CampaignObjectiveLayout(Vector3 plaza, Vector3 majelis, Vector3 biro, Vector3 garda, Vector3 chair)
+        public CampaignObjectiveLayout(Vector3 plaza, Vector3 majelis, Vector3 biro, Vector3 garda, Vector3 chair,
+            Vector3[] blusukan = null)
         {
             Plaza = plaza;
             Majelis = majelis;
             Biro = biro;
             Garda = garda;
             Chair = chair;
+            Blusukan = blusukan ?? new Vector3[0];
         }
     }
 
@@ -46,6 +50,23 @@ namespace Konoha.Campaign
         public bool ReignStarted { get; private set; }
         public int ReignRuntuh { get; private set; }
         public int CounterattackWaves { get; private set; }
+        // 0.5.0 BLUSUKAN: groups greeted (bit mask), the group being greeted and its progress 0..1.
+        public int BlusukanMask { get; private set; }
+        public int BlusukanCurrent { get; private set; } = -1;
+        public float BlusukanProgress { get; private set; }
+        public int BlusukanCount => layout.Blusukan.Length;
+        public int SuaraCount
+        {
+            get
+            {
+                int count = 0;
+                for (int i = 0; i < layout.Blusukan.Length; i++)
+                    if ((BlusukanMask & (1 << i)) != 0) count++;
+                return count;
+            }
+        }
+        public bool BlusukanDone => SuaraCount >= layout.Blusukan.Length;
+        private float blusukanClock;
         // 0.4.0 LAWAN / RANGKUL: the institution whose offer panel is open (-1: none).
         public int OfferSector { get; private set; } = -1;
         // True: DUDUK wins the run (0.1.1). False: the §9 Power phase (tests, later levels).
@@ -93,6 +114,10 @@ namespace Konoha.Campaign
             CounterattackWaves = 0;
             wavesArmed = false;
             OfferSector = -1;
+            BlusukanMask = 0;
+            BlusukanCurrent = -1;
+            BlusukanProgress = 0f;
+            blusukanClock = 0f;
         }
 
         // The Gerbang Rakyat defenders are down; the plaza may now be reached.
@@ -103,8 +128,11 @@ namespace Konoha.Campaign
             // 0.4.0: "sumbangan relawan" and the first bit of public trust.
             Run.AddModal(CampaignTuning.Politik.ModalGateBonus);
             Run.AdjustRestu(CampaignTuning.Politik.RestuGate);
-            Notify("Gerbang Rakyat terbuka! Sumbangan relawan +" + CampaignTuning.Politik.ModalGateBonus +
-                " MODAL. Menuju PLAZA ASPIRASI");
+            Notify(layout.Blusukan.Length > 0
+                ? "Gerbang Rakyat terbuka! Preman kabur, sumbangan relawan +" + CampaignTuning.Politik.ModalGateBonus +
+                    " MODAL. Sekarang BLUSUKAN: sapa warga"
+                : "Gerbang Rakyat terbuka! Sumbangan relawan +" + CampaignTuning.Politik.ModalGateBonus +
+                    " MODAL. Menuju PLAZA ASPIRASI");
         }
 
         // Ketua down and no officer standing (MajelisEncounter.Cleared). Awards the seal.
@@ -119,7 +147,7 @@ namespace Konoha.Campaign
             }
             Run.MarkLawan(CampaignSector.MajelisDaun);
             if (!Run.AwardSeal(CampaignSector.MajelisDaun)) return false;
-            Notify("SEGEL MAJELIS diperoleh!  Pengaruh +" + CampaignTuning.Majelis.SealPengaruh);
+            Notify("REKOMENDASI KOALISI direbut!  Pengaruh +" + CampaignTuning.Majelis.SealPengaruh);
             if (Run.TryOpenInnerGate())
                 Notify("Gerbang Dalam terbuka! Hadapi GARDA TAKHTA");
             return true;
@@ -137,7 +165,7 @@ namespace Konoha.Campaign
             }
             Run.MarkLawan(CampaignSector.BiroProsedur);
             if (!Run.AwardSeal(CampaignSector.BiroProsedur)) return false;
-            Notify("SEGEL BIRO diperoleh!  Pengaruh +" + CampaignTuning.Biro.SealPengaruh);
+            Notify("BERKAS LENGKAP!  Kelurahan akhirnya tanda tangan. Pengaruh +" + CampaignTuning.Biro.SealPengaruh);
             if (Run.TryOpenInnerGate())
                 Notify("Gerbang Dalam terbuka! Hadapi GARDA TAKHTA");
             return true;
@@ -164,12 +192,12 @@ namespace Konoha.Campaign
             OfferSector = -1;
             if (sector == CampaignSector.MajelisDaun)
                 Notify(result == RangkulResult.Loan
-                    ? "MAJELIS DIRANGKUL pakai PINJAMAN KONSORSIUM!  Segel keluar, utang menumpuk (JATAH " + Run.Jatah + ")"
-                    : "MAJELIS DIRANGKUL!  Rapat tertutup pukul 02.00, palu diketok. SEGEL MAJELIS (JATAH " + Run.Jatah + ")");
+                    ? "MAHAR DIBAYAR pakai PINJAMAN KONSORSIUM!  Rekomendasi keluar, utang menumpuk (JATAH " + Run.Jatah + ")"
+                    : "MAHAR DIBAYAR!  Rapat tertutup pukul 02.00, Ketum tanda tangan. REKOMENDASI KOALISI (JATAH " + Run.Jatah + ")");
             else
                 Notify(result == RangkulResult.Loan
-                    ? "BIRO DIRANGKUL pakai PINJAMAN KONSORSIUM!  Jalur khusus dibuka (JATAH " + Run.Jatah + ")"
-                    : "BIRO DIRANGKUL!  \"Jalur khusus\" dibuka, semua loket langsung tercap. SEGEL BIRO (JATAH " + Run.Jatah + ")");
+                    ? "CALO DIBAYAR pakai PINJAMAN KONSORSIUM!  Berkas \"diurus orang dalam\" (JATAH " + Run.Jatah + ")"
+                    : "CALO DIBAYAR!  Berkas beres 5 menit tanpa antre. BERKAS LENGKAP (JATAH " + Run.Jatah + ")");
             if (Run.TryOpenInnerGate())
                 Notify("Gerbang Dalam terbuka! Hadapi GARDA TAKHTA");
             return result;
@@ -187,7 +215,10 @@ namespace Konoha.Campaign
 
         public void Tick(Vector3 player, float deltaTime)
         {
-            if (Run.Phase == CampaignPhase.GerbangRakyat && GateCleared &&
+            if (Run.Phase == CampaignPhase.GerbangRakyat && GateCleared && !BlusukanDone)
+                TickBlusukan(player, deltaTime);
+
+            if (Run.Phase == CampaignPhase.GerbangRakyat && GateCleared && BlusukanDone &&
                 (Near(player, layout.Plaza, CampaignTuning.PreviewSlice.PlazaRadius) ||
                  player.z > layout.Plaza.z - CampaignTuning.PreviewSlice.PlazaEntryDepth))
                 Run.ReachPlaza();
@@ -207,7 +238,7 @@ namespace Konoha.Campaign
                     MajelisEngaged = true;
                     Run.BeginSector(CampaignSector.MajelisDaun);
                     Run.MarkLawan(CampaignSector.MajelisDaun);
-                    Notify("LAWAN MAJELIS!  Blok Majelis menahan serangan: incar ANGGOTA SENIOR dulu");
+                    Notify("LAWAN KOALISI!  Elite Partai saling melindungi: incar ELITE dulu, baru KETUM");
                 }
                 // Biro: the loket hall opens together with the plaza.
                 if (!BiroPrepared)
@@ -221,7 +252,7 @@ namespace Konoha.Campaign
                     BiroEngaged = true;
                     Run.BeginSector(CampaignSector.BiroProsedur);
                     Run.MarkLawan(CampaignSector.BiroProsedur);
-                    Notify("LAWAN BIRO!  Cap 3 LOKET, usir petugas dari antrian, awas PENGAWAS");
+                    Notify("LAWAN KELURAHAN!  Urus 3 LOKET sendiri, usir yang menyerobot antrean, awas PETUGAS ISTIRAHAT");
                 }
                 if (Run.TryOpenInnerGate())
                     Notify("Gerbang Dalam terbuka! Hadapi GARDA TAKHTA");
@@ -371,6 +402,59 @@ namespace Konoha.Campaign
             powerClock = 0f;
             Notify("KUDETA!  Kekuasaan direbut. Kuasa kembali 0, rebut Kursi lagi");
             Kudeta?.Invoke();
+        }
+
+        // BLUSUKAN: stand among a group of warga for a moment to greet them (SUARA +1 each).
+        private void TickBlusukan(Vector3 player, float deltaTime)
+        {
+            int inside = -1;
+            for (int i = 0; i < layout.Blusukan.Length; i++)
+                if ((BlusukanMask & (1 << i)) == 0 && Near(player, layout.Blusukan[i], CampaignTuning.Blusukan.ZoneRadius))
+                {
+                    inside = i;
+                    break;
+                }
+            if (inside != BlusukanCurrent)
+            {
+                BlusukanCurrent = inside;
+                blusukanClock = 0f;
+            }
+            if (inside < 0)
+            {
+                BlusukanProgress = 0f;
+                return;
+            }
+            blusukanClock += deltaTime;
+            BlusukanProgress = Mathf.Clamp01(blusukanClock / CampaignTuning.Blusukan.GreetSeconds);
+            if (blusukanClock < CampaignTuning.Blusukan.GreetSeconds)
+                return;
+
+            BlusukanMask |= 1 << inside;
+            BlusukanCurrent = -1;
+            BlusukanProgress = 0f;
+            blusukanClock = 0f;
+            Run.AdjustRestu(CampaignTuning.Blusukan.RestuPerGroup);
+            int cost = inside < CampaignTuning.Blusukan.ModalCost.Length ? CampaignTuning.Blusukan.ModalCost[inside] : 0;
+            Run.SpendModal(cost);
+            string[] lines = CampaignTuning.Blusukan.Lines;
+            Notify(inside < lines.Length ? lines[inside] : "Warga disapa. SUARA +1");
+            if (BlusukanDone)
+                Notify("SUARA " + SuaraCount + "/" + layout.Blusukan.Length + "!  Pencalonan sah. Menuju PLAZA: cari REKOMENDASI & BERKAS");
+        }
+
+        // Next group to greet (nearest not yet greeted); false when none is left.
+        public bool NextBlusukan(Vector3 from, out int index)
+        {
+            index = -1;
+            float best = float.MaxValue;
+            for (int i = 0; i < layout.Blusukan.Length; i++)
+            {
+                if ((BlusukanMask & (1 << i)) != 0) continue;
+                Vector3 d = layout.Blusukan[i] - from;
+                float distance = d.x * d.x + d.z * d.z;
+                if (distance < best) { best = distance; index = i; }
+            }
+            return index >= 0;
         }
 
         private int Offer(Vector3 player, CampaignSector sector, Vector3 hall, bool engaged)

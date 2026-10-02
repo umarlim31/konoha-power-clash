@@ -764,10 +764,10 @@ namespace Konoha.Campaign
                 string title = EncounterComposer.TitleFor(unitFaction, unitRole).ToUpperInvariant();
                 string state = down ? "TUMBANG"
                     : kneeling ? "MENYERAH"
-                    : hammer ? (Special == EnemySpecial.SalahLoket ? "SALAH LOKET!"
+                    : hammer ? (Special == EnemySpecial.SalahLoket ? "BALIK BESOK!"
                         : Special == EnemySpecial.CounterPush ? "DORONGAN BALIK!" : "KETOK PALU!")
                     : locked ? "TERKUNCI"
-                    : shielded ? definition.DisplayName + "  •  BLOK"
+                    : shielded ? definition.DisplayName + "  •  SOLID"
                     : definition.DisplayName;
                 nameplate.text = title + "\n" + state;
                 nameplate.color = down || kneeling

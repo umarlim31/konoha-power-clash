@@ -44,6 +44,10 @@ namespace Konoha.Campaign
             [Range(0f, 1f)] public float progress;
             public float direction = 1f;
             public bool idle;
+            // 0.5.0 kepo: a phone in the right hand, raised to record fights; filming warga
+            // (onlookers of an accident) keep it up all the time.
+            public GameObject phone;
+            public bool filming;
             [NonSerialized] public float phase, dodge, panicUntil;
         }
 
@@ -62,6 +66,9 @@ namespace Konoha.Campaign
         // Warga step aside when the hero comes this close, and run from fights nearby.
         public float personalSpace = 2.4f;
         public float fleeDistance = 6f;
+        // 0.5.0 kepo: warga stop and record a fight from this far, and only back off when it
+        // comes closer than fleeDistance (they no longer run away from every fight).
+        public float kepoDistance = 13f;
         public float hornMinSeconds = 7f, hornMaxSeconds = 16f;
         // 0.2.7 atmosphere: songbirds around the listener and the bakso seller's bowl.
         public Vector3[] bowlSpots = new Vector3[0];
@@ -255,10 +262,20 @@ namespace Konoha.Campaign
         private void CollectThreats()
         {
             threats.Clear();
+            // 0.5.0: only members actually fighting count (near the hero, still standing);
+            // members waiting in their hall do not make warga stop and stare all day.
+            Vector3? hero = LocalHeroPosition();
             IReadOnlyList<CampaignEnemy> enemies = CampaignEnemy.Active;
             for (int i = 0; i < enemies.Count; i++)
-                if (enemies[i] != null)
-                    threats.Add(enemies[i].transform.position);
+            {
+                CampaignEnemy enemy = enemies[i];
+                if (enemy == null || enemy.IsOutOfFight || !hero.HasValue)
+                    continue;
+                Vector3 d = enemy.transform.position - hero.Value;
+                d.y = 0f;
+                if (d.sqrMagnitude < 100f)
+                    threats.Add(enemy.transform.position);
+            }
         }
 
         private void MoveWalkers(float dt, Vector3? hero)
@@ -284,11 +301,27 @@ namespace Konoha.Campaign
             Vector3 side = new Vector3(along.z, 0f, -along.x);
             Vector3 basePoint = Vector3.Lerp(walker.from, walker.to, walker.progress);
 
-            // A fight nearby: turn away from it and hurry.
-            if (NearestThreat(basePoint, out Vector3 threat) < fleeDistance && now >= walker.panicUntil)
+            // A fight right next to them: turn away and hurry. A fight a bit further: stop,
+            // turn towards it and record it with the phone (kepo).
+            float threatDistance = NearestThreat(basePoint, out Vector3 threat);
+            if (threatDistance < fleeDistance && now >= walker.panicUntil)
             {
                 walker.direction = Vector3.Dot(along, basePoint - threat) >= 0f ? 1f : -1f;
                 walker.panicUntil = now + 2.5f;
+            }
+            bool watching = now >= walker.panicUntil && threatDistance < kepoDistance;
+            ShowPhone(walker, watching || walker.filming);
+            if (watching)
+            {
+                Vector3 look = threat - walker.root.position;
+                look.y = 0f;
+                if (look.sqrMagnitude > .01f)
+                    walker.root.rotation = Quaternion.Slerp(walker.root.rotation, Quaternion.LookRotation(look), 4f * dt);
+                SetSwing(walker.legLeft, 0f);
+                SetSwing(walker.legRight, 0f);
+                SetSwing(walker.armLeft, Mathf.Sin(now * 2f) * 4f);
+                SetSwing(walker.armRight, -105f);
+                return;
             }
             float pace = now < walker.panicUntil ? 2.3f : 1f;
 
@@ -325,6 +358,23 @@ namespace Konoha.Campaign
         private void Gesture(Walker walker, float dt, Vector3? hero)
         {
             walker.phase += dt;
+            // 0.5.0 kepo: onlookers face a nearby fight and record it.
+            float threatDistance = NearestThreat(walker.root.position, out Vector3 threat);
+            bool watching = threatDistance < kepoDistance;
+            ShowPhone(walker, watching || walker.filming);
+            if (watching || walker.filming)
+            {
+                if (watching)
+                {
+                    Vector3 toThreat = threat - walker.root.position;
+                    toThreat.y = 0f;
+                    if (toThreat.sqrMagnitude > .01f)
+                        walker.root.rotation = Quaternion.Slerp(walker.root.rotation, Quaternion.LookRotation(toThreat), 3f * dt);
+                }
+                SetSwing(walker.armRight, -105f + Mathf.Sin(walker.phase * 3f) * 3f);
+                SetSwing(walker.armLeft, Mathf.Sin(walker.phase * .7f) * 6f);
+                return;
+            }
             if (hero.HasValue)
             {
                 Vector3 look = hero.Value - walker.root.position;
@@ -334,6 +384,12 @@ namespace Konoha.Campaign
             }
             SetSwing(walker.armRight, -25f + Mathf.Sin(walker.phase * 1.4f) * 18f);
             SetSwing(walker.armLeft, Mathf.Sin(walker.phase * .7f) * 6f);
+        }
+
+        private static void ShowPhone(Walker walker, bool show)
+        {
+            if (walker.phone != null && walker.phone.activeSelf != show)
+                walker.phone.SetActive(show);
         }
 
         private static void SetSwing(Transform limb, float degrees)

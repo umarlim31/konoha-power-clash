@@ -372,12 +372,12 @@ namespace Konoha.Editor
             // Motor near the kerb in both directions (same speed per lane, so no overtaking through cars).
             for (int i = 0; i < 3; i++)
                 vehicles.Add(Car("motor", carPaints[(i * 2 + 3) % carPaints.Length], i == 2 ? -1f : 1f, 9.5f, 3.4f,
-                    perimeter * (i * .37f + .2f), true));
+                    perimeter * (i * .37f + .2f), true, i != 1));
             life.vehicles = vehicles.ToArray();
         }
 
         private CampaignCityLife.Vehicle Car(string kind, Material paint, float direction, float speed, float lane,
-            float distance, bool motor)
+            float distance, bool motor, bool boncengTiga = false)
         {
             Vector3[] laneRing = CampaignCityLife.LaneRing(RingRoad, lane * direction);
             Vector3 point = CampaignCityLife.RingPoint(laneRing, distance, out Vector3 heading);
@@ -415,6 +415,16 @@ namespace Konoha.Editor
                     foreach (int s in new[] { -1, 1 })
                         KotaPart(body, "Kota pengendara lengan", PrimitiveType.Cube, new Vector3(s * .24f, 1.3f, .22f), new Vector3(.1f, .1f, .55f), skins[0])
                             .transform.localRotation = Quaternion.Euler(20f, 0f, 0f);
+                    if (boncengTiga)
+                    {
+                        // 0.5.0 bonceng tiga: a child in front on the footboard, an ibu behind side-saddle.
+                        KotaPart(body, "Kota bonceng anak", PrimitiveType.Capsule, new Vector3(0f, 1.05f, .32f), new Vector3(.24f, .2f, .18f), shirts[((int)distance + 3) % shirts.Length]);
+                        KotaPart(body, "Kota bonceng anak kepala", PrimitiveType.Sphere, new Vector3(0f, 1.36f, .34f), new Vector3(.18f, .2f, .18f), skins[1 % skins.Length]);
+                        KotaPart(body, "Kota bonceng ibu", PrimitiveType.Capsule, new Vector3(.08f, 1.22f, -.6f), new Vector3(.38f, .3f, .26f), hijabCloth);
+                        KotaPart(body, "Kota bonceng ibu jilbab", PrimitiveType.Sphere, new Vector3(.08f, 1.68f, -.6f), new Vector3(.26f, .3f, .27f), hijabCloth);
+                        KotaPart(body, "Kota bonceng ibu kaki", PrimitiveType.Capsule, new Vector3(.32f, .82f, -.55f), new Vector3(.14f, .3f, .14f), hijabCloth)
+                            .transform.localRotation = Quaternion.Euler(0f, 0f, 80f);
+                    }
                     break;
                 default: // sedan
                     KotaPart(body, "Kota sedan bodi", PrimitiveType.Cube, new Vector3(0f, .6f, 0f), new Vector3(1.8f, .65f, 4.3f), paint, true);
@@ -502,6 +512,47 @@ namespace Konoha.Editor
             }
             Stand(new Vector3(-14.6f, 0f, -44.8f), 20f);
             Stand(new Vector3(-13.8f, 0f, -45.4f), 10f);
+
+            // 0.5.0 Jalan Nyaleg: everyday Indonesian scenes. Seeds pick the look:
+            // seed % 5 == 1 wears a jilbab, 2 a peci, 4 a topi.
+            void Crowd(Vector3 centre, Vector3[] offsets, int[] seeds, Material shirt, bool filming)
+            {
+                for (int i = 0; i < offsets.Length; i++)
+                {
+                    Vector3 at = centre + offsets[i];
+                    Vector3 look = centre - at;
+                    float yaw = look.sqrMagnitude > .01f ? Quaternion.LookRotation(look).eulerAngles.y : 0f;
+                    var w = Person(at, yaw, seeds[i % seeds.Length], true, shirt, filming);
+                    w.from = at; w.to = at; w.idle = true;
+                    walkers.Add(w);
+                }
+            }
+            Vector3[] circle4 = { new Vector3(-.75f, 0f, .55f), new Vector3(.7f, 0f, .6f), new Vector3(.75f, 0f, -.6f), new Vector3(-.7f, 0f, -.65f) };
+            Vector3[] circle3 = { new Vector3(-.8f, 0f, .4f), new Vector3(.8f, 0f, .45f), new Vector3(0f, 0f, -.85f) };
+
+            // Blusukan 1: bapak-bapak at the pos ronda (left of the boulevard).
+            PosRonda(new Vector3(-11.3f, 0f, -26f));
+            Crowd(new Vector3(-8.6f, 0f, -26f), circle3, new[] { 2, 7, 3 }, null, false);
+            // Blusukan 2: ibu-ibu ngerumpi around the tukang sayur (right).
+            GerobakSayur(new Vector3(10.9f, 0f, -26.3f));
+            Crowd(new Vector3(8.6f, 0f, -26f), circle4, new[] { 1, 6, 11, 16 }, null, false);
+            Crowd(new Vector3(11.9f, 0f, -26.3f), new[] { Vector3.zero }, new[] { 4 }, null, false);
+            // Blusukan 3: pangkalan ojol beside the garden (green jackets, parked motors).
+            foreach (float z in new[] { -19.9f, -21f, -22.1f })
+                Motor(new Vector3(15f, 0f, z), 90f, flagGreen);
+            Crowd(new Vector3(13f, 0f, -21f), circle3, new[] { 4, 9, 14 }, flagGreen, false);
+
+            // Rumah duka in the kampung (west side road): bendera kuning, tenda, kursi plastik, pelayat.
+            RumahDuka(new Vector3(-46.3f, 0f, 7f));
+            Crowd(new Vector3(-46.3f, 0f, 7f), new[] { new Vector3(-.9f, 0f, -1.6f), new Vector3(.6f, 0f, -1.7f),
+                new Vector3(-1.1f, 0f, 1.5f), new Vector3(.8f, 0f, 1.6f), new Vector3(1.5f, 0f, 0f), new Vector3(-1.6f, 0f, .1f) },
+                new[] { 2, 1, 7, 6, 12, 3 }, pants, false);
+
+            // Motor jatuh on the verge of the jalan raya: warga crowd round and record it.
+            MotorJatuh(new Vector3(30f, 0f, -53.1f));
+            Crowd(new Vector3(30f, 0f, -53.1f), new[] { new Vector3(-1.7f, 0f, .2f), new Vector3(-1f, 0f, 1.3f),
+                new Vector3(.4f, 0f, 1.6f), new Vector3(1.6f, 0f, .7f), new Vector3(1.8f, 0f, -.6f) },
+                new[] { 0, 3, 5, 8, 10 }, null, true);
             life.walkers = walkers.ToArray();
         }
 
@@ -509,7 +560,90 @@ namespace Konoha.Editor
         // Seed picks skin, clothes and headwear: hair, jilbab, peci or topi.
         private Material wargaEyeWhite, wargaLips;
 
-        private CampaignCityLife.Walker Person(Vector3 at, float yaw, int seed, bool idle)
+        // --- 0.5.0 everyday scenes -------------------------------------------------------
+
+        // Pos ronda: a small open hut with a tiled roof, a bench and a kentongan.
+        private void PosRonda(Vector3 p)
+        {
+            var hut = new GameObject("Kota pos ronda").transform;
+            hut.SetParent(kotaRoot, false);
+            hut.position = p;
+            foreach (int x in new[] { -1, 1 })
+                foreach (int z in new[] { -1, 1 })
+                    KotaPart(hut, "Kota pos ronda tiang", PrimitiveType.Cylinder, new Vector3(x * 1.05f, 1.1f, z * 1.05f), new Vector3(.12f, 1.1f, .12f), timber);
+            foreach (int side in new[] { -1, 1 })
+                KotaPart(hut, "Kota pos ronda atap", PrimitiveType.Cube, new Vector3(0f, 2.45f, side * .62f), new Vector3(2.6f, .08f, 1.45f), genteng)
+                    .transform.localRotation = Quaternion.Euler(side * 24f, 0f, 0f);
+            KotaPart(hut, "Kota pos ronda lantai", PrimitiveType.Cube, new Vector3(0f, .45f, 0f), new Vector3(2.1f, .1f, 2.1f), timber, true);
+            KotaPart(hut, "Kota pos ronda kaki", PrimitiveType.Cube, new Vector3(0f, .2f, 0f), new Vector3(1.9f, .4f, 1.9f), concrete);
+            KotaPart(hut, "Kota pos ronda kentongan", PrimitiveType.Cylinder, new Vector3(1.05f, 1.55f, -1.15f), new Vector3(.16f, .32f, .16f), bark);
+            KotaPart(hut, "Kota pos ronda papan", PrimitiveType.Cube, new Vector3(0f, 2.1f, -1.12f), new Vector3(1.4f, .32f, .04f), flagWhite);
+            Label(hut, "POS RONDA RT 03", new Vector3(0f, 2.1f, -1.15f), .16f, new Color(.15f, .15f, .15f));
+        }
+
+        // Gerobak sayur: the tukang sayur's cart with vegetables under a small canopy.
+        private void GerobakSayur(Vector3 p)
+        {
+            var cart = new GameObject("Kota gerobak sayur").transform;
+            cart.SetParent(kotaRoot, false);
+            cart.position = p;
+            cart.rotation = Quaternion.Euler(0f, 90f, 0f);
+            KotaPart(cart, "Kota gerobak sayur bak", PrimitiveType.Cube, new Vector3(0f, .8f, 0f), new Vector3(1.5f, .5f, .9f), timber, true);
+            foreach (int z in new[] { -1, 1 })
+                KotaPart(cart, "Kota gerobak sayur roda", PrimitiveType.Cylinder, new Vector3(.45f, .32f, z * .5f), new Vector3(.6f, .04f, .6f), rubber)
+                    .transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            KotaPart(cart, "Kota gerobak sayur tiang", PrimitiveType.Cylinder, new Vector3(0f, 1.5f, 0f), new Vector3(.05f, .7f, .05f), steel);
+            KotaPart(cart, "Kota gerobak sayur payung", PrimitiveType.Cube, new Vector3(0f, 2.2f, 0f), new Vector3(1.7f, .05f, 1.2f), terpalOrange);
+            Material[] produce = { canopyLight, flagRed, canopy, terpalOrange, flagYellow };
+            for (int i = 0; i < 10; i++)
+                KotaPart(cart, "Kota gerobak sayur sayuran", PrimitiveType.Sphere,
+                    new Vector3(-.55f + (i % 5) * .27f, 1.12f, i < 5 ? -.2f : .2f), new Vector3(.22f, .16f, .22f), produce[i % produce.Length]);
+        }
+
+        // Rumah duka: blue tent, rows of plastic chairs, bendera kuning and a karangan bunga board.
+        private void RumahDuka(Vector3 p)
+        {
+            var duka = new GameObject("Kota rumah duka").transform;
+            duka.SetParent(kotaRoot, false);
+            duka.position = p;
+            foreach (int x in new[] { -1, 1 })
+                foreach (int z in new[] { -1, 1 })
+                    KotaPart(duka, "Kota tenda tiang", PrimitiveType.Cylinder, new Vector3(x * 1.7f, 1.25f, z * 2.3f), new Vector3(.08f, 1.25f, .08f), steel);
+            KotaPart(duka, "Kota tenda atap", PrimitiveType.Cube, new Vector3(0f, 2.55f, 0f), new Vector3(3.7f, .06f, 4.9f), terpal);
+            for (int row = 0; row < 3; row++)
+                for (int i = 0; i < 3; i++)
+                {
+                    Vector3 seat = new Vector3(-1f + i * 1f, 0f, -1f + row * 1f);
+                    Material plastic = (row + i) % 2 == 0 ? flagRed : flagGreen;
+                    KotaPart(duka, "Kota kursi plastik", PrimitiveType.Cube, seat + new Vector3(0f, .42f, 0f), new Vector3(.42f, .05f, .42f), plastic);
+                    KotaPart(duka, "Kota kursi plastik sandaran", PrimitiveType.Cube, seat + new Vector3(0f, .66f, .2f), new Vector3(.42f, .45f, .04f), plastic);
+                    KotaPart(duka, "Kota kursi plastik kaki", PrimitiveType.Cube, seat + new Vector3(0f, .2f, 0f), new Vector3(.36f, .4f, .36f), plastic);
+                }
+            KotaPart(duka, "Kota bendera kuning tiang", PrimitiveType.Cylinder, new Vector3(1.9f, 1.1f, -2.9f), new Vector3(.05f, 1.1f, .05f), bamboo);
+            KotaPart(duka, "Kota bendera kuning", PrimitiveType.Cube, new Vector3(2.15f, 1.9f, -2.9f), new Vector3(.5f, .34f, .02f), flagYellow);
+            KotaPart(duka, "Kota karangan bunga", PrimitiveType.Cube, new Vector3(-1.9f, 1.05f, -2.9f), new Vector3(1.5f, 1.1f, .06f), flagWhite);
+            KotaPart(duka, "Kota karangan bunga kaki", PrimitiveType.Cube, new Vector3(-1.9f, .25f, -2.9f), new Vector3(.08f, .5f, .3f), bamboo);
+            Label(duka, "TURUT BERDUKA CITA\nKELUARGA BESAR RT 03", new Vector3(-1.9f, 1.1f, -2.94f), .12f, new Color(.15f, .15f, .15f));
+        }
+
+        // A motor lying on the verge after a fall (the rider has already been taken home).
+        private void MotorJatuh(Vector3 p)
+        {
+            var motor = new GameObject("Kota motor jatuh").transform;
+            motor.SetParent(kotaRoot, false);
+            motor.position = p;
+            motor.rotation = Quaternion.Euler(0f, 30f, 78f);
+            KotaPart(motor, "Kota motor jatuh bodi", PrimitiveType.Cube, new Vector3(0f, .55f, 0f), new Vector3(.34f, .34f, 1.15f), flagBlue);
+            KotaPart(motor, "Kota motor jatuh tameng", PrimitiveType.Cube, new Vector3(0f, .75f, .52f), new Vector3(.36f, .6f, .12f), flagBlue);
+            foreach (float z in new[] { -.48f, .52f })
+                KotaPart(motor, "Kota motor jatuh roda", PrimitiveType.Cylinder, new Vector3(0f, .28f, z), new Vector3(.5f, .05f, .5f), rubber)
+                    .transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            KotaPart(kotaRoot, "Kota helm tergeletak", PrimitiveType.Sphere, p + new Vector3(.9f, .15f, -.6f), new Vector3(.3f, .28f, .32f), helmet);
+            KotaPart(kotaRoot, "Kota sandal tertinggal", PrimitiveType.Cube, p + new Vector3(-.7f, .03f, .5f), new Vector3(.12f, .04f, .26f), rubber);
+        }
+
+        private CampaignCityLife.Walker Person(Vector3 at, float yaw, int seed, bool idle,
+            Material shirtOverride = null, bool filming = false)
         {
             if (wargaEyeWhite == null)
             {
@@ -521,7 +655,7 @@ namespace Konoha.Editor
             person.position = at;
             person.rotation = Quaternion.Euler(0f, yaw, 0f);
             Material skin = skins[seed % skins.Length];
-            Material shirt = shirts[(seed * 3 + 1) % shirts.Length];
+            Material shirt = shirtOverride != null ? shirtOverride : shirts[(seed * 3 + 1) % shirts.Length];
             int headwear = seed % 5; // 0,3 hair; 1 jilbab; 2 peci; 4 topi
             bool gamis = headwear == 1;
 
@@ -593,6 +727,11 @@ namespace Konoha.Editor
                     break;
             }
 
+            // 0.5.0 kepo: a phone in the right hand, shown only while recording.
+            var phone = KotaPart(armRight, "Kota warga HP", PrimitiveType.Cube, new Vector3(0f, -.66f, .07f),
+                new Vector3(.07f, .13f, .016f), rubber);
+            phone.SetActive(false);
+
             // Rest pose for onlookers: arms slightly forward.
             if (idle)
             {
@@ -602,7 +741,8 @@ namespace Konoha.Editor
 
             return new CampaignCityLife.Walker
             {
-                root = person, legLeft = legLeft, legRight = legRight, armLeft = armLeft, armRight = armRight
+                root = person, legLeft = legLeft, legRight = legRight, armLeft = armLeft, armRight = armRight,
+                phone = phone, filming = filming
             };
         }
 

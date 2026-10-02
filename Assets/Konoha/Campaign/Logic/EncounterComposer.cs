@@ -51,26 +51,26 @@ namespace Konoha.Campaign
             switch (faction)
             {
                 case FactionId.MajelisDaun:
-                    result.Add(new UnitSpawn(UnitRole.Pemimpin, "Ketua Majelis", 1));
-                    result.Add(new UnitSpawn(UnitRole.Senior, "Anggota Senior",
+                    result.Add(new UnitSpawn(UnitRole.Pemimpin, "Ketum Koalisi", 1));
+                    result.Add(new UnitSpawn(UnitRole.Senior, "Elite Partai",
                         2 + (players >= 2 ? 1 : 0) + (players >= 4 ? 1 : 0)));
-                    result.Add(new UnitSpawn(UnitRole.Kroni, "Staf Fraksi",
+                    result.Add(new UnitSpawn(UnitRole.Kroni, "Kader",
                         3 + (players >= 2 ? 2 : 0) + (players >= 3 ? 2 : 0) + (players >= 4 ? 3 : 0)));
-                    result.Add(new UnitSpawn(UnitRole.Guard, "Pengawal Sidang", 1 + (players >= 3 ? 1 : 0)));
+                    result.Add(new UnitSpawn(UnitRole.Guard, "Satgas Partai", 1 + (players >= 3 ? 1 : 0)));
                     break;
                 case FactionId.BiroProsedur:
-                    result.Add(new UnitSpawn(UnitRole.Pemimpin, "Kepala Biro", 1));
-                    result.Add(new UnitSpawn(UnitRole.Spesialis, "Pengawas", 1 + (players >= 3 ? 1 : 0)));
-                    result.Add(new UnitSpawn(UnitRole.Kroni, "Petugas Arsip", ArsipMaxAlive(players), SpawnTrigger.Respawn));
-                    result.Add(new UnitSpawn(UnitRole.Guard, "Security", 1 + (players >= 2 ? 1 : 0)));
+                    result.Add(new UnitSpawn(UnitRole.Pemimpin, "Pak Lurah", 1));
+                    result.Add(new UnitSpawn(UnitRole.Spesialis, "Petugas Istirahat", 1 + (players >= 3 ? 1 : 0)));
+                    result.Add(new UnitSpawn(UnitRole.Kroni, "Staf Kelurahan", ArsipMaxAlive(players), SpawnTrigger.Respawn));
+                    result.Add(new UnitSpawn(UnitRole.Guard, "Satpam", 1 + (players >= 2 ? 1 : 0)));
                     break;
                 case FactionId.GardaTakhta:
-                    result.Add(new UnitSpawn(UnitRole.Pemimpin, "Panglima Takhta", 1));
-                    result.Add(new UnitSpawn(UnitRole.Guard, "Pengawal Takhta",
+                    result.Add(new UnitSpawn(UnitRole.Pemimpin, "Panglima Istana", 1));
+                    result.Add(new UnitSpawn(UnitRole.Guard, "Pengawal Istana",
                         2 + (players >= 2 ? 1 : 0) + (players >= 3 ? 1 : 0) + (players >= 4 ? 2 : 0)));
                     int kroniPerWave = CampaignTuning.Garda.ReinforcementKroni + (players >= 3 ? 2 : 0);
                     for (int wave = 1; wave <= ReinforcementWaves(FactionId.GardaTakhta, players); wave++)
-                        result.Add(new UnitSpawn(UnitRole.Kroni, "Kroni Bantuan", kroniPerWave, SpawnTrigger.Reinforcement, wave));
+                        result.Add(new UnitSpawn(UnitRole.Kroni, "Preman Bayaran", kroniPerWave, SpawnTrigger.Reinforcement, wave));
                     break;
                 default:
                     // Deferred factions (§15) have no roster yet.

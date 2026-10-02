@@ -112,8 +112,17 @@ namespace Konoha.Campaign
         // Characters are dropped slightly above the floor and settle with gravity.
         public const float DropHeight = 0.25f;
 
+        // 0.5.0 BLUSUKAN: pos ronda (left), ibu-ibu at the tukang sayur (right), pangkalan ojol
+        // (right, beside the garden). Order matches CampaignTuning.Blusukan.Groups.
+        public Vector3[] blusukanPoints =
+        {
+            new Vector3(-8.6f, 0f, -26f),
+            new Vector3(8.6f, 0f, -26f),
+            new Vector3(13f, 0f, -21f)
+        };
+
         public CampaignObjectiveLayout Layout => new CampaignObjectiveLayout(
-            plaza.position, majelis.position, biro.position, garda.position, chair.position);
+            plaza.position, majelis.position, biro.position, garda.position, chair.position, blusukanPoints);
 
         public Vector3 CheckpointPosition(CampaignCheckpoint checkpoint)
         {
