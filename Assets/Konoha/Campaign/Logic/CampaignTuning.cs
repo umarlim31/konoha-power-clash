@@ -147,6 +147,26 @@ namespace Konoha.Campaign
             public const float TargetHitSpacingSeconds = 0.5f;
         }
 
+        // 0.4.0 Musim Pemilu (Docs/GAME_LOGIC_JALUR_TAKHTA_v2.md §3–§4): political resources
+        // and the LAWAN / RANGKUL choice. Starting values, tuned on the tablet.
+        public static class Politik
+        {
+            public const int ModalStart = 60;
+            public const int ModalPerDefeat = 2;        // Every Sistem member knocked down.
+            public const int ModalGateBonus = 15;       // "Sumbangan relawan" after the Gerbang Rakyat.
+            public const int RangkulCostMajelis = 45;
+            public const int RangkulCostBiro = 35;
+            public const int LoanExtraJatah = 2;        // PINJAM KONSORSIUM: the coalition and the lender both own you.
+            public const int RestuStart = 50;
+            public const int RestuGate = 10;
+            public const int RestuLawan = 15;
+            public const int RestuRangkul = -5;
+            public const int RestuLoan = -10;
+            public const int BonekaJatah = 3;           // From here on the ruler is someone else's puppet.
+            public const float OfferRadius = 19f;       // Around a hall: the LAWAN / RANGKUL panel appears.
+            public const float PanglimaWeakenPerRangkul = 0.15f; // Each embraced institution "conditions" the Panglima.
+        }
+
         // 0.0.9.2.1 RESTU RAKYAT: reward for clearing the Gerbang Rakyat, lasts for the run
         // (kept after Runtuh, cleared by ULANG). Tuning assumption, not in §5–§9.
         public static class Restu
