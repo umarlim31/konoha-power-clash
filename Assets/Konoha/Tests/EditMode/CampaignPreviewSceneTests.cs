@@ -37,9 +37,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.5.0  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.5.0"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(45));
+                    Is.EqualTo("JALUR TAKHTA 0.6.0  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.6.0"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(46));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -116,11 +116,51 @@ namespace Konoha.Tests
                 Assert.That(lobi.lawanButton, Is.Not.Null);
                 Assert.That(lobi.rangkulButton, Is.Not.Null);
                 Assert.That(lobi.panel.activeSelf, Is.True, "Hidden by the component at runtime, built visible");
-                // 0.5.0 Jalan Nyaleg: step list, light pillar on the target, three blusukan rings.
+                // 0.5.0 Jalan Nyaleg: step list and three blusukan rings (0.6.0: no light pillar).
                 var checklist = Object.FindFirstObjectByType<CampaignChecklist>();
                 Assert.That(checklist, Is.Not.Null);
                 Assert.That(checklist.hideWhenActive, Is.SameAs(lobi.panel));
-                Assert.That(preview.beacon, Is.Not.Null);
+                // 0.6.0 KARIER: guide arrow instead of the pillar, three modes, KARIER HUD, character
+                // creator, crowd and police, job props; nothing of it collides.
+                var guide = Object.FindFirstObjectByType<CampaignGuideArrow>();
+                Assert.That(guide, Is.Not.Null);
+                Assert.That(guide.arrow, Is.Not.Null);
+                Assert.That(guide.ring, Is.Not.Null);
+                Assert.That(guide.ringLabel, Is.Not.Null);
+                Assert.That(GameObject.Find("PenandaTujuan"), Is.Null, "The 0.5.0 light pillar is gone");
+                foreach (var piece in guide.GetComponentsInChildren<Transform>(true))
+                    Assert.That(piece.GetComponent<Collider>(), Is.Null, "Guide never collides: " + piece.name);
+                Assert.That(menu.karierButton, Is.Not.Null);
+                Assert.That(menu.avatarPanel, Is.Not.Null);
+                var karier = Object.FindFirstObjectByType<KarierController>();
+                Assert.That(karier, Is.Not.Null);
+                Assert.That(menu.avatarPanel.controller, Is.SameAs(karier));
+                Assert.That(menu.avatarPanel.panel.activeSelf, Is.False);
+                Assert.That(menu.avatarPanel.nameField, Is.Not.Null);
+                Assert.That(menu.avatarPanel.nameField.textComponent, Is.Not.Null);
+                foreach (var button in new[] { menu.avatarPanel.genderButton, menu.avatarPanel.skinButton, menu.avatarPanel.hairButton,
+                    menu.avatarPanel.bodyButton, menu.avatarPanel.shirtButton, menu.avatarPanel.startButton, menu.avatarPanel.resetButton,
+                    karier.phoneButton, karier.ojolButton, karier.kuliButton, karier.buzzerButton, karier.rebahanButton,
+                    karier.closePhoneButton, karier.actionButton, karier.kaburButton, karier.damaiButton, karier.polsekButton,
+                    karier.waCloseButton })
+                    Assert.That(button, Is.Not.Null);
+                Assert.That(karier.hudRoot.activeSelf, Is.False, "KARIER HUD waits for the mode menu");
+                Assert.That(karier.hiddenInKarier, Has.Length.EqualTo(4));
+                foreach (var button in karier.hiddenInKarier) Assert.That(button, Is.Not.Null);
+                Assert.That(karier.placePoints, Has.Length.EqualTo(karier.placeNames.Length));
+                Assert.That(karier.sapaPoints, Has.Length.EqualTo(3));
+                Assert.That(karier.premanPoints, Has.Length.EqualTo(2));
+                Assert.That(karier.crowd, Is.Not.Null);
+                Assert.That(karier.crowd.people.Length, Is.GreaterThanOrEqualTo(6));
+                Assert.That(karier.crowd.policeMotor, Is.Not.Null);
+                Assert.That(karier.crowd.policeOfficer.root, Is.Not.Null);
+                Assert.That(karier.crowd.sirenRed, Has.Length.EqualTo(1));
+                Assert.That(karier.ojolMotor, Is.Not.Null);
+                Assert.That(karier.ojolPassenger, Is.Not.Null);
+                Assert.That(karier.sack, Is.Not.Null);
+                foreach (var root in new[] { karier.crowd.transform, karier.ojolMotor, karier.sack })
+                    foreach (var piece in root.GetComponentsInChildren<Transform>(true))
+                        Assert.That(piece.GetComponent<Collider>(), Is.Null, "KARIER decor never collides: " + piece.name);
                 Assert.That(preview.blusukanZones, Has.Length.EqualTo(preview.stage.blusukanPoints.Length));
                 Assert.That(preview.blusukanLabels, Has.Length.EqualTo(preview.stage.blusukanPoints.Length));
                 foreach (string scene in new[] { "Kota pos ronda", "Kota gerobak sayur", "Kota rumah duka", "Kota motor jatuh" })
@@ -240,6 +280,19 @@ namespace Konoha.Tests
 
                 // 0.2.3: hero bodies (one per hero, inactive templates), effects and camera shake.
                 var bodies = Object.FindFirstObjectByType<CampaignBodies>();
+                // 0.6.0 KARIER: the avatar template carries every creator option.
+                Assert.That(bodies.avatarTemplate, Is.Not.Null);
+                Assert.That(bodies.avatarTemplate.gameObject.activeSelf, Is.False);
+                AssertJoints(bodies.avatarTemplate);
+                var avatarLook = bodies.avatarTemplate.GetComponent<CampaignAvatarLook>();
+                Assert.That(avatarLook, Is.Not.Null);
+                Assert.That(avatarLook.skin.Length, Is.GreaterThan(5));
+                Assert.That(avatarLook.shirt.Length, Is.GreaterThan(2));
+                foreach (var option in new[] { avatarLook.hairShort, avatarLook.hairLong, avatarLook.peci, avatarLook.jilbab,
+                    avatarLook.topi, avatarLook.rok, avatarLook.perut })
+                    Assert.That(option, Is.Not.Null);
+                foreach (var part in bodies.avatarTemplate.GetComponentsInChildren<Transform>(true))
+                    Assert.That(part.GetComponent<Collider>(), Is.Null, "Avatar parts never collide: " + part.name);
                 Assert.That(bodies, Is.Not.Null);
                 Assert.That(bodies.heroTemplates, Has.Length.EqualTo(4));
                 foreach (var template in bodies.heroTemplates)
@@ -301,7 +354,7 @@ namespace Konoha.Tests
                     kota++;
                     Assert.That(decor.GetComponent<Collider>(), Is.Null, "Kota Hidup must not collide: " + decor.name);
                 }
-                Assert.That(kota, Is.InRange(AnyModel() ? 50 : 300, 4200), "Kota Hidup budget for the tablet (0.2.7 house details, 0.3.4 warga faces, 0.5.0 scenes)");
+                Assert.That(kota, Is.InRange(AnyModel() ? 50 : 300, 4800), "Kota Hidup budget for the tablet (0.2.7 house details, 0.3.4 warga faces, 0.5.0 scenes, 0.6.0 crowd)");
                 Assert.That(GameObject.Find("KotaTall spanduk lambang Konoha"), Is.Not.Null);
                 Assert.That(GameObject.Find("Kota ruko"), Is.Not.Null);
                 Assert.That(GameObject.Find("Kota teluk"), Is.Not.Null);
@@ -455,6 +508,12 @@ namespace Konoha.Tests
                 Assert.That(stage.loketPoints, Has.Length.EqualTo(CampaignTuning.Biro.LoketCount));
                 foreach (var point in stage.loketPoints) AssertFree(Flat(point), probe.transform, "Loket blocked at ");
                 foreach (var point in stage.biroArsipPoints) AssertFree(Flat(point), probe.transform, "Arsip spawn blocked at ");
+                // 0.6.0 KARIER: every job place, the kuli pile/project, warkop and preman spawns are clear.
+                var karierPlaces = Object.FindFirstObjectByType<KarierController>();
+                foreach (var point in karierPlaces.placePoints) AssertFree(Flat(point), probe.transform, "KARIER place blocked at ");
+                foreach (var point in new[] { karierPlaces.kuliPickup, karierPlaces.kuliDrop, karierPlaces.warkop, karierPlaces.posRt })
+                    AssertFree(Flat(point), probe.transform, "KARIER job zone blocked at ");
+                foreach (var point in karierPlaces.premanPoints) AssertFree(Flat(point), probe.transform, "Preman spawn blocked at ");
                 foreach (var point in new[] { stage.biroLeaderPoint, stage.biroSpecialistPoint, stage.biroGuardPoint,
                     stage.officeDoorOutside })
                     AssertFree(Flat(point), probe.transform, "Biro point blocked at ");

@@ -236,6 +236,72 @@ namespace Konoha.Editor
             return result;
         }
 
+        // 0.6.0 KARIER: the player's own citizen. One body with every option built in and
+        // switched by CampaignAvatarLook (hair/peci/jilbab/topi, rok, perut); skin and shirt
+        // use their own materials so the look can recolour a single copy at runtime.
+        internal static CampaignHumanoid AvatarTemplate(Transform parent)
+        {
+            Material skin = Lit("RigAvatarKulit", new Color(.62f, .43f, .30f), .3f);
+            Material shirt = Lit("RigAvatarBaju", new Color(.93f, .92f, .88f), .2f);
+            Material hair = Lit("RigRambut", new Color(.04f, .035f, .03f), .45f);
+            var parts = Build(parent, new Style
+            {
+                name = "BodyTemplate WARGA", skin = skin, hair = hair, shirt = shirt,
+                pants = Lit("RigCelanaJeans", new Color(.16f, .22f, .34f), .15f),
+                shoes = Lit("RigSandal", new Color(.12f, .10f, .09f), .3f),
+                longSleeves = false
+            });
+            Transform head = parts.head;
+            var look = parts.rig.gameObject.AddComponent<CampaignAvatarLook>();
+
+            Transform shortHair = head.Find("Rambut");
+            look.hairShort = shortHair != null ? shortHair.gameObject : null;
+
+            var longHair = Pivot("Rambut panjang", head, Vector3.zero);
+            Part(parts, "Rambut atas", PrimitiveType.Sphere, longHair, new Vector3(0f, .18f, -.025f), new Vector3(.25f, .22f, .27f), hair, false);
+            Part(parts, "Rambut belakang", PrimitiveType.Sphere, longHair, new Vector3(0f, .05f, -.075f), new Vector3(.27f, .38f, .2f), hair, false);
+            look.hairLong = longHair.gameObject;
+
+            look.peci = Part(parts, "Peci", PrimitiveType.Cylinder, head, new Vector3(0f, .27f, -.01f), new Vector3(.25f, .06f, .26f), peciBlack, false).gameObject;
+
+            // The jilbab frames the face (like the warga since 0.3.4) and falls over the shoulders.
+            Material jilbabCloth = Lit("RigAvatarJilbab", new Color(.45f, .16f, .22f), .15f);
+            var jilbab = Pivot("Jilbab", head, Vector3.zero);
+            Part(parts, "Jilbab kepala", PrimitiveType.Sphere, jilbab, new Vector3(0f, .15f, -.035f), new Vector3(.275f, .31f, .28f), jilbabCloth, false);
+            Part(parts, "Jilbab kerudung", PrimitiveType.Sphere, jilbab, new Vector3(0f, -.04f, -.01f), new Vector3(.38f, .2f, .3f), jilbabCloth, false);
+            look.jilbab = jilbab.gameObject;
+
+            Material capCloth = Lit("RigAvatarTopi", new Color(.14f, .20f, .34f), .2f);
+            var topi = Pivot("Topi", head, Vector3.zero);
+            Part(parts, "Topi kubah", PrimitiveType.Sphere, topi, new Vector3(0f, .245f, -.015f), new Vector3(.26f, .12f, .28f), capCloth, false);
+            Part(parts, "Topi pet", PrimitiveType.Cube, topi, new Vector3(0f, .235f, .14f), new Vector3(.2f, .02f, .14f), capCloth, false);
+            look.topi = topi.gameObject;
+
+            look.rok = MeshPart(parts, "Rok", KainMesh(), parts.rig.pelvis, new Vector3(0f, -.86f, 0f), new Vector3(.23f, .86f, .19f),
+                Lit("RigAvatarRok", new Color(.24f, .17f, .14f), .15f), true).gameObject;
+            look.perut = Part(parts, "Perut", PrimitiveType.Sphere, parts.rig.spine, new Vector3(0f, .16f, .05f), new Vector3(.47f, .38f, .34f), shirt, false).gameObject;
+
+            var skins = new List<Renderer>();
+            var shirts = new List<Renderer>();
+            foreach (Renderer renderer in parts.rig.GetComponentsInChildren<Renderer>(true))
+            {
+                if (renderer.sharedMaterial == skin) skins.Add(renderer);
+                else if (renderer.sharedMaterial == shirt) shirts.Add(renderer);
+            }
+            look.skin = skins.ToArray();
+            look.shirt = shirts.ToArray();
+
+            // Start as the default citizen: short hair, trousers.
+            look.hairLong.SetActive(false);
+            look.peci.SetActive(false);
+            look.jilbab.SetActive(false);
+            look.topi.SetActive(false);
+            look.rok.SetActive(false);
+            look.perut.SetActive(false);
+            parts.rig.gameObject.SetActive(false);
+            return parts.rig;
+        }
+
         // Organisation member body: jas/uniform and tie take the faction colours at runtime.
         internal static Parts Member(Transform parent, Material cloth, Material accent)
         {

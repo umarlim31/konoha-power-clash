@@ -19,7 +19,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.5.0")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.6.0")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +27,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.5.0";
-            PlayerSettings.Android.bundleVersionCode = 45;
+            PlayerSettings.bundleVersion = "0.6.0";
+            PlayerSettings.Android.bundleVersionCode = 46;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -231,7 +231,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.5.0  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.6.0  •  SOLO PREVIEW";
             // 0.3.1: which owner models (Art/Models/<Slot>) are in this build; hidden when none.
             string modelSummary = CampaignModelSlots.Summary();
             if (modelSummary.Length > 0)
@@ -325,14 +325,10 @@ namespace Konoha.Editor
             aura.SetActive(false);
             preview.restuAura = aura.transform;
 
-            // 0.5.0 Jalan Nyaleg: a gold light pillar on the current target, and the blusukan rings.
-            var glow = CampaignRigBuilder.Unlit("PenandaTujuan", new Color(1f, 0.80f, 0.32f));
-            var beacon = new GameObject("PenandaTujuan").transform;
-            Glow(beacon, "PenandaTujuan pilar", PrimitiveType.Cylinder, new Vector3(0f, 14f, 0f), new Vector3(0.28f, 14f, 0.28f), glow);
-            Glow(beacon, "PenandaTujuan cincin", PrimitiveType.Cylinder, new Vector3(0f, 0.07f, 0f), new Vector3(1.4f, 0.01f, 1.4f), glow);
-            Glow(beacon, "PenandaTujuan puncak", PrimitiveType.Sphere, new Vector3(0f, 28.2f, 0f), Vector3.one * 0.9f, glow);
-            beacon.gameObject.SetActive(false);
-            preview.beacon = beacon;
+            // 0.5.0 Jalan Nyaleg: the blusukan rings. 0.6.0: the gold light pillar is gone (owner:
+            // "bikin visual kurang"); a small chevron at the hero's feet and a low dashed ring on
+            // the target show the way, with a phone "ting" for every new target (CampaignGuideArrow).
+            CreateGuideArrow();
             var zoneGlow = CampaignRigBuilder.Unlit("BlusukanZona", new Color(0.95f, 0.70f, 0.22f));
             var zones = new Renderer[stage.blusukanPoints.Length];
             var zoneLabels = new TextMesh[stage.blusukanPoints.Length];
@@ -398,16 +394,25 @@ namespace Konoha.Editor
             var templates = new GameObject("CampaignBodyTemplates");
             templates.transform.SetParent(combatFeel.transform, false);
             bodies.heroTemplates = CampaignRigBuilder.HeroTemplates(templates.transform);
+            // 0.6.0 KARIER: the player's own citizen (character creator).
+            bodies.avatarTemplate = CampaignRigBuilder.AvatarTemplate(templates.transform);
             (follow != null ? follow.gameObject : previewCamera.gameObject).AddComponent<CampaignCameraShake>();
 
             var lobi = CreateLobiPanel(safe);
             CreateChecklist(safe, lobi.panel);
+            // 0.6.0 KARIER Level 1 "Warga Biasa": HUD, phone, police, Grup WA, crowd, job props,
+            // and the character creator (below the hero screen and the mode menu).
+            var karierScene = capital.BuildKarier();
+            var karier = CreateKarier(safe, objective, status, waypoint, heroText, feedback, fillImage, traversal, bodies,
+                new[] { s1, s2, ultimate, heroButton }, karierScene, stage);
+            var avatarPanel = CreateAvatarPanel(safe, karier, follow);
             var result = CreateResultScreen(safe);
             // Draw order on top of the HUD: result screen < hero screen < mode menu.
             result.panel.transform.SetAsLastSibling();
             heroSelect.panel.transform.SetAsLastSibling();
             var menu = CreateModeMenu(safe);
             menu.session = session;
+            menu.avatarPanel = avatarPanel;
             menu.pvpScene = SpikeProject.ScenePath;
             session.waitForMenu = true;
 
@@ -415,7 +420,11 @@ namespace Konoha.Editor
                 heroSelect.heroButtons[0], heroSelect.heroButtons[1], heroSelect.heroButtons[2],
                 heroSelect.heroButtons[3], heroSelect.startButton,
                 result.retryButton, result.changeHeroButton, menu.soloButton, menu.pvpButton,
-                lobi.lawanButton, lobi.rangkulButton };
+                lobi.lawanButton, lobi.rangkulButton, menu.karierButton,
+                karier.phoneButton, karier.closePhoneButton, karier.ojolButton, karier.kuliButton, karier.buzzerButton,
+                karier.rebahanButton, karier.actionButton, karier.kaburButton, karier.damaiButton, karier.polsekButton,
+                karier.waCloseButton, avatarPanel.genderButton, avatarPanel.skinButton, avatarPanel.hairButton,
+                avatarPanel.bodyButton, avatarPanel.shirtButton, avatarPanel.startButton, avatarPanel.resetButton };
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             // 0.1.0: the campaign scene opens first (mode menu); the untouched PvP scene is
@@ -427,6 +436,335 @@ namespace Konoha.Editor
             };
             AssetDatabase.SaveAssets();
             Debug.Log("Jalur Takhta preview prepared: " + ScenePath);
+        }
+
+        // --- 0.6.0 KARIER ---------------------------------------------------------------
+
+        // Small gold chevron (two bars, doubled) for the hero's feet, a dashed ring and a label
+        // for the target. CampaignGuideArrow places them; all start hidden, no colliders.
+        private static CampaignGuideArrow CreateGuideArrow()
+        {
+            var glow = CampaignRigBuilder.Unlit("PanduArah", new Color(1f, 0.82f, 0.30f));
+            var guide = new GameObject("CampaignGuideArrow").AddComponent<CampaignGuideArrow>();
+            var arrow = new GameObject("PanduArah panah").transform;
+            arrow.SetParent(guide.transform, false);
+            foreach (float back in new[] { 0f, -0.3f })
+                foreach (int side in new[] { -1, 1 })
+                    Glow(arrow, "PanduArah sayap", PrimitiveType.Cube, new Vector3(side * 0.15f, 0f, 0.03f + back),
+                        new Vector3(0.09f, 0.02f, 0.46f), glow).transform.localRotation = Quaternion.Euler(0f, -side * 40.6f, 0f);
+            arrow.gameObject.SetActive(false);
+
+            var ring = new GameObject("PanduArah cincin").transform;
+            ring.SetParent(guide.transform, false);
+            for (int i = 0; i < 12; i++)
+            {
+                float angle = i * 30f;
+                Vector3 at = Quaternion.Euler(0f, angle, 0f) * Vector3.forward * 1.25f;
+                Glow(ring, "PanduArah garis", PrimitiveType.Cube, at, new Vector3(0.34f, 0.02f, 0.08f), glow)
+                    .transform.localRotation = Quaternion.Euler(0f, angle, 0f);
+            }
+            ring.gameObject.SetActive(false);
+
+            var labelObject = new GameObject("PanduArah label");
+            labelObject.transform.SetParent(guide.transform, false);
+            labelObject.transform.localScale = Vector3.one * 0.3f;
+            var label = labelObject.AddComponent<TextMesh>();
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            labelObject.GetComponent<MeshRenderer>().sharedMaterial = label.font.material;
+            label.fontSize = 48;
+            label.characterSize = 0.22f;
+            label.anchor = TextAnchor.LowerCenter;
+            label.alignment = TextAlignment.Center;
+            label.fontStyle = FontStyle.Bold;
+            label.color = new Color(1f, 0.88f, 0.50f);
+            labelObject.SetActive(false);
+
+            guide.arrow = arrow;
+            guide.ring = ring;
+            guide.ringLabel = label;
+            return guide;
+        }
+
+        // KARIER HUD: target list, message box, HP button, action button and the phone,
+        // police, Grup WA, rebahan and fade panels, all under one root shown by the controller.
+        private static KarierController CreateKarier(Transform safe, Text objective, Text status, Text waypoint, Text heroText,
+            Text feedback, Image progress, CampaignTraversal traversal, CampaignBodies bodies, Button[] hidden,
+            CampaignCapitalArt.KarierScene scene, CampaignStage stage)
+        {
+            var rootObject = new GameObject("KarierHud", typeof(RectTransform));
+            var root = (RectTransform)rootObject.transform;
+            root.SetParent(safe, false);
+            root.anchorMin = Vector2.zero;
+            root.anchorMax = Vector2.one;
+            root.offsetMin = root.offsetMax = Vector2.zero;
+
+            var karier = new GameObject("KarierController").AddComponent<KarierController>();
+            karier.hudRoot = rootObject;
+            karier.objectiveText = objective;
+            karier.statusText = status;
+            karier.waypointText = waypoint;
+            karier.heroText = heroText;
+            karier.feedbackText = feedback;
+            karier.objectiveProgress = progress;
+            karier.traversal = traversal;
+            karier.bodies = bodies;
+            karier.hiddenInKarier = hidden;
+
+            var target = UiBox("KarierTarget", root, new Vector2(0f, 1f), new Vector2(14, -232), new Vector2(380, 168),
+                new Color(0.04f, 0.05f, 0.06f, 0.6f), false);
+            var targetText = Text("KarierTargetText", target, new Vector2(0f, 1f), new Vector2(12, -8), new Vector2(360, 154), 15);
+            targetText.alignment = TextAnchor.UpperLeft;
+            targetText.supportRichText = true;
+            targetText.gameObject.AddComponent<Outline>().effectColor = new Color(0f, 0f, 0f, 0.8f);
+            karier.targetText = targetText;
+
+            var message = UiBox("KarierPesan", root, new Vector2(0.5f, 1f), new Vector2(0, -128), new Vector2(540, 96),
+                new Color(0.03f, 0.04f, 0.05f, 0.86f), false);
+            var messageText = Text("KarierPesanText", message, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(516, 88), 16);
+            messageText.alignment = TextAnchor.MiddleCenter;
+            messageText.color = new Color(1f, 0.92f, 0.72f);
+            message.gameObject.SetActive(false);
+            karier.messagePanel = message.gameObject;
+            karier.messageText = messageText;
+
+            var phoneButton = Button("KarierHP", "HP • KERJA", root, new Vector2(0f, 1f), new Vector2(14, -66), new Vector2(164, 52));
+            phoneButton.GetComponentInChildren<Text>().fontSize = 18;
+            phoneButton.GetComponent<Image>().color = new Color(0.16f, 0.42f, 0.30f, 0.97f);
+            karier.phoneButton = phoneButton;
+
+            var action = Button("KarierAksi", "AKSI", root, new Vector2(1f, 0f), new Vector2(-200, 30), new Vector2(120, 100));
+            action.GetComponentInChildren<Text>().fontSize = 17;
+            action.GetComponent<Image>().color = new Color(0.20f, 0.50f, 0.32f, 0.97f);
+            action.gameObject.SetActive(false);
+            karier.actionButton = action;
+
+            // KONOHA KERJA phone.
+            var phone = UiBox("KarierHPPanel", root, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(470, 590),
+                new Color(0.05f, 0.07f, 0.08f, 0.97f), true);
+            var phoneTitle = Text("KarierHPJudul", phone, new Vector2(0.5f, 1f), new Vector2(0, -14), new Vector2(440, 40), 26);
+            phoneTitle.alignment = TextAnchor.MiddleCenter;
+            phoneTitle.fontStyle = FontStyle.Bold;
+            phoneTitle.color = new Color(0.55f, 0.92f, 0.62f);
+            phoneTitle.text = "KONOHA KERJA";
+            var phoneInfo = Text("KarierHPInfo", phone, new Vector2(0.5f, 1f), new Vector2(0, -58), new Vector2(440, 60), 15);
+            phoneInfo.alignment = TextAnchor.MiddleCenter;
+            karier.phoneInfo = phoneInfo;
+            karier.ojolButton = PhoneButton("KarierKerjaOjol", "OJOL", phone, -126, new Color(0.16f, 0.42f, 0.30f, 0.98f));
+            karier.kuliButton = PhoneButton("KarierKerjaKuli", "KULI BANGUNAN", phone, -220, new Color(0.45f, 0.33f, 0.16f, 0.98f));
+            karier.buzzerButton = PhoneButton("KarierKerjaBuzzer", "BUZZER HOAKS", phone, -314, new Color(0.50f, 0.13f, 0.12f, 0.98f));
+            karier.rebahanButton = PhoneButton("KarierRebahanTombol", "REBAHAN", phone, -408, new Color(0.20f, 0.24f, 0.36f, 0.98f));
+            var closePhone = Button("KarierHPTutup", "TUTUP", phone, new Vector2(0.5f, 0f), new Vector2(0, 16), new Vector2(420, 52));
+            closePhone.GetComponentInChildren<Text>().fontSize = 18;
+            karier.closePhoneButton = closePhone;
+            phone.gameObject.SetActive(false);
+            karier.phonePanel = phone.gameObject;
+
+            // Police choices.
+            var police = UiBox("KarierPolisi", root, new Vector2(0.5f, 0.5f), new Vector2(0, 20), new Vector2(700, 330),
+                new Color(0.06f, 0.07f, 0.12f, 0.96f), true);
+            var policeTitle = Text("KarierPolisiJudul", police, new Vector2(0.5f, 1f), new Vector2(0, -14), new Vector2(660, 40), 28);
+            policeTitle.alignment = TextAnchor.MiddleCenter;
+            policeTitle.fontStyle = FontStyle.Bold;
+            policeTitle.color = new Color(0.75f, 0.85f, 1f);
+            policeTitle.text = "POLISI DATANG";
+            var policeText = Text("KarierPolisiIsi", police, new Vector2(0.5f, 1f), new Vector2(0, -62), new Vector2(660, 150), 17);
+            policeText.alignment = TextAnchor.UpperCenter;
+            karier.policeText = policeText;
+            karier.kaburButton = ChoiceButton("KarierKabur", "KABUR", police, -230, new Color(0.45f, 0.12f, 0.10f, 0.98f));
+            karier.damaiButton = ChoiceButton("KarierDamai", "DAMAI", police, 0, new Color(0.55f, 0.42f, 0.14f, 0.98f));
+            karier.polsekButton = ChoiceButton("KarierPolsek", "POLSEK", police, 230, new Color(0.18f, 0.28f, 0.40f, 0.98f));
+            police.gameObject.SetActive(false);
+            karier.policePanel = police.gameObject;
+
+            // Grup WA after registering for Ketua RT.
+            var wa = UiBox("KarierGrupWA", root, new Vector2(0.5f, 0.5f), new Vector2(0, 10), new Vector2(640, 470),
+                new Color(0.92f, 0.95f, 0.90f, 0.98f), true);
+            var waHeader = UiBox("KarierWAHeader", wa, new Vector2(0.5f, 1f), Vector2.zero, new Vector2(640, 54),
+                new Color(0.07f, 0.37f, 0.30f, 1f), false);
+            var waTitle = Text("KarierWAJudul", waHeader, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(600, 44), 22);
+            waTitle.alignment = TextAnchor.MiddleCenter;
+            waTitle.fontStyle = FontStyle.Bold;
+            waTitle.text = "GRUP WA • RT 03 KONOHA";
+            var waText = Text("KarierWAIsi", wa, new Vector2(0.5f, 1f), new Vector2(0, -66), new Vector2(600, 330), 16);
+            waText.alignment = TextAnchor.UpperLeft;
+            waText.supportRichText = true;
+            waText.color = new Color(0.10f, 0.12f, 0.10f);
+            karier.waText = waText;
+            var waClose = Button("KarierWATutup", "TUTUP", wa, new Vector2(0.5f, 0f), new Vector2(0, 14), new Vector2(300, 52));
+            waClose.GetComponentInChildren<Text>().fontSize = 18;
+            karier.waCloseButton = waClose;
+            wa.gameObject.SetActive(false);
+            karier.waPanel = wa.gameObject;
+
+            // Rebahan feed.
+            var rebahan = UiBox("KarierRebahan", root, new Vector2(0.5f, 0.5f), new Vector2(0, -60), new Vector2(560, 170),
+                new Color(0.08f, 0.06f, 0.12f, 0.93f), false);
+            var rebahanText = Text("KarierRebahanIsi", rebahan, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(530, 150), 18);
+            rebahanText.alignment = TextAnchor.MiddleCenter;
+            karier.rebahanText = rebahanText;
+            rebahan.gameObject.SetActive(false);
+            karier.rebahanPanel = rebahan.gameObject;
+
+            // Black fade (IKUT KE POLSEK); blocks touches while shown.
+            var fadeObject = new GameObject("KarierGelap", typeof(RectTransform), typeof(Image));
+            var fadeRect = (RectTransform)fadeObject.transform;
+            fadeRect.SetParent(root, false);
+            fadeRect.anchorMin = Vector2.zero;
+            fadeRect.anchorMax = Vector2.one;
+            fadeRect.offsetMin = fadeRect.offsetMax = Vector2.zero;
+            fadeObject.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0f);
+            fadeObject.SetActive(false);
+            karier.fade = fadeObject.GetComponent<Image>();
+
+            // World: job places (tested walkable ground), preman spot, crowd and job props.
+            karier.placeNames = (string[])CampaignCapitalArt.KarierPlaceNames.Clone();
+            karier.placePoints = CampaignCapitalArt.KarierPlacePoints(stage.plaza.position);
+            karier.kuliPickup = CampaignCapitalArt.KarierKuliPickup;
+            karier.kuliDrop = CampaignCapitalArt.KarierKuliDrop;
+            karier.warkop = CampaignCapitalArt.KarierWarkop;
+            karier.posRt = CampaignCapitalArt.KarierPosRt;
+            karier.sapaNames = new[] { "BAPAK-BAPAK", "IBU-IBU", "DRIVER OJOL" };
+            karier.sapaPoints = (Vector3[])stage.blusukanPoints.Clone();
+            karier.premanCenter = CampaignCapitalArt.KarierPremanCenter;
+            karier.premanPoints = (Vector3[])CampaignCapitalArt.KarierPremanPoints.Clone();
+            karier.premanLook = CampaignCapitalArt.KarierPremanLook;
+            karier.homePoint = CampaignCapitalArt.SpawnPoint + Vector3.up * 0.25f;
+            karier.crowd = scene.crowd;
+            karier.ojolMotor = scene.ojolMotor;
+            karier.ojolPassenger = scene.ojolPassenger;
+            karier.sack = scene.sack;
+            rootObject.SetActive(false);
+            return karier;
+        }
+
+        private static Button PhoneButton(string name, string caption, RectTransform phone, float y, Color color)
+        {
+            var button = Button(name, caption, phone, new Vector2(0.5f, 1f), new Vector2(0, y), new Vector2(420, 86));
+            button.GetComponentInChildren<Text>().fontSize = 18;
+            button.GetComponent<Image>().color = color;
+            return button;
+        }
+
+        private static Button ChoiceButton(string name, string caption, RectTransform panel, float x, Color color)
+        {
+            var button = Button(name, caption, panel, new Vector2(0.5f, 0f), new Vector2(x, 18), new Vector2(214, 90));
+            button.GetComponentInChildren<Text>().fontSize = 16;
+            button.GetComponent<Image>().color = color;
+            return button;
+        }
+
+        // Character creator on the left; the hero stays visible on the right.
+        private static KarierAvatarPanel CreateAvatarPanel(Transform safe, KarierController karier, MobileCombatCamera follow)
+        {
+            var panelObject = new GameObject("KarierAvatarPanel", typeof(RectTransform), typeof(Image));
+            var panel = (RectTransform)panelObject.transform;
+            panel.SetParent(safe, false);
+            panel.anchorMin = new Vector2(0f, 0f);
+            panel.anchorMax = new Vector2(0f, 1f);
+            panel.pivot = new Vector2(0f, 0.5f);
+            panel.anchoredPosition = Vector2.zero;
+            panel.sizeDelta = new Vector2(440f, 0f);
+            panelObject.GetComponent<Image>().color = new Color(0.04f, 0.06f, 0.07f, 0.9f);
+
+            var title = Text("KarierAvatarJudul", panel, new Vector2(0.5f, 1f), new Vector2(0, -16), new Vector2(420, 40), 26);
+            title.alignment = TextAnchor.MiddleCenter;
+            title.fontStyle = FontStyle.Bold;
+            title.color = new Color(1f, 0.86f, 0.52f);
+            title.text = "BUAT WARGA KONOHA";
+            var subtitle = Text("KarierAvatarSub", panel, new Vector2(0.5f, 1f), new Vector2(0, -56), new Vector2(420, 40), 14);
+            subtitle.alignment = TextAnchor.MiddleCenter;
+            subtitle.text = "Jadi dirimu sendiri di Negara Konoha.\nTokoh, lembaga, dan peristiwanya fiksi.";
+            var nameLabel = Text("KarierAvatarNamaLabel", panel, new Vector2(0.5f, 1f), new Vector2(0, -100), new Vector2(380, 22), 15);
+            nameLabel.alignment = TextAnchor.MiddleLeft;
+            nameLabel.text = "NAMA";
+
+            var avatar = new GameObject("KarierAvatar").AddComponent<KarierAvatarPanel>();
+            avatar.panel = panelObject;
+            avatar.controller = karier;
+            avatar.follow = follow;
+            avatar.nameField = NameField(panel, new Vector2(0, -124));
+            avatar.genderButton = CreatorButton("KarierAvatarJenis", panel, -184);
+            avatar.skinButton = CreatorButton("KarierAvatarKulit", panel, -244);
+            avatar.hairButton = CreatorButton("KarierAvatarKepala", panel, -304);
+            avatar.bodyButton = CreatorButton("KarierAvatarBadan", panel, -364);
+            avatar.shirtButton = CreatorButton("KarierAvatarBaju", panel, -424);
+            var info = Text("KarierAvatarInfo", panel, new Vector2(0.5f, 1f), new Vector2(0, -484), new Vector2(400, 64), 15);
+            info.alignment = TextAnchor.MiddleCenter;
+            avatar.infoText = info;
+            var start = Button("KarierAvatarMulai", "MULAI HIDUP", panel, new Vector2(0.5f, 0f), new Vector2(0, 84), new Vector2(380, 64));
+            start.GetComponentInChildren<Text>().fontSize = 24;
+            start.GetComponent<Image>().color = new Color(0.62f, 0.44f, 0.16f, 0.98f);
+            avatar.startButton = start;
+            var reset = Button("KarierAvatarBaru", "MULAI DARI NOL", panel, new Vector2(0.5f, 0f), new Vector2(0, 18), new Vector2(380, 50));
+            reset.GetComponentInChildren<Text>().fontSize = 17;
+            reset.GetComponent<Image>().color = new Color(0.40f, 0.14f, 0.12f, 0.96f);
+            avatar.resetButton = reset;
+            panelObject.SetActive(false);
+            return avatar;
+        }
+
+        private static Button CreatorButton(string name, RectTransform panel, float y)
+        {
+            var button = Button(name, "...", panel, new Vector2(0.5f, 1f), new Vector2(0, y), new Vector2(380, 52));
+            button.GetComponentInChildren<Text>().fontSize = 19;
+            button.GetComponent<Image>().color = new Color(0.14f, 0.22f, 0.26f, 0.97f);
+            return button;
+        }
+
+        private static InputField NameField(RectTransform parent, Vector2 offset)
+        {
+            var rect = new GameObject("KarierNama", typeof(RectTransform), typeof(Image)).GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = offset;
+            rect.sizeDelta = new Vector2(380, 48);
+            var image = rect.GetComponent<Image>();
+            image.color = new Color(0.12f, 0.16f, 0.18f, 1f);
+            Text text = FieldText("Teks", rect, 22, Color.white);
+            Text placeholder = FieldText("Petunjuk", rect, 20, new Color(1f, 1f, 1f, 0.45f));
+            placeholder.fontStyle = FontStyle.Italic;
+            placeholder.text = "Tulis namamu...";
+            var field = rect.gameObject.AddComponent<InputField>();
+            field.targetGraphic = image;
+            field.textComponent = text;
+            field.placeholder = placeholder;
+            field.characterLimit = KarierAvatar.MaxNameLength;
+            field.lineType = InputField.LineType.SingleLine;
+            return field;
+        }
+
+        private static Text FieldText(string name, RectTransform parent, int size, Color color)
+        {
+            var rect = new GameObject(name, typeof(RectTransform)).GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = new Vector2(14f, 6f);
+            rect.offsetMax = new Vector2(-14f, -6f);
+            var label = rect.gameObject.AddComponent<Text>();
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.fontSize = size;
+            label.color = color;
+            label.alignment = TextAnchor.MiddleLeft;
+            label.supportRichText = false;
+            label.raycastTarget = false;
+            return label;
+        }
+
+        private static RectTransform UiBox(string name, Transform parent, Vector2 anchor, Vector2 offset, Vector2 size,
+            Color color, bool blocksTouches)
+        {
+            var box = new GameObject(name, typeof(RectTransform), typeof(Image));
+            var rect = (RectTransform)box.transform;
+            rect.SetParent(parent, false);
+            rect.anchorMin = rect.anchorMax = anchor;
+            rect.pivot = anchor;
+            rect.anchoredPosition = offset;
+            rect.sizeDelta = size;
+            var image = box.GetComponent<Image>();
+            image.color = color;
+            image.raycastTarget = blocksTouches;
+            return rect;
         }
 
         private static RectTransform FullPanel(string name, Transform safe, Color color)
@@ -605,13 +943,22 @@ namespace Konoha.Editor
             tagline.alignment = TextAnchor.MiddleCenter;
             tagline.text = "Karya satir fiksi. Tokoh, lembaga, dan peristiwa Negara Konoha adalah rekaan.";
 
-            var solo = Button("ModeSolo", "JALUR TAKHTA\nSolo • rebut Kursi", panel, new Vector2(0.5f, 0.5f),
-                new Vector2(-170, -10), new Vector2(300, 120));
+            // 0.6.0: KARIER first (Level 1, the new main mode); Jalur Takhta becomes MODE PRESIDEN.
+            var karier = Button("ModeKarier", "KARIER  (BARU)\nWarga biasa > Ketua RT", panel, new Vector2(0.5f, 0.5f),
+                new Vector2(-325, -10), new Vector2(300, 130));
+            karier.GetComponentInChildren<Text>().fontSize = 22;
+            karier.GetComponent<Image>().color = new Color(0.62f, 0.44f, 0.16f, 0.98f);
+            var solo = Button("ModeSolo", "MODE PRESIDEN\nJalur Takhta (cepat)", panel, new Vector2(0.5f, 0.5f),
+                new Vector2(0, -10), new Vector2(300, 130));
             solo.GetComponentInChildren<Text>().fontSize = 22;
-            solo.GetComponent<Image>().color = new Color(0.62f, 0.44f, 0.16f, 0.98f);
+            solo.GetComponent<Image>().color = new Color(0.40f, 0.28f, 0.12f, 0.98f);
             var pvp = Button("ModePvp", "REBUT KURSI\nPvP 4v4", panel, new Vector2(0.5f, 0.5f),
-                new Vector2(170, -10), new Vector2(300, 120));
+                new Vector2(325, -10), new Vector2(300, 130));
             pvp.GetComponentInChildren<Text>().fontSize = 22;
+            var hint = Text("ModeMenuHint", panel, new Vector2(0.5f, 0.5f), new Vector2(0, -110), new Vector2(900, 26), 15);
+            hint.alignment = TextAnchor.MiddleCenter;
+            hint.color = new Color(1f, 1f, 1f, 0.75f);
+            hint.text = "KARIER: hidup dari nol, cari duit bersih atau kotor, progres tersimpan.  •  MODE PRESIDEN: rebut Kursi dalam satu perjalanan.";
             var version = Text("ModeMenuVersion", panel, new Vector2(0.5f, 0f), new Vector2(0, 14), new Vector2(400, 24), 14);
             version.alignment = TextAnchor.MiddleCenter;
 
@@ -619,6 +966,7 @@ namespace Konoha.Editor
             menu.panel = panel.gameObject;
             menu.soloButton = solo;
             menu.pvpButton = pvp;
+            menu.karierButton = karier;
             menu.versionText = version;
             return menu;
         }
