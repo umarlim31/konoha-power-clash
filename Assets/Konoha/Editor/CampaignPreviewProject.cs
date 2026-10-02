@@ -19,7 +19,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.6.0")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.6.1")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +27,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.6.0";
-            PlayerSettings.Android.bundleVersionCode = 46;
+            PlayerSettings.bundleVersion = "0.6.1";
+            PlayerSettings.Android.bundleVersionCode = 47;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -231,7 +231,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.6.0  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.6.1  •  SOLO PREVIEW";
             // 0.3.1: which owner models (Art/Models/<Slot>) are in this build; hidden when none.
             string modelSummary = CampaignModelSlots.Summary();
             if (modelSummary.Length > 0)
@@ -403,6 +403,12 @@ namespace Konoha.Editor
             // 0.6.0 KARIER Level 1 "Warga Biasa": HUD, phone, police, Grup WA, crowd, job props,
             // and the character creator (below the hero screen and the mode menu).
             var karierScene = capital.BuildKarier();
+            // 0.6.1: the POLSEK roof is new, so collect the occluders again; under a roof the
+            // camera comes inside instead of hiding it (CampaignInteriorCamera).
+            occluders.candidates = capital.CameraOccluders();
+            var interior = new GameObject("CampaignInteriorCamera").AddComponent<CampaignInteriorCamera>();
+            interior.follow = follow;
+            interior.occluders = occluders;
             var karier = CreateKarier(safe, objective, status, waypoint, heroText, feedback, fillImage, traversal, bodies,
                 new[] { s1, s2, ultimate, heroButton }, karierScene, stage);
             var avatarPanel = CreateAvatarPanel(safe, karier, follow);
@@ -423,7 +429,8 @@ namespace Konoha.Editor
                 lobi.lawanButton, lobi.rangkulButton, menu.karierButton,
                 karier.phoneButton, karier.closePhoneButton, karier.ojolButton, karier.kuliButton, karier.buzzerButton,
                 karier.rebahanButton, karier.actionButton, karier.kaburButton, karier.damaiButton, karier.polsekButton,
-                karier.waCloseButton, avatarPanel.genderButton, avatarPanel.skinButton, avatarPanel.hairButton,
+                karier.waCloseButton, karier.saksiButton, karier.waAcceptButton, karier.waRejectButton, karier.tebusButton,
+                avatarPanel.genderButton, avatarPanel.skinButton, avatarPanel.hairButton,
                 avatarPanel.bodyButton, avatarPanel.shirtButton, avatarPanel.startButton, avatarPanel.resetButton };
 
             EditorSceneManager.SaveScene(scene, ScenePath);
@@ -570,9 +577,11 @@ namespace Konoha.Editor
             var policeText = Text("KarierPolisiIsi", police, new Vector2(0.5f, 1f), new Vector2(0, -62), new Vector2(660, 150), 17);
             policeText.alignment = TextAnchor.UpperCenter;
             karier.policeText = policeText;
-            karier.kaburButton = ChoiceButton("KarierKabur", "KABUR", police, -230, new Color(0.45f, 0.12f, 0.10f, 0.98f));
-            karier.damaiButton = ChoiceButton("KarierDamai", "DAMAI", police, 0, new Color(0.55f, 0.42f, 0.14f, 0.98f));
-            karier.polsekButton = ChoiceButton("KarierPolsek", "POLSEK", police, 230, new Color(0.18f, 0.28f, 0.40f, 0.98f));
+            karier.kaburButton = ChoiceButton("KarierKabur", "KABUR", police, -261, new Color(0.45f, 0.12f, 0.10f, 0.98f));
+            karier.damaiButton = ChoiceButton("KarierDamai", "DAMAI", police, -87, new Color(0.55f, 0.42f, 0.14f, 0.98f));
+            karier.polsekButton = ChoiceButton("KarierPolsek", "POLSEK", police, 87, new Color(0.18f, 0.28f, 0.40f, 0.98f));
+            karier.saksiButton = ChoiceButton("KarierSaksi", "SAKSI WARGA", police, 261, new Color(0.16f, 0.42f, 0.30f, 0.98f));
+            karier.saksiButton.gameObject.SetActive(false);
             police.gameObject.SetActive(false);
             karier.policePanel = police.gameObject;
 
@@ -593,7 +602,30 @@ namespace Konoha.Editor
             var waClose = Button("KarierWATutup", "TUTUP", wa, new Vector2(0.5f, 0f), new Vector2(0, 14), new Vector2(300, 52));
             waClose.GetComponentInChildren<Text>().fontSize = 18;
             karier.waCloseButton = waClose;
+            var accept = Button("KarierWATerima", "TERIMA\nduit cepat", wa, new Vector2(0.5f, 0f), new Vector2(-150, 14), new Vector2(260, 56));
+            accept.GetComponentInChildren<Text>().fontSize = 17;
+            accept.GetComponent<Image>().color = new Color(0.50f, 0.13f, 0.12f, 0.98f);
+            accept.gameObject.SetActive(false);
+            karier.waAcceptButton = accept;
+            var reject = Button("KarierWATolak", "TOLAK\nblokir & lapor RT", wa, new Vector2(0.5f, 0f), new Vector2(150, 14), new Vector2(260, 56));
+            reject.GetComponentInChildren<Text>().fontSize = 17;
+            reject.GetComponent<Image>().color = new Color(0.16f, 0.42f, 0.30f, 0.98f);
+            reject.gameObject.SetActive(false);
+            karier.waRejectButton = reject;
             wa.gameObject.SetActive(false);
+
+            // POLSEK cell countdown with TEBUS (0.6.1).
+            var jail = UiBox("KarierSel", root, new Vector2(0.5f, 0f), new Vector2(0, 120), new Vector2(430, 150),
+                new Color(0.06f, 0.06f, 0.08f, 0.92f), true);
+            var jailText = Text("KarierSelIsi", jail, new Vector2(0.5f, 1f), new Vector2(0, -10), new Vector2(400, 56), 18);
+            jailText.alignment = TextAnchor.MiddleCenter;
+            karier.jailText = jailText;
+            var tebus = Button("KarierTebus", "TEBUS", jail, new Vector2(0.5f, 0f), new Vector2(0, 14), new Vector2(320, 60));
+            tebus.GetComponentInChildren<Text>().fontSize = 17;
+            tebus.GetComponent<Image>().color = new Color(0.55f, 0.42f, 0.14f, 0.98f);
+            karier.tebusButton = tebus;
+            jail.gameObject.SetActive(false);
+            karier.jailPanel = jail.gameObject;
             karier.waPanel = wa.gameObject;
 
             // Rebahan feed.
@@ -633,6 +665,20 @@ namespace Konoha.Editor
             karier.ojolMotor = scene.ojolMotor;
             karier.ojolPassenger = scene.ojolPassenger;
             karier.sack = scene.sack;
+            // 0.6.1: jajan, rentals, POLSEK, street chatter.
+            karier.siomayPoint = CampaignCapitalArt.KarierSiomay;
+            karier.salomePoint = CampaignCapitalArt.KarierSalome;
+            karier.baksoPoint = CampaignCapitalArt.KarierBakso;
+            karier.sepedaPoint = CampaignCapitalArt.KarierSewaSepeda;
+            karier.motorRentPoint = CampaignCapitalArt.KarierSewaMotor;
+            karier.rentMotor = scene.rentMotor;
+            karier.bike = scene.bike;
+            karier.plate = scene.plate;
+            karier.polsekDoor = CampaignCapitalArt.KarierPolsekDoor;
+            karier.polsekCell = CampaignCapitalArt.KarierPolsekCell;
+            karier.cellBars = scene.cellBars;
+            karier.city = scene.city;
+            karier.chatterBubble = scene.chatterBubble;
             rootObject.SetActive(false);
             return karier;
         }
@@ -647,8 +693,8 @@ namespace Konoha.Editor
 
         private static Button ChoiceButton(string name, string caption, RectTransform panel, float x, Color color)
         {
-            var button = Button(name, caption, panel, new Vector2(0.5f, 0f), new Vector2(x, 18), new Vector2(214, 90));
-            button.GetComponentInChildren<Text>().fontSize = 16;
+            var button = Button(name, caption, panel, new Vector2(0.5f, 0f), new Vector2(x, 18), new Vector2(166, 90));
+            button.GetComponentInChildren<Text>().fontSize = 14;
             button.GetComponent<Image>().color = color;
             return button;
         }
@@ -664,7 +710,7 @@ namespace Konoha.Editor
             panel.pivot = new Vector2(0f, 0.5f);
             panel.anchoredPosition = Vector2.zero;
             panel.sizeDelta = new Vector2(440f, 0f);
-            panelObject.GetComponent<Image>().color = new Color(0.04f, 0.06f, 0.07f, 0.9f);
+            panelObject.GetComponent<Image>().color = new Color(0.04f, 0.06f, 0.07f, 0.98f);
 
             var title = Text("KarierAvatarJudul", panel, new Vector2(0.5f, 1f), new Vector2(0, -16), new Vector2(420, 40), 26);
             title.alignment = TextAnchor.MiddleCenter;

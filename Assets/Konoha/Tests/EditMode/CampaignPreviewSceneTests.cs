@@ -37,9 +37,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.6.0  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.6.0"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(46));
+                    Is.EqualTo("JALUR TAKHTA 0.6.1  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.6.1"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(47));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -158,7 +158,27 @@ namespace Konoha.Tests
                 Assert.That(karier.ojolMotor, Is.Not.Null);
                 Assert.That(karier.ojolPassenger, Is.Not.Null);
                 Assert.That(karier.sack, Is.Not.Null);
-                foreach (var root in new[] { karier.crowd.transform, karier.ojolMotor, karier.sack })
+                // 0.6.1: police panel with SAKSI WARGA, WA offer buttons, jail panel, rentals, POLSEK, interior camera.
+                foreach (var button in new[] { karier.saksiButton, karier.waAcceptButton, karier.waRejectButton, karier.tebusButton })
+                    Assert.That(button, Is.Not.Null);
+                Assert.That(karier.jailPanel, Is.Not.Null);
+                Assert.That(karier.rentMotor, Is.Not.Null);
+                Assert.That(karier.bike, Is.Not.Null);
+                Assert.That(karier.plate, Is.Not.Null);
+                Assert.That(karier.city, Is.Not.Null);
+                Assert.That(karier.chatterBubble, Is.Not.Null);
+                Assert.That(karier.crowd.commentBubbles, Has.Length.GreaterThan(0));
+                Assert.That(karier.cellBars, Is.Not.Null);
+                Assert.That(karier.cellBars.activeSelf, Is.False, "Cell door stays open until an arrest");
+                Assert.That(karier.cellBars.GetComponentsInChildren<BoxCollider>(true), Has.Length.GreaterThan(0));
+                var interiorCamera = Object.FindFirstObjectByType<CampaignInteriorCamera>();
+                Assert.That(interiorCamera, Is.Not.Null);
+                Assert.That(interiorCamera.occluders, Is.SameAs(session.occluders));
+                bool polsekRoof = false;
+                foreach (var occluder in session.occluders.candidates)
+                    if (occluder.name == "KotaTall polsek atap") polsekRoof = true;
+                Assert.That(polsekRoof, Is.True, "The POLSEK roof brings the camera inside");
+                foreach (var root in new[] { karier.crowd.transform, karier.ojolMotor, karier.sack, karier.rentMotor, karier.bike, karier.plate })
                     foreach (var piece in root.GetComponentsInChildren<Transform>(true))
                         Assert.That(piece.GetComponent<Collider>(), Is.Null, "KARIER decor never collides: " + piece.name);
                 Assert.That(preview.blusukanZones, Has.Length.EqualTo(preview.stage.blusukanPoints.Length));
@@ -514,6 +534,9 @@ namespace Konoha.Tests
                 foreach (var point in new[] { karierPlaces.kuliPickup, karierPlaces.kuliDrop, karierPlaces.warkop, karierPlaces.posRt })
                     AssertFree(Flat(point), probe.transform, "KARIER job zone blocked at ");
                 foreach (var point in karierPlaces.premanPoints) AssertFree(Flat(point), probe.transform, "Preman spawn blocked at ");
+                foreach (var point in new[] { karierPlaces.siomayPoint, karierPlaces.salomePoint, karierPlaces.baksoPoint,
+                    karierPlaces.sepedaPoint, karierPlaces.motorRentPoint, karierPlaces.polsekDoor, karierPlaces.polsekCell })
+                    AssertFree(Flat(point), probe.transform, "KARIER 0.6.1 place blocked at ");
                 foreach (var point in new[] { stage.biroLeaderPoint, stage.biroSpecialistPoint, stage.biroGuardPoint,
                     stage.officeDoorOutside })
                     AssertFree(Flat(point), probe.transform, "Biro point blocked at ");

@@ -24,6 +24,15 @@ namespace Konoha.Editor
         internal static readonly Vector3 KarierPremanCenter = new Vector3(1f, 0f, -29.5f);
         internal static readonly Vector3[] KarierPremanPoints = { new Vector3(2f, 0.1f, -30f), new Vector3(0f, 0.1f, -28.5f) };
         internal static readonly Vector3 KarierPremanLook = new Vector3(8.6f, 0f, -26f);
+        // 0.6.1: jajan stalls, rentals and the POLSEK (zone centres; props stand beside them).
+        internal static readonly Vector3 KarierSiomay = new Vector3(-4.8f, 0f, -14f);
+        internal static readonly Vector3 KarierSalome = new Vector3(4.8f, 0f, -14f);
+        internal static readonly Vector3 KarierBakso = new Vector3(9.4f, 0f, -40.2f);
+        internal static readonly Vector3 KarierSewaSepeda = new Vector3(-10.8f, 0f, -47.2f);
+        internal static readonly Vector3 KarierSewaMotor = new Vector3(15f, 0f, -24.4f);
+        internal static readonly Vector3 KarierPolsekCenter = new Vector3(21f, 0f, -31f);
+        internal static readonly Vector3 KarierPolsekDoor = new Vector3(16.4f, 0f, -31f);
+        internal static readonly Vector3 KarierPolsekCell = new Vector3(22.9f, 0f, -31f);
 
         internal static Vector3[] KarierPlacePoints(Vector3 plaza) => new[]
         {
@@ -38,6 +47,12 @@ namespace Konoha.Editor
             public Transform ojolMotor;
             public GameObject ojolPassenger;
             public Transform sack;
+            // 0.6.1
+            public Transform rentMotor, bike, plate;
+            public GameObject cellBars;
+            public TextMesh[] commentBubbles;
+            public TextMesh chatterBubble;
+            public CampaignCityLife city;
         }
 
         internal KarierScene BuildKarier()
@@ -83,6 +98,9 @@ namespace Konoha.Editor
             {
                 CampaignCityLife.Walker person = Person(new Vector3(0f, 0f, -58f), 0f, seeds[i], true);
                 person.root.name = i == 0 ? "Karier warga teriak" : i == 1 ? "Karier warga melerai" : "Karier warga kepo";
+                // 0.6.1: the phone screen glows while they record.
+                if (person.phone != null)
+                    person.phone.GetComponent<Renderer>().sharedMaterial = CampaignRigBuilder.Unlit("KarierLayarHP", new Color(.78f, .90f, 1f));
                 person.root.SetParent(crowd.transform, true);
                 people.Add(person);
             }
@@ -90,6 +108,13 @@ namespace Konoha.Editor
             crowd.shoutBubble = Bubble(crowd.transform, "Karier gelembung teriak", "WOI! ADA YANG BERANTEM!", new Color(1f, .85f, .35f));
             crowd.meleraiBubble = Bubble(crowd.transform, "Karier gelembung melerai", "SUDAH, SUDAH!\nMALU SAMA TETANGGA!", new Color(.75f, 1f, .75f));
             crowd.policeBubble = Bubble(crowd.transform, "Karier gelembung polisi", "SEMUA DIAM!\nADA APA INI?!", new Color(.75f, .85f, 1f));
+            crowd.commentBubbles = new TextMesh[3];
+            for (int i = 0; i < crowd.commentBubbles.Length; i++)
+            {
+                crowd.commentBubbles[i] = Bubble(crowd.transform, "Karier gelembung komentar", "VIRALIN!", new Color(1f, 1f, 1f));
+                crowd.commentBubbles[i].transform.localScale = Vector3.one * .22f;
+            }
+            scene.commentBubbles = crowd.commentBubbles;
             crowd.boundaryCenter = BoundaryCenter;
             crowd.boundaryRadii = BoundaryRadii;
             crowd.policeGarage = new Vector3(0f, 0f, RingRoad[0].z - 2f);
@@ -119,7 +144,184 @@ namespace Konoha.Editor
             KotaPart(sack, "Karier sak semen dipikul", PrimitiveType.Cube, Vector3.zero, new Vector3(.5f, .22f, .34f), sackCloth);
             sack.gameObject.SetActive(false);
             scene.sack = sack;
+
+            BuildKarierLife(scene, props);
             return scene;
+        }
+
+        // --- 0.6.1 "hidup di kampung": jajan, rentals, the POLSEK, chatter -------------------
+
+        private void BuildKarierLife(KarierScene scene, Transform props)
+        {
+            scene.city = CityLife;
+
+            // Jajan carts with their sellers (zone in front of each cart).
+            Cart(props, "SIOMAY", KarierSiomay + new Vector3(-1.4f, 0f, -.3f), 90f, flagBlue, 21);
+            Cart(props, "SALOME", KarierSalome + new Vector3(1.4f, 0f, -.3f), -90f, flagRed, 23);
+            KarierSign(props, "BAKSO URAT\nRp 15rb", KarierBakso + new Vector3(1.4f, 0f, 1.2f));
+
+            // SEWA SEPEDA: a rack of three bicycles and a board.
+            var rack = new GameObject("Karier sewa sepeda").transform;
+            rack.SetParent(props, false);
+            rack.position = KarierSewaSepeda + new Vector3(-1.9f, 0f, -.3f);
+            for (int i = 0; i < 3; i++)
+            {
+                var parked = new GameObject("Karier sepeda parkir").transform;
+                parked.SetParent(rack, false);
+                parked.localPosition = new Vector3(0f, 0f, (i - 1) * .7f);
+                parked.localRotation = Quaternion.Euler(0f, 90f, 0f);
+                BicycleBody(parked, i == 1 ? flagGreen : i == 0 ? flagBlue : flagYellow);
+            }
+            KarierSign(props, "SEWA SEPEDA\nRp 5rb", KarierSewaSepeda + new Vector3(-1.9f, 0f, 1.4f));
+
+            // SEWA MOTOR at the pangkalan ojol.
+            var parkedMotor = new GameObject("Karier motor sewa parkir").transform;
+            parkedMotor.SetParent(props, false);
+            parkedMotor.position = KarierSewaMotor + new Vector3(1.6f, 0f, -.4f);
+            parkedMotor.rotation = Quaternion.Euler(0f, 90f, 0f);
+            MotorBody(parkedMotor, flagRed);
+            KarierSign(props, "SEWA MOTOR\nRp 15rb", KarierSewaMotor + new Vector3(1.8f, 0f, -1.6f));
+
+            // Props ridden / held by the hero (parented at runtime).
+            var rent = new GameObject("Karier motor sewaan").transform;
+            rent.SetParent(kotaRoot, false);
+            MotorBody(rent, flagRed);
+            KarierText(rent, "SEWAAN", new Vector3(0f, .7f, -.82f), .08f, Color.white);
+            rent.gameObject.SetActive(false);
+            scene.rentMotor = rent;
+            var bike = new GameObject("Karier sepeda sewaan").transform;
+            bike.SetParent(kotaRoot, false);
+            BicycleBody(bike, flagGreen);
+            bike.gameObject.SetActive(false);
+            scene.bike = bike;
+            var plate = new GameObject("Karier piring jajan").transform;
+            plate.SetParent(kotaRoot, false);
+            KotaPart(plate, "Karier piring", PrimitiveType.Cylinder, Vector3.zero, new Vector3(.2f, .01f, .2f), flagWhite);
+            KotaPart(plate, "Karier jajanan", PrimitiveType.Sphere, new Vector3(0f, .03f, 0f), new Vector3(.12f, .05f, .12f), terpalOrange);
+            plate.gameObject.SetActive(false);
+            scene.plate = plate;
+
+            Polsek(scene, props);
+
+            scene.chatterBubble = Bubble(kotaRoot, "Karier obrolan warga", "...", new Color(1f, 1f, .85f));
+            scene.chatterBubble.transform.localScale = Vector3.one * .22f;
+        }
+
+        // Gerobak jajan: cart, glass case, umbrella, name board and the seller behind it.
+        private void Cart(Transform parent, string name, Vector3 at, float yaw, Material paint, int sellerSeed)
+        {
+            var cart = new GameObject("Karier gerobak " + name.ToLowerInvariant()).transform;
+            cart.SetParent(parent, false);
+            cart.position = at;
+            cart.rotation = Quaternion.Euler(0f, yaw, 0f);
+            KotaPart(cart, "Karier gerobak bak", PrimitiveType.Cube, new Vector3(0f, .78f, 0f), new Vector3(1.4f, .5f, .7f), paint, true);
+            KotaPart(cart, "Karier gerobak kaca", PrimitiveType.Cube, new Vector3(0f, 1.18f, 0f), new Vector3(1.2f, .32f, .55f), windowGlass);
+            KotaPart(cart, "Karier gerobak papan", PrimitiveType.Cube, new Vector3(0f, 1.62f, .3f), new Vector3(1.3f, .32f, .04f), flagWhite);
+            KarierText(cart, name, new Vector3(0f, 1.62f, .33f), .14f, new Color(.6f, .1f, .1f)).transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            KotaPart(cart, "Karier gerobak payung tiang", PrimitiveType.Cylinder, new Vector3(-.5f, 1.6f, -.2f), new Vector3(.04f, .8f, .04f), steel);
+            KotaPart(cart, "Karier gerobak payung", PrimitiveType.Sphere, new Vector3(-.5f, 2.4f, -.2f), new Vector3(1.6f, .25f, 1.6f), terpalOrange);
+            foreach (int x in new[] { -1, 1 })
+                KotaPart(cart, "Karier gerobak roda", PrimitiveType.Cylinder, new Vector3(x * .5f, .3f, -.38f), new Vector3(.55f, .04f, .55f), rubber)
+                    .transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            CampaignCityLife.Walker seller = Person(cart.TransformPoint(new Vector3(0f, 0f, -.9f)), yaw, sellerSeed, true);
+            seller.root.name = "Karier penjual " + name.ToLowerInvariant();
+            seller.root.SetParent(cart, true);
+        }
+
+        private void KarierSign(Transform parent, string text, Vector3 at)
+        {
+            var board = new GameObject("Karier papan " + text.Split('\n')[0].ToLowerInvariant()).transform;
+            board.SetParent(parent, false);
+            board.position = at;
+            KotaPart(board, "Karier papan tiang", PrimitiveType.Cube, new Vector3(0f, .7f, 0f), new Vector3(.07f, 1.4f, .07f), timber);
+            KotaPart(board, "Karier papan muka", PrimitiveType.Cube, new Vector3(0f, 1.45f, 0f), new Vector3(1.2f, .55f, .05f), flagYellow);
+            KarierText(board, text, new Vector3(0f, 1.45f, -.04f), .1f, new Color(.15f, .12f, .1f));
+        }
+
+        // Bicycle: two thin wheels, frame, saddle at about 0.85 m, handlebar; faces +z.
+        private void BicycleBody(Transform bike, Material paint)
+        {
+            foreach (float z in new[] { -.52f, .52f })
+                KotaPart(bike, "Karier sepeda roda", PrimitiveType.Cylinder, new Vector3(0f, .34f, z), new Vector3(.66f, .02f, .66f), rubber)
+                    .transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            KotaPart(bike, "Karier sepeda rangka", PrimitiveType.Cube, new Vector3(0f, .58f, 0f), new Vector3(.05f, .05f, 1f), paint, true)
+                .transform.localRotation = Quaternion.Euler(-12f, 0f, 0f);
+            KotaPart(bike, "Karier sepeda tiang jok", PrimitiveType.Cube, new Vector3(0f, .62f, -.25f), new Vector3(.05f, .5f, .05f), paint);
+            KotaPart(bike, "Karier sepeda jok", PrimitiveType.Cube, new Vector3(0f, .86f, -.27f), new Vector3(.14f, .05f, .26f), rubber);
+            KotaPart(bike, "Karier sepeda garpu", PrimitiveType.Cube, new Vector3(0f, .7f, .48f), new Vector3(.05f, .7f, .05f), paint);
+            KotaPart(bike, "Karier sepeda setang", PrimitiveType.Cube, new Vector3(0f, 1.05f, .45f), new Vector3(.56f, .04f, .04f), chrome);
+        }
+
+        // POLSEK KONOHA (0.6.1): a small station with real walls, a door facing the boulevard,
+        // an office and a cell with bars. The bars door (scene.cellBars) closes behind an
+        // arrested hero. The roof is an occluder candidate so the camera comes inside.
+        private void Polsek(KarierScene scene, Transform props)
+        {
+            Material wall = Surface("KarierPolsekDinding", new Color(.88f, .87f, .82f), .2f);
+            Material band = Surface("KarierPolsekPita", new Color(.20f, .27f, .45f), .3f);
+            Material floor = Surface("KarierPolsekLantai", new Color(.62f, .62f, .60f), .4f);
+            Material bars = Surface("KarierJeruji", new Color(.18f, .18f, .2f), .7f, .6f);
+            var station = new GameObject("Karier polsek").transform;
+            station.SetParent(props, false);
+            Vector3 c = KarierPolsekCenter;
+            const float h = 2.9f, west = 17.8f, east = 24.2f, north = -28.5f, south = -33.5f, door = .8f, cellX = 21.6f, cellDoor = .7f;
+
+            KotaPart(station, "Karier polsek lantai", PrimitiveType.Cube, new Vector3(c.x, .02f, c.z), new Vector3(east - west, .04f, north - south), floor);
+            Wall(station, "Karier polsek dinding utara", new Vector3(c.x, h * .5f, north), new Vector3(east - west + .2f, h, .2f), wall);
+            Wall(station, "Karier polsek dinding selatan", new Vector3(c.x, h * .5f, south), new Vector3(east - west + .2f, h, .2f), wall);
+            Wall(station, "Karier polsek dinding timur", new Vector3(east, h * .5f, c.z), new Vector3(.2f, h, north - south), wall);
+            float westLength = (north - south) * .5f - door;
+            Wall(station, "Karier polsek dinding depan", new Vector3(west, h * .5f, c.z + door + westLength * .5f), new Vector3(.2f, h, westLength), wall);
+            Wall(station, "Karier polsek dinding depan", new Vector3(west, h * .5f, c.z - door - westLength * .5f), new Vector3(.2f, h, westLength), wall);
+            KotaPart(station, "Karier polsek ambang pintu", PrimitiveType.Cube, new Vector3(west, h - .25f, c.z), new Vector3(.22f, .5f, door * 2f), wall);
+            KotaPart(station, "Karier polsek pita", PrimitiveType.Cube, new Vector3(west - .12f, 2.3f, c.z), new Vector3(.04f, .25f, north - south), band);
+            var roof = KotaPart(station, "KotaTall polsek atap", PrimitiveType.Cube, new Vector3(c.x, h + .1f, c.z), new Vector3(east - west + .8f, .16f, north - south + .8f), band, true);
+            roof.transform.SetParent(station, true);
+            var sign = KarierText(station, "POLSEK KONOHA", new Vector3(west - .14f, 2.65f, c.z), .2f, Color.white);
+            sign.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+            var poster = KarierText(station, "PELAYANAN CEPAT*\n*syarat & ketentuan berlaku", new Vector3(west - .14f, 1.5f, c.z - 1.6f), .08f, new Color(.95f, .9f, .6f));
+            poster.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+
+            // Office: desk, chair, a fan of files.
+            KotaPart(station, "Karier polsek meja", PrimitiveType.Cube, new Vector3(19.6f, .4f, -29.6f), new Vector3(1.4f, .8f, .7f), timber, true);
+            KotaPart(station, "Karier polsek berkas", PrimitiveType.Cube, new Vector3(19.4f, .84f, -29.6f), new Vector3(.5f, .08f, .35f), flagWhite);
+            KotaPart(station, "Karier polsek kursi", PrimitiveType.Cube, new Vector3(19.6f, .45f, -29f), new Vector3(.5f, .9f, .5f), band);
+
+            // Cell: a bar wall with a gap, the bars door (closed only while someone is jailed), a bench.
+            float side = (north - south) * .5f - cellDoor;
+            BarWall(station, new Vector3(cellX, 0f, c.z + cellDoor + side * .5f), side, bars);
+            BarWall(station, new Vector3(cellX, 0f, c.z - cellDoor - side * .5f), side, bars);
+            var barsDoor = new GameObject("Karier jeruji pintu sel").transform;
+            barsDoor.SetParent(station, false);
+            BarWall(barsDoor, new Vector3(cellX, 0f, c.z), cellDoor * 2f, bars);
+            barsDoor.gameObject.SetActive(false);
+            scene.cellBars = barsDoor.gameObject;
+            KotaPart(station, "Karier sel bangku", PrimitiveType.Cube, new Vector3(23.6f, .25f, -32.6f), new Vector3(.8f, .5f, 1.4f), timber);
+            KarierText(station, "SEL", new Vector3(22.9f, 2.4f, north + .14f), .14f, new Color(.9f, .2f, .2f)).transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+        }
+
+        // Solid wall piece: a collider like the rest of the architecture.
+        private void Wall(Transform parent, string name, Vector3 center, Vector3 size, Material mat)
+        {
+            var piece = KotaPart(parent, name, PrimitiveType.Cube, center, size, mat, true);
+            piece.AddComponent<BoxCollider>();
+        }
+
+        // Row of iron bars along z (one invisible box collider holds them).
+        private void BarWall(Transform parent, Vector3 center, float length, Material mat)
+        {
+            int count = Mathf.Max(2, Mathf.RoundToInt(length / .22f));
+            for (int i = 0; i <= count; i++)
+            {
+                float z = center.z - length * .5f + length * i / count;
+                KotaPart(parent, "Karier jeruji", PrimitiveType.Cylinder, new Vector3(center.x, 1.4f, z), new Vector3(.05f, 1.4f, .05f), mat);
+            }
+            KotaPart(parent, "Karier jeruji palang", PrimitiveType.Cube, new Vector3(center.x, 2.75f, center.z), new Vector3(.08f, .08f, length), mat);
+            var block = new GameObject("Karier jeruji penghalang");
+            block.transform.SetParent(parent, false);
+            block.transform.position = new Vector3(center.x, 1.4f, center.z);
+            var box = block.AddComponent<BoxCollider>();
+            box.size = new Vector3(.2f, 2.8f, length);
         }
 
         // Plain motor bebek seen from the game camera: seat top at about 0.82 m, faces +z.
