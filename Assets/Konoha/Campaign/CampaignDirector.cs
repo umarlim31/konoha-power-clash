@@ -1156,7 +1156,9 @@ namespace Konoha.Campaign
             RangkulResult result = objectives.Rangkul(sector, loan);
             if (result == RangkulResult.TooPoor)
             {
-                OnObjectiveMessage("MODAL KURANG.  Coba lahir di keluarga lain, atau PINJAM ke Konsorsium");
+                OnObjectiveMessage(objectives.Run.TookLoan
+                    ? "MODAL KURANG.  Konsorsium sudah tidak mau minjemin lagi: hajar dulu anggotanya untuk MODAL"
+                    : "MODAL KURANG.  Coba lahir di keluarga lain, atau PINJAM ke Konsorsium");
                 return;
             }
             if (result != RangkulResult.Paid && result != RangkulResult.Loan)

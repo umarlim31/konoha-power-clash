@@ -71,6 +71,9 @@ namespace Konoha.Campaign
             if (rangkulLabel != null)
                 rangkulLabel.text = director.Modal >= cost
                     ? (majelis ? "BAYAR MAHAR" : "BAYAR CALO") + "\n-" + cost + " MODAL • JATAH +1"
+                    : director.TookLoan
+                        // 0.6.0: the Konsorsium lends once; after that, Modal has to be earned.
+                        ? "MODAL KURANG\nbutuh " + cost + ", hajar dulu anggotanya"
                     : "PINJAM KONSORSIUM\nJATAH +" + (1 + CampaignTuning.Politik.LoanExtraJatah) + " • RESTU " +
                         (CampaignTuning.Politik.RestuLoan + CampaignTuning.Politik.RestuRangkul);
         }

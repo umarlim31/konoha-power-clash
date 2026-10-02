@@ -256,8 +256,9 @@ namespace Konoha.Campaign
                 Jatah += 1;
                 result = RangkulResult.Paid;
             }
-            else if (allowLoan)
+            else if (allowLoan && !TookLoan)
             {
+                // 0.6.0: the Konsorsium lends only once per run.
                 Modal = 0;
                 Jatah += 1 + CampaignTuning.Politik.LoanExtraJatah;
                 TookLoan = true;

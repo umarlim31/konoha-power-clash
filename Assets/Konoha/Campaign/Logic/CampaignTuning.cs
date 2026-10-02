@@ -151,7 +151,9 @@ namespace Konoha.Campaign
         // and the LAWAN / RANGKUL choice. Starting values, tuned on the tablet.
         public static class Politik
         {
-            public const int ModalStart = 60;
+            // 0.6.0 (owner: "bisa bayar petugas meskipun gapunya apa-apa"): from 60 to 25, so
+            // mahar and calo are paid with Modal earned on the way (gate bonus + knockouts).
+            public const int ModalStart = 25;
             public const int ModalPerDefeat = 2;        // Every Sistem member knocked down.
             public const int ModalGateBonus = 15;       // "Sumbangan relawan" after the Gerbang Rakyat.
             public const int RangkulCostMajelis = 45;

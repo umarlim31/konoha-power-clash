@@ -50,6 +50,7 @@ namespace Konoha.Tests
         public void RangkulPaysAwardsSealAndCountsJatah()
         {
             var director = AtPlaza();
+            director.Run.AddModal(20); // knockouts on the way (0.6.0: Modal starts low)
             int before = director.Run.Modal;
             director.Tick(Majelis + new Vector3(14f, 0, 0), Frame);
             Assert.That(director.Rangkul(CampaignSector.MajelisDaun, false), Is.EqualTo(RangkulResult.Paid));
@@ -64,8 +65,11 @@ namespace Konoha.Tests
         public void ShortModalNeedsALoanThatMakesAPuppet()
         {
             var director = AtPlaza();
+            Assert.That(director.Rangkul(CampaignSector.MajelisDaun, false), Is.EqualTo(RangkulResult.TooPoor),
+                "0.6.0: the starting Modal alone does not buy a mahar");
+            director.Run.AddModal(20);
             Assert.That(director.Rangkul(CampaignSector.MajelisDaun, false), Is.EqualTo(RangkulResult.Paid));
-            // Modal left (15 + 60 - 45 = 30) is below the Biro price (35).
+            // Modal left (25 + 15 + 20 - 45 = 15) is below the Biro price (35).
             Assert.That(director.Rangkul(CampaignSector.BiroProsedur, false), Is.EqualTo(RangkulResult.TooPoor));
             Assert.That(director.Run.HasSeal(CampaignSector.BiroProsedur), Is.False);
             Assert.That(director.Rangkul(CampaignSector.BiroProsedur, true), Is.EqualTo(RangkulResult.Loan));
@@ -77,10 +81,20 @@ namespace Konoha.Tests
         }
 
         [Test]
+        public void TheKonsorsiumLendsOnlyOnce()
+        {
+            var run = new CampaignRunState();
+            run.ReachPlaza();
+            Assert.That(run.Phase, Is.EqualTo(CampaignPhase.PlazaAspirasi));
+            Assert.That(run.TryRangkul(CampaignSector.MajelisDaun, 999, true), Is.EqualTo(RangkulResult.Loan));
+            Assert.That(run.TryRangkul(CampaignSector.BiroProsedur, 999, true), Is.EqualTo(RangkulResult.TooPoor));
+        }
+
+        [Test]
         public void EnoughModalBuysBothForACoalition()
         {
             var director = AtPlaza();
-            director.Run.AddModal(10); // e.g. a few Kroni knocked down
+            director.Run.AddModal(45); // e.g. many Kroni knocked down
             Assert.That(director.Rangkul(CampaignSector.MajelisDaun, false), Is.EqualTo(RangkulResult.Paid));
             Assert.That(director.Rangkul(CampaignSector.BiroProsedur, false), Is.EqualTo(RangkulResult.Paid));
             Assert.That(director.Run.Ending, Is.EqualTo(CampaignEnding.RajaKoalisi));
