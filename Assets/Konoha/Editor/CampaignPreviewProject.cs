@@ -19,7 +19,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.3.4")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.4.0")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +27,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.3.4";
-            PlayerSettings.Android.bundleVersionCode = 43;
+            PlayerSettings.bundleVersion = "0.4.0";
+            PlayerSettings.Android.bundleVersionCode = 44;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -231,7 +231,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.3.4  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.4.0  •  SOLO PREVIEW";
             // 0.3.1: which owner models (Art/Models/<Slot>) are in this build; hidden when none.
             string modelSummary = CampaignModelSlots.Summary();
             if (modelSummary.Length > 0)
@@ -362,6 +362,7 @@ namespace Konoha.Editor
             bodies.heroTemplates = CampaignRigBuilder.HeroTemplates(templates.transform);
             (follow != null ? follow.gameObject : previewCamera.gameObject).AddComponent<CampaignCameraShake>();
 
+            var lobi = CreateLobiPanel(safe);
             var result = CreateResultScreen(safe);
             // Draw order on top of the HUD: result screen < hero screen < mode menu.
             result.panel.transform.SetAsLastSibling();
@@ -374,7 +375,8 @@ namespace Konoha.Editor
             audio.clickButtons = new[] { sit, viewButton, resetCamera, cameraModeButton,
                 heroSelect.heroButtons[0], heroSelect.heroButtons[1], heroSelect.heroButtons[2],
                 heroSelect.heroButtons[3], heroSelect.startButton,
-                result.retryButton, result.changeHeroButton, menu.soloButton, menu.pvpButton };
+                result.retryButton, result.changeHeroButton, menu.soloButton, menu.pvpButton,
+                lobi.lawanButton, lobi.rangkulButton };
 
             EditorSceneManager.SaveScene(scene, ScenePath);
             // 0.1.0: the campaign scene opens first (mode menu); the untouched PvP scene is
@@ -401,30 +403,116 @@ namespace Konoha.Editor
             return rect;
         }
 
-        // §10 result screen (0.1.0).
+        // §10 result screen. 0.4.0: KORAN KONOHA, a cream front page over a dark backdrop.
         private static CampaignResultScreen CreateResultScreen(Transform safe)
         {
             var panel = FullPanel("ResultPanel", safe, new Color(0.05f, 0.05f, 0.04f, 0.90f));
-            var title = Text("ResultTitle", panel, new Vector2(0.5f, 1f), new Vector2(0, -30), new Vector2(700, 56), 34);
-            title.alignment = TextAnchor.MiddleCenter;
-            title.color = new Color(1f, 0.82f, 0.40f);
-            title.text = "TAKHTA DIKUASAI!";
-            title.gameObject.AddComponent<Outline>().effectColor = Color.black;
-            var stats = Text("ResultStats", panel, new Vector2(0.5f, 0.5f), new Vector2(0, 20), new Vector2(640, 250), 20);
+            var paperObject = new GameObject("KoranKertas", typeof(RectTransform), typeof(Image));
+            var paper = (RectTransform)paperObject.transform;
+            paper.SetParent(panel, false);
+            paper.anchorMin = paper.anchorMax = new Vector2(0.5f, 0.5f);
+            paper.pivot = new Vector2(0.5f, 0.5f);
+            paper.anchoredPosition = new Vector2(0, 40);
+            paper.sizeDelta = new Vector2(980, 560);
+            paperObject.GetComponent<Image>().color = new Color(0.93f, 0.90f, 0.81f, 1f);
+            Color ink = new Color(0.12f, 0.10f, 0.09f);
+            Color red = new Color(0.62f, 0.10f, 0.08f);
+
+            var masthead = Text("KoranMasthead", paper, new Vector2(0.5f, 1f), new Vector2(0, -14), new Vector2(940, 54), 42);
+            masthead.alignment = TextAnchor.MiddleCenter;
+            masthead.fontStyle = FontStyle.Bold;
+            masthead.color = ink;
+            masthead.text = "KORAN KONOHA";
+            var edition = Text("KoranEdisi", paper, new Vector2(0.5f, 1f), new Vector2(0, -68), new Vector2(940, 22), 14);
+            edition.alignment = TextAnchor.MiddleCenter;
+            edition.color = new Color(0.35f, 0.30f, 0.26f);
+            Rule(paper, "KoranGarisAtas", -92, ink);
+            var headline = Text("KoranJudul", paper, new Vector2(0.5f, 1f), new Vector2(0, -100), new Vector2(940, 64), 32);
+            headline.alignment = TextAnchor.MiddleCenter;
+            headline.fontStyle = FontStyle.Bold;
+            headline.color = red;
+            var subhead = Text("KoranSubjudul", paper, new Vector2(0.5f, 1f), new Vector2(0, -164), new Vector2(900, 44), 17);
+            subhead.alignment = TextAnchor.MiddleCenter;
+            subhead.fontStyle = FontStyle.Italic;
+            subhead.color = ink;
+            Rule(paper, "KoranGarisTengah", -212, ink);
+            var news = Text("KoranBerita", paper, new Vector2(0.5f, 1f), new Vector2(0, -222), new Vector2(920, 250), 16);
+            news.alignment = TextAnchor.UpperLeft;
+            news.color = ink;
+            var archetype = Text("KoranArketipe", paper, new Vector2(0.5f, 0f), new Vector2(0, 40), new Vector2(940, 30), 20);
+            archetype.alignment = TextAnchor.MiddleCenter;
+            archetype.fontStyle = FontStyle.Bold;
+            archetype.color = red;
+            var stats = Text("ResultStats", paper, new Vector2(0.5f, 0f), new Vector2(0, 12), new Vector2(940, 24), 13);
             stats.alignment = TextAnchor.MiddleCenter;
-            stats.gameObject.AddComponent<Outline>().effectColor = Color.black;
-            var retry = Button("ResultRetry", "ULANG", panel, new Vector2(0.5f, 0f), new Vector2(-150, 30), new Vector2(260, 70));
+            stats.color = new Color(0.30f, 0.26f, 0.22f);
+
+            var retry = Button("ResultRetry", "ULANG", panel, new Vector2(0.5f, 0f), new Vector2(-150, 20), new Vector2(260, 64));
             retry.GetComponentInChildren<Text>().fontSize = 24;
             retry.GetComponent<Image>().color = new Color(0.62f, 0.44f, 0.16f, 0.98f);
-            var change = Button("ResultChangeHero", "GANTI HERO", panel, new Vector2(0.5f, 0f), new Vector2(150, 30), new Vector2(260, 70));
+            var change = Button("ResultChangeHero", "GANTI HERO", panel, new Vector2(0.5f, 0f), new Vector2(150, 20), new Vector2(260, 64));
             change.GetComponentInChildren<Text>().fontSize = 24;
 
             var screen = new GameObject("CampaignResultScreen").AddComponent<CampaignResultScreen>();
             screen.panel = panel.gameObject;
             screen.statsText = stats;
+            screen.editionText = edition;
+            screen.headlineText = headline;
+            screen.subheadText = subhead;
+            screen.newsText = news;
+            screen.archetypeText = archetype;
             screen.retryButton = retry;
             screen.changeHeroButton = change;
             return screen;
+        }
+
+        private static void Rule(RectTransform paper, string name, float y, Color color)
+        {
+            var line = new GameObject(name, typeof(RectTransform), typeof(Image));
+            var rect = (RectTransform)line.transform;
+            rect.SetParent(paper, false);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = new Vector2(0, y);
+            rect.sizeDelta = new Vector2(940, 3);
+            line.GetComponent<Image>().color = color;
+            line.GetComponent<Image>().raycastTarget = false;
+        }
+
+        // 0.4.0 Musim Pemilu: the LAWAN / RANGKUL panel (left of the hero, above the joystick).
+        private static CampaignLobiPanel CreateLobiPanel(Transform safe)
+        {
+            var panelObject = new GameObject("LobiPanel", typeof(RectTransform), typeof(Image));
+            var panel = (RectTransform)panelObject.transform;
+            panel.SetParent(safe, false);
+            panel.anchorMin = panel.anchorMax = new Vector2(0f, 0.5f);
+            panel.pivot = new Vector2(0f, 0.5f);
+            panel.anchoredPosition = new Vector2(24, 30);
+            panel.sizeDelta = new Vector2(520, 250);
+            panelObject.GetComponent<Image>().color = new Color(0.08f, 0.10f, 0.12f, 0.92f);
+            var title = Text("LobiJudul", panel, new Vector2(0.5f, 1f), new Vector2(0, -10), new Vector2(490, 34), 24);
+            title.alignment = TextAnchor.MiddleCenter;
+            title.fontStyle = FontStyle.Bold;
+            title.color = new Color(1f, 0.82f, 0.40f);
+            var body = Text("LobiIsi", panel, new Vector2(0.5f, 1f), new Vector2(0, -48), new Vector2(490, 96), 15);
+            body.alignment = TextAnchor.UpperCenter;
+            var lawan = Button("LobiLawan", "LAWAN\nmasuk aula, bertarung", panel, new Vector2(0.5f, 0f),
+                new Vector2(-126, 16), new Vector2(236, 78));
+            lawan.GetComponentInChildren<Text>().fontSize = 17;
+            lawan.GetComponent<Image>().color = new Color(0.55f, 0.12f, 0.10f, 0.98f);
+            var rangkul = Button("LobiRangkul", "RANGKUL", panel, new Vector2(0.5f, 0f),
+                new Vector2(126, 16), new Vector2(236, 78));
+            rangkul.GetComponentInChildren<Text>().fontSize = 17;
+            rangkul.GetComponent<Image>().color = new Color(0.62f, 0.44f, 0.16f, 0.98f);
+
+            var lobi = new GameObject("CampaignLobiPanel").AddComponent<CampaignLobiPanel>();
+            lobi.panel = panelObject;
+            lobi.titleText = title;
+            lobi.bodyText = body;
+            lobi.lawanButton = lawan;
+            lobi.rangkulButton = rangkul;
+            lobi.rangkulLabel = rangkul.GetComponentInChildren<Text>();
+            return lobi;
         }
 
         // 0.1.0 mode menu, the first screen of the APK.
@@ -438,7 +526,7 @@ namespace Konoha.Editor
             title.gameObject.AddComponent<Outline>().effectColor = Color.black;
             var tagline = Text("ModeMenuTagline", panel, new Vector2(0.5f, 1f), new Vector2(0, -100), new Vector2(760, 30), 17);
             tagline.alignment = TextAnchor.MiddleCenter;
-            tagline.text = "Dunia fiksi. Semua institusi dan tokoh adalah satire Negara Konoha.";
+            tagline.text = "Karya satir fiksi. Tokoh, lembaga, dan peristiwa Negara Konoha adalah rekaan.";
 
             var solo = Button("ModeSolo", "JALUR TAKHTA\nSolo • rebut Kursi", panel, new Vector2(0.5f, 0.5f),
                 new Vector2(-170, -10), new Vector2(300, 120));

@@ -34,6 +34,30 @@ namespace Konoha.Campaign
         GardaTakhta = 5
     }
 
+    // 0.4.0: how an institution was handled.
+    public enum SectorPath
+    {
+        Belum,
+        Dilawan,
+        Dirangkul
+    }
+
+    public enum RangkulResult
+    {
+        None,       // Not possible now (wrong phase, already decided, already sealed).
+        Paid,       // Paid with Modal.
+        Loan,       // Modal short: PINJAM KONSORSIUM, extra Jatah.
+        TooPoor     // Modal short and no loan allowed.
+    }
+
+    // 0.4.0 Koran Konoha endings available in this version (GAME_LOGIC v2 §4).
+    public enum CampaignEnding
+    {
+        TakhtaBesi,
+        RajaKoalisi,
+        BonekaSistem
+    }
+
     public enum SectorState
     {
         Terkunci,
@@ -48,6 +72,15 @@ namespace Konoha.Campaign
     {
         private readonly bool[] seals = new bool[CampaignTuning.Seals.SectorCount];
         private readonly SectorState[] sectors = new SectorState[CampaignTuning.Seals.SectorCount];
+        private readonly SectorPath[] paths = new SectorPath[CampaignTuning.Seals.SectorCount];
+        // 0.4.0 political resources (Musim Pemilu).
+        public int Modal { get; private set; } = CampaignTuning.Politik.ModalStart;
+        public int Jatah { get; private set; }
+        public int Restu { get; private set; } = CampaignTuning.Politik.RestuStart;
+        public int RangkulCount { get; private set; }
+        public int LawanCount { get; private set; }
+        public bool TookLoan { get; private set; }
+        public CampaignEnding Ending => EndingFor(RangkulCount, Jatah);
         public CampaignPhase Phase { get; private set; } = CampaignPhase.GerbangRakyat;
         public CampaignCheckpoint Checkpoint { get; private set; } = CampaignCheckpoint.GerbangRakyat;
         public int RuntuhCount { get; private set; }
@@ -175,6 +208,73 @@ namespace Konoha.Campaign
             if (Power == TargetPower)
                 Phase = CampaignPhase.Menang;
             return true;
+        }
+
+        // --- 0.4.0 Musim Pemilu ------------------------------------------------------
+
+        public void AddModal(int amount)
+        {
+            if (amount > 0) Modal += amount;
+        }
+
+        public void AdjustRestu(int delta) => Restu = Math.Max(0, Math.Min(100, Restu + delta));
+
+        public SectorPath GetPath(CampaignSector sector)
+        {
+            int index = (int)sector;
+            return index >= 0 && index < paths.Length ? paths[index] : SectorPath.Belum;
+        }
+
+        // The hero walked into the hall to fight: recorded once per institution.
+        public bool MarkLawan(CampaignSector sector)
+        {
+            int index = (int)sector;
+            if (index < 0 || index >= paths.Length || paths[index] != SectorPath.Belum || seals[index])
+                return false;
+            paths[index] = SectorPath.Dilawan;
+            LawanCount++;
+            AdjustRestu(CampaignTuning.Politik.RestuLawan);
+            return true;
+        }
+
+        // RANGKUL: pay (or borrow) instead of fighting. The caller awards the seal on success.
+        public RangkulResult TryRangkul(CampaignSector sector, int cost, bool allowLoan)
+        {
+            int index = (int)sector;
+            if (Phase != CampaignPhase.PlazaAspirasi || index < 0 || index >= paths.Length ||
+                paths[index] != SectorPath.Belum || seals[index] || cost < 0)
+                return RangkulResult.None;
+            RangkulResult result;
+            if (Modal >= cost)
+            {
+                Modal -= cost;
+                Jatah += 1;
+                result = RangkulResult.Paid;
+            }
+            else if (allowLoan)
+            {
+                Modal = 0;
+                Jatah += 1 + CampaignTuning.Politik.LoanExtraJatah;
+                TookLoan = true;
+                AdjustRestu(CampaignTuning.Politik.RestuLoan);
+                result = RangkulResult.Loan;
+            }
+            else
+            {
+                return RangkulResult.TooPoor;
+            }
+            paths[index] = SectorPath.Dirangkul;
+            RangkulCount++;
+            AdjustRestu(CampaignTuning.Politik.RestuRangkul);
+            return result;
+        }
+
+        // Koran Konoha (0.4.0): puppet beats coalition beats iron throne.
+        public static CampaignEnding EndingFor(int rangkulCount, int jatah)
+        {
+            if (jatah >= CampaignTuning.Politik.BonekaJatah) return CampaignEnding.BonekaSistem;
+            if (rangkulCount > 0) return CampaignEnding.RajaKoalisi;
+            return CampaignEnding.TakhtaBesi;
         }
 
         private void RecordSectorCheckpoint(CampaignSector sector)

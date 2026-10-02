@@ -157,7 +157,7 @@ namespace Konoha.Campaign
                             objectiveText.text = BiroObjective(director);
                             break;
                         default:
-                            objectiveText.text = "PLAZA • Rebut segel MAJELIS (kiri) & BIRO (kanan)";
+                            objectiveText.text = "PLAZA • Lawan atau rangkul MAJELIS & BIRO";
                             break;
                     }
                     break;
@@ -187,9 +187,9 @@ namespace Konoha.Campaign
                     break;
             }
 
+            // 0.4.0 Musim Pemilu: political resources replace KUASA (DUDUK wins the run).
             statusText.text = "SEGEL " + director.SealCount + "/" + director.RequiredSeals +
-                "  |  KUASA " + director.Power + "/" + director.TargetPower +
-                "  |  RUNTUH " + director.RuntuhCount;
+                "  |  MODAL " + director.Modal + "  |  JATAH " + director.Jatah + "  |  RESTU " + director.Restu;
 
             if (objectiveProgress == null)
                 return;
@@ -357,7 +357,7 @@ namespace Konoha.Campaign
                 : kit.IsStunned ? "STUN"
                 : "WIBAWA " + combat.Wibawa + "/" + combat.MaxWibawaValue;
             heroText.text = NetworkHeroKit.GetHeroName(kit.Hero) + "  •  " + state +
-                "  •  PENGARUH " + kit.Pengaruh + "%" + (director.RestuActive ? "  •  RESTU" : string.Empty);
+                "  •  PENGARUH " + kit.Pengaruh + "%";
         }
 
         private void RefreshAction(CampaignDirector director, NetworkObject hero)

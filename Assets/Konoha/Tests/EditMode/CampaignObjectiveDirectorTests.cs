@@ -86,7 +86,7 @@ namespace Konoha.Tests
             Assert.That(director.MajelisEngaged, Is.True);
             Assert.That(director.Run.GetSectorState(CampaignSector.MajelisDaun), Is.EqualTo(SectorState.Berlangsung));
             Assert.That(director.Run.Checkpoint, Is.EqualTo(CampaignCheckpoint.MajelisDaun));
-            Assert.That(messages.FindAll(m => m.StartsWith("SIDANG MAJELIS")), Has.Count.EqualTo(1));
+            Assert.That(messages.FindAll(m => m.StartsWith("LAWAN MAJELIS")), Has.Count.EqualTo(1));
             Hold(director, Majelis, 3f);
             Assert.That(director.Run.HasSeal(CampaignSector.MajelisDaun), Is.False, "Standing in the hall no longer earns the seal");
         }

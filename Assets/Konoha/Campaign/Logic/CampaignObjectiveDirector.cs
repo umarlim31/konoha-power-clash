@@ -46,6 +46,8 @@ namespace Konoha.Campaign
         public bool ReignStarted { get; private set; }
         public int ReignRuntuh { get; private set; }
         public int CounterattackWaves { get; private set; }
+        // 0.4.0 LAWAN / RANGKUL: the institution whose offer panel is open (-1: none).
+        public int OfferSector { get; private set; } = -1;
         // True: DUDUK wins the run (0.1.1). False: the §9 Power phase (tests, later levels).
         public bool SeatWinsRun { get; set; } = CampaignTuning.Memerintah.SeatWinsRun;
         private bool wavesArmed;
@@ -90,6 +92,7 @@ namespace Konoha.Campaign
             ReignRuntuh = 0;
             CounterattackWaves = 0;
             wavesArmed = false;
+            OfferSector = -1;
         }
 
         // The Gerbang Rakyat defenders are down; the plaza may now be reached.
@@ -97,7 +100,11 @@ namespace Konoha.Campaign
         {
             if (GateCleared) return;
             GateCleared = true;
-            Notify("Gerbang Rakyat terbuka! Menuju PLAZA ASPIRASI");
+            // 0.4.0: "sumbangan relawan" and the first bit of public trust.
+            Run.AddModal(CampaignTuning.Politik.ModalGateBonus);
+            Run.AdjustRestu(CampaignTuning.Politik.RestuGate);
+            Notify("Gerbang Rakyat terbuka! Sumbangan relawan +" + CampaignTuning.Politik.ModalGateBonus +
+                " MODAL. Menuju PLAZA ASPIRASI");
         }
 
         // Ketua down and no officer standing (MajelisEncounter.Cleared). Awards the seal.
@@ -110,6 +117,7 @@ namespace Konoha.Campaign
                 MajelisEngaged = true;
                 Run.BeginSector(CampaignSector.MajelisDaun);
             }
+            Run.MarkLawan(CampaignSector.MajelisDaun);
             if (!Run.AwardSeal(CampaignSector.MajelisDaun)) return false;
             Notify("SEGEL MAJELIS diperoleh!  Pengaruh +" + CampaignTuning.Majelis.SealPengaruh);
             if (Run.TryOpenInnerGate())
@@ -127,11 +135,44 @@ namespace Konoha.Campaign
                 BiroEngaged = true;
                 Run.BeginSector(CampaignSector.BiroProsedur);
             }
+            Run.MarkLawan(CampaignSector.BiroProsedur);
             if (!Run.AwardSeal(CampaignSector.BiroProsedur)) return false;
             Notify("SEGEL BIRO diperoleh!  Pengaruh +" + CampaignTuning.Biro.SealPengaruh);
             if (Run.TryOpenInnerGate())
                 Notify("Gerbang Dalam terbuka! Hadapi GARDA TAKHTA");
             return true;
+        }
+
+        // 0.4.0: a Sistem member was knocked down (not one that surrendered).
+        public void AwardDefeatModal() => Run.AddModal(CampaignTuning.Politik.ModalPerDefeat);
+
+        public static int RangkulCost(CampaignSector sector) =>
+            sector == CampaignSector.BiroProsedur ? CampaignTuning.Politik.RangkulCostBiro : CampaignTuning.Politik.RangkulCostMajelis;
+
+        // RANGKUL: the institution is bought instead of fought. Awards its seal without Pengaruh;
+        // the caller makes its members stand down.
+        public RangkulResult Rangkul(CampaignSector sector, bool allowLoan)
+        {
+            if (sector == CampaignSector.MajelisDaun ? MajelisEngaged : sector == CampaignSector.BiroProsedur ? BiroEngaged : true)
+                return RangkulResult.None;
+            RangkulResult result = Run.TryRangkul(sector, RangkulCost(sector), allowLoan);
+            if (result != RangkulResult.Paid && result != RangkulResult.Loan)
+                return result;
+            if (sector == CampaignSector.MajelisDaun) MajelisEngaged = true;
+            else BiroEngaged = true;
+            Run.AwardSeal(sector);
+            OfferSector = -1;
+            if (sector == CampaignSector.MajelisDaun)
+                Notify(result == RangkulResult.Loan
+                    ? "MAJELIS DIRANGKUL pakai PINJAMAN KONSORSIUM!  Segel keluar, utang menumpuk (JATAH " + Run.Jatah + ")"
+                    : "MAJELIS DIRANGKUL!  Rapat tertutup pukul 02.00, palu diketok. SEGEL MAJELIS (JATAH " + Run.Jatah + ")");
+            else
+                Notify(result == RangkulResult.Loan
+                    ? "BIRO DIRANGKUL pakai PINJAMAN KONSORSIUM!  Jalur khusus dibuka (JATAH " + Run.Jatah + ")"
+                    : "BIRO DIRANGKUL!  \"Jalur khusus\" dibuka, semua loket langsung tercap. SEGEL BIRO (JATAH " + Run.Jatah + ")");
+            if (Run.TryOpenInnerGate())
+                Notify("Gerbang Dalam terbuka! Hadapi GARDA TAKHTA");
+            return result;
         }
 
         // Every Garda Takhta defender is down.
@@ -151,6 +192,7 @@ namespace Konoha.Campaign
                  player.z > layout.Plaza.z - CampaignTuning.PreviewSlice.PlazaEntryDepth))
                 Run.ReachPlaza();
 
+            OfferSector = -1;
             if (Run.Phase == CampaignPhase.PlazaAspirasi)
             {
                 // Majelis: the sidang waits in its hall from the moment the plaza is reached.
@@ -164,7 +206,8 @@ namespace Konoha.Campaign
                 {
                     MajelisEngaged = true;
                     Run.BeginSector(CampaignSector.MajelisDaun);
-                    Notify("SIDANG MAJELIS!  Blok Majelis menahan serangan: incar ANGGOTA SENIOR dulu");
+                    Run.MarkLawan(CampaignSector.MajelisDaun);
+                    Notify("LAWAN MAJELIS!  Blok Majelis menahan serangan: incar ANGGOTA SENIOR dulu");
                 }
                 // Biro: the loket hall opens together with the plaza.
                 if (!BiroPrepared)
@@ -177,10 +220,19 @@ namespace Konoha.Campaign
                 {
                     BiroEngaged = true;
                     Run.BeginSector(CampaignSector.BiroProsedur);
-                    Notify("BIRO PROSEDUR!  Cap 3 LOKET, usir petugas dari antrian, awas PENGAWAS");
+                    Run.MarkLawan(CampaignSector.BiroProsedur);
+                    Notify("LAWAN BIRO!  Cap 3 LOKET, usir petugas dari antrian, awas PENGAWAS");
                 }
                 if (Run.TryOpenInnerGate())
                     Notify("Gerbang Dalam terbuka! Hadapi GARDA TAKHTA");
+                // 0.4.0: the LAWAN / RANGKUL panel, before the members notice the hero (after the
+                // engagement checks, so walking into the hall closes it in the same frame).
+                if (Run.Phase == CampaignPhase.PlazaAspirasi)
+                {
+                    OfferSector = Offer(player, CampaignSector.MajelisDaun, layout.Majelis, MajelisEngaged);
+                    if (OfferSector < 0)
+                        OfferSector = Offer(player, CampaignSector.BiroProsedur, layout.Biro, BiroEngaged);
+                }
             }
 
             if (Run.Phase == CampaignPhase.GerbangDalam && !GardaPrepared)
@@ -319,6 +371,13 @@ namespace Konoha.Campaign
             powerClock = 0f;
             Notify("KUDETA!  Kekuasaan direbut. Kuasa kembali 0, rebut Kursi lagi");
             Kudeta?.Invoke();
+        }
+
+        private int Offer(Vector3 player, CampaignSector sector, Vector3 hall, bool engaged)
+        {
+            if (engaged || Run.HasSeal(sector) || Run.GetPath(sector) != SectorPath.Belum)
+                return -1;
+            return Near(player, hall, CampaignTuning.Politik.OfferRadius) ? (int)sector : -1;
         }
 
         private void Notify(string message) => Notified?.Invoke(message);

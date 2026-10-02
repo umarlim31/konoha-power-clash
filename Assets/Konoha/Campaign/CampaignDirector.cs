@@ -89,6 +89,24 @@ namespace Konoha.Campaign
         private NetworkVariable<double> runEndedAt = new NetworkVariable<double>(
             -1d, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
+        // 0.4.0 Musim Pemilu: political resources and the LAWAN / RANGKUL offer.
+        private NetworkVariable<int> modal = new NetworkVariable<int>(
+            CampaignTuning.Politik.ModalStart, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<int> jatah = new NetworkVariable<int>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<int> restuScore = new NetworkVariable<int>(
+            CampaignTuning.Politik.RestuStart, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<int> offerSector = new NetworkVariable<int>(
+            -1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        // Majelis path in bits 0–1, Biro path in bits 2–3 (SectorPath values).
+        private NetworkVariable<int> pathBits = new NetworkVariable<int>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<bool> tookLoan = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private readonly HashSet<ulong> countedDefeats = new HashSet<ulong>();
+        private bool majelisBought;
+        private bool biroBought;
+
         private readonly List<CampaignEnemy> gateEnemies = new List<CampaignEnemy>();
         private readonly List<CampaignEnemy> gardaEnemies = new List<CampaignEnemy>();
         private readonly List<CampaignEnemy> majelisEnemies = new List<CampaignEnemy>();
@@ -195,6 +213,21 @@ namespace Konoha.Campaign
 
         public bool HasSeal(CampaignSector sector) => (sealMask.Value & (1 << (int)sector)) != 0;
 
+        // 0.4.0 Musim Pemilu (read by the HUD, the LAWAN / RANGKUL panel and the Koran).
+        public int Modal => modal.Value;
+        public int Jatah => jatah.Value;
+        public int Restu => restuScore.Value;
+        public bool TookLoan => tookLoan.Value;
+        public int OfferSector => offerSector.Value;
+        public SectorPath Path(CampaignSector sector) =>
+            sector == CampaignSector.MajelisDaun ? (SectorPath)(pathBits.Value & 3)
+            : sector == CampaignSector.BiroProsedur ? (SectorPath)((pathBits.Value >> 2) & 3)
+            : SectorPath.Belum;
+        public int RangkulCount =>
+            (Path(CampaignSector.MajelisDaun) == SectorPath.Dirangkul ? 1 : 0) +
+            (Path(CampaignSector.BiroProsedur) == SectorPath.Dirangkul ? 1 : 0);
+        public CampaignEnding Ending => CampaignRunState.EndingFor(RangkulCount, Jatah);
+
         public override void OnNetworkSpawn()
         {
             base.OnNetworkSpawn();
@@ -289,11 +322,13 @@ namespace Konoha.Campaign
                 GrantRestu();
             }
 
-            if (majelisSpawned)
+            if (majelisSpawned && !majelisBought)
                 UpdateMajelis();
 
-            if (biroSpawned)
+            if (biroSpawned && !biroBought)
                 UpdateBiro(player, deltaTime);
+
+            CountDefeats();
 
             if (gardaSpawned)
                 UpdateGarda(player);
@@ -328,7 +363,7 @@ namespace Konoha.Campaign
             checkpoint.Value = (int)run.Checkpoint;
             runtuhCount.Value = run.RuntuhCount;
             majelisStarted.Value = objectives.MajelisEngaged;
-            majelisBlock.Value = majelisSpawned && majelis.BlockHolds && !majelis.Cleared;
+            majelisBlock.Value = majelisSpawned && !majelisBought && majelis.BlockHolds && !majelis.Cleared;
             majelisLeaderDown.Value = majelis.LeaderFallen;
             majelisRemaining.Value = CountAlive(majelisEnemies);
             majelisTotal.Value = majelisEnemies.Count;
@@ -352,6 +387,13 @@ namespace Konoha.Campaign
             NetworkObject seated = run.Phase == CampaignPhase.Memerintah ? PrimaryPlayer() : null;
             seatedObjectId.Value = seated != null ? seated.NetworkObjectId : ulong.MaxValue;
             counterRemaining.Value = CountAlive(counterEnemies);
+
+            modal.Value = run.Modal;
+            jatah.Value = run.Jatah;
+            restuScore.Value = run.Restu;
+            tookLoan.Value = run.TookLoan;
+            offerSector.Value = objectives.OfferSector;
+            pathBits.Value = (int)run.GetPath(CampaignSector.MajelisDaun) | ((int)run.GetPath(CampaignSector.BiroProsedur) << 2);
 
             int mask = 0;
             for (int i = 0; i < CampaignTuning.Seals.SectorCount; i++)
@@ -641,11 +683,44 @@ namespace Konoha.Campaign
                     {
                         enemy.ServerConfigureCounterPush();
                         panglima = enemy;
+                        WeakenPanglima(enemy);
                     }
                     gardaEnemies.Add(enemy);
                 }
             }
             gardaSpawned = true;
+        }
+
+        // 0.4.0: every embraced institution has already "conditioned" the Panglima.
+        private void WeakenPanglima(CampaignEnemy enemy)
+        {
+            int embraced = objectives.Run.RangkulCount;
+            if (embraced <= 0)
+                return;
+            NetworkPlayerCombat combat = enemy.GetComponent<NetworkPlayerCombat>();
+            if (combat == null)
+                return;
+            float factor = Mathf.Max(0.4f, 1f - CampaignTuning.Politik.PanglimaWeakenPerRangkul * embraced);
+            combat.ServerConfigureWibawa(Mathf.RoundToInt(UnitRoleStats.For(UnitRole.Pemimpin).Wibawa * factor));
+            OnObjectiveMessage("Koalisi sudah \"mengkondisikan\" PANGLIMA:  Wibawa -" +
+                Mathf.RoundToInt((1f - factor) * 100f) + "%");
+        }
+
+        // 0.4.0: +Modal for every Sistem member knocked down (surrender does not pay).
+        private void CountDefeats()
+        {
+            CountDefeats(gateEnemies);
+            CountDefeats(majelisEnemies);
+            CountDefeats(biroEnemies);
+            CountDefeats(gardaEnemies);
+            CountDefeats(counterEnemies);
+        }
+
+        private void CountDefeats(List<CampaignEnemy> list)
+        {
+            foreach (CampaignEnemy enemy in list)
+                if (enemy != null && enemy.IsSpawned && enemy.IsDown && countedDefeats.Add(enemy.NetworkObjectId))
+                    objectives.AwardDefeatModal();
         }
 
         private void UpdateGarda(NetworkObject player)
@@ -853,6 +928,9 @@ namespace Konoha.Campaign
             majelis.Reset();
             gardaSpawned = false;
             garda.Reset();
+            countedDefeats.Clear();
+            majelisBought = false;
+            biroBought = false;
             panglima = null;
             gardaLockdown.Value = false;
             counterFaction = 0;
@@ -919,6 +997,53 @@ namespace Konoha.Campaign
         {
             if (objectives != null && objectives.Run.Phase == CampaignPhase.Menang)
                 ServerRestart(chooseHero);
+        }
+
+        // 0.4.0 RANGKUL button of the LAWAN / RANGKUL panel (loan: PINJAM KONSORSIUM).
+        public void RequestRangkul(bool loan)
+        {
+            if (IsSpawned)
+                RangkulServerRpc(loan);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void RangkulServerRpc(bool loan)
+        {
+            if (objectives == null || !heroLocked.Value || objectives.OfferSector < 0)
+                return;
+            var sector = (CampaignSector)objectives.OfferSector;
+            RangkulResult result = objectives.Rangkul(sector, loan);
+            if (result == RangkulResult.TooPoor)
+            {
+                OnObjectiveMessage("MODAL KURANG.  Coba lahir di keluarga lain, atau PINJAM ke Konsorsium");
+                return;
+            }
+            if (result != RangkulResult.Paid && result != RangkulResult.Loan)
+                return;
+            // The institution stands down: its members kneel and leave (no Modal for them).
+            if (sector == CampaignSector.MajelisDaun)
+            {
+                majelisBought = true;
+                StandDown(majelisEnemies);
+            }
+            else if (sector == CampaignSector.BiroProsedur)
+            {
+                biroBought = true;
+                biroDoorOpen.Value = true;
+                StandDown(biroEnemies);
+            }
+            SyncState();
+        }
+
+        private void StandDown(List<CampaignEnemy> list)
+        {
+            foreach (CampaignEnemy enemy in list)
+            {
+                if (enemy == null || !enemy.IsSpawned || enemy.IsOutOfFight)
+                    continue;
+                enemy.ServerSetBlock(false);
+                enemy.ServerSurrender();
+            }
         }
 
         // Contextual SAHKAN / DUDUK / ULANG button.

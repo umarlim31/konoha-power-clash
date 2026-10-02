@@ -5,13 +5,20 @@ using UnityEngine.UI;
 
 namespace Konoha.Campaign
 {
-    // §10 result screen (0.1.0): run time, Runtuh, Pengaruh collected and the final archetype.
-    // MVP only has the combat route, so the archetype is always TAKHTA BESI. Buttons:
+    // §10 result screen. 0.4.0: a satirical front page, KORAN KONOHA, whose headline follows
+    // the ending (Takhta Besi / Raja Koalisi / Boneka Sistem) and whose stories follow the run
+    // (KoranKonoha.Compose). The stats line keeps time, Runtuh and Pengaruh. Buttons:
     // ULANG (same hero, straight back to the Gerbang Rakyat) and GANTI HERO (hero screen).
     public sealed class CampaignResultScreen : MonoBehaviour
     {
         public GameObject panel;
         public Text statsText;
+        // 0.4.0 Koran Konoha (all optional; without them the stats text carries everything).
+        public Text editionText;
+        public Text headlineText;
+        public Text subheadText;
+        public Text newsText;
+        public Text archetypeText;
         public Button retryButton;
         public Button changeHeroButton;
         // Seconds after TAKHTA DIKUASAI before the screen appears (let the fanfare land).
@@ -78,21 +85,40 @@ namespace Konoha.Campaign
             bool show = won && Time.unscaledTime - wonAt >= showDelay;
             if (panel != null && panel.activeSelf != show)
                 panel.SetActive(show);
-            if (show && statsText != null)
-                statsText.text = Describe(director, kit);
+            if (show)
+                Fill(director, kit);
         }
 
-        private string Describe(CampaignDirector director, NetworkHeroKit kit)
+        private void Fill(CampaignDirector director, NetworkHeroKit kit)
         {
             int seconds = Mathf.FloorToInt((float)director.RunSeconds);
             string hero = kit != null ? NetworkHeroKit.GetHeroName(kit.Hero) : "-";
-            return "HERO  " + hero + "\n" +
-                "WAKTU  " + (seconds / 60) + ":" + (seconds % 60).ToString("00") + "\n" +
-                "RUNTUH  " + director.RuntuhCount + "\n" +
-                "PENGARUH TERKUMPUL  " + collected + "\n\n" +
-                "ARKETIPE:  TAKHTA BESI\n" +
-                "Kursi direbut lewat adu kuat, bukan lewat koalisi.\n\n" +
-                "LEVEL 2 segera hadir. Untuk sekarang: ULANG atau GANTI HERO.";
+            KoranEdition koran = KoranKonoha.Compose(director.Ending, hero, director.Path(CampaignSector.MajelisDaun),
+                director.Path(CampaignSector.BiroProsedur), director.Modal, director.Jatah, director.Restu,
+                director.TookLoan, director.RuntuhCount, seconds);
+            string stats = "HERO " + hero + "  •  WAKTU " + KoranKonoha.Clock(seconds) + "  •  RUNTUH " +
+                director.RuntuhCount + "  •  PENGARUH " + collected + "  •  MODAL " + director.Modal +
+                "  •  JATAH " + director.Jatah + "  •  RESTU " + director.Restu;
+            if (headlineText == null)
+            {
+                // Plain fallback layout.
+                if (statsText != null)
+                    statsText.text = koran.Masthead + "\n" + koran.Headline + "\n" + koran.Subhead + "\n\n" +
+                        string.Join("\n", koran.News) + "\n\nARKETIPE: " + koran.Archetype + "\n" + stats;
+                return;
+            }
+            if (editionText != null) editionText.text = koran.Edition;
+            headlineText.text = koran.Headline;
+            if (subheadText != null) subheadText.text = koran.Subhead;
+            if (newsText != null)
+            {
+                var lines = new System.Text.StringBuilder();
+                foreach (string line in koran.News)
+                    lines.Append("• ").Append(line).Append('\n');
+                newsText.text = lines.ToString();
+            }
+            if (archetypeText != null) archetypeText.text = "ARKETIPE: " + koran.Archetype;
+            if (statsText != null) statsText.text = stats;
         }
 
         private static NetworkHeroKit LocalKit()
