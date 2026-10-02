@@ -32,7 +32,9 @@ Urutan versi:
 | 0.3.0 | (visual) | Tubuh membulat (badan/kain lathe, kapsul, sepatu oval), kain batik MEGA, jalan polos tanpa motif, lentera Jawa, pohon ketapang | ✅ Diuji di tablet ("hasilnya bagus aman"); di-merge |
 | 0.3.1 | (aset) | 16 slot model 3D bangunan, pohon & properti (FBX/OBJ dari owner, fallback kode, collider tetap) + `Docs/PANDUAN_MODEL_3D.md` + paket model Nusantara | ✅ Uji A & B lolos di tablet ("lancar"); di-merge bersama paket model |
 | 0.3.2 | (polish) | Baris MODEL 3D ringkas (tidak keluar layar), kota pesisir di teluk memakai model ruko/rumah | Diuji di tablet: kota tampak **makin sepi** (model tidak tergambar) → 0.3.3 |
-| 0.3.3 | (perbaikan) | Model 3D benar-benar tergambar (mesh gabungan kehilangan segitiga di 0.3.1/0.3.2); pengaman: bentuk kode tidak dihapus bila mesh model kosong | Dikerjakan (branch `feat/model-tampil-0.3.3`), menunggu uji tablet |
+| 0.3.3 | (perbaikan) | Model 3D benar-benar tergambar (mesh gabungan kehilangan segitiga di 0.3.1/0.3.2); pengaman: bentuk kode tidak dihapus bila mesh model kosong | ✅ Diuji di tablet ("udah normal kembali"); masukan: pendopo hilang saat didekati, warga tanpa muka → 0.3.4 |
+| 0.3.4 | (perbaikan+visual) | Hanya atap model yang memudar (pendopo dll.), mata kartun berkedip untuk hero/musuh, warga bermuka & membulat, jilbab membingkai wajah; usulan alur v2 `Docs/REKOMENDASI_ALUR_JALUR_TAKHTA_v2.md` | Dikerjakan (branch `feat/warga-hidup-0.3.4`), menunggu uji tablet |
+| 0.4.x | (alur) | "Musim Pemilu": Lawan/Rangkul, Kartu Kebijakan, Krisis, Koran Konoha (lihat dokumen usulan) | Menunggu persetujuan owner |
 
 > Catatan: fase "faksi" dari rencana sebelumnya dipecah menjadi 0.0.9.2 dan 0.0.9.3, dan "combat asli" dipisah dari "peta baru". Alasannya: kamu tidak bisa compile sendiri, jadi setiap build harus kecil agar error mudah dilacak.
 
