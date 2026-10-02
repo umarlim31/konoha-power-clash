@@ -1,3 +1,4 @@
+using Konoha.Character;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -59,7 +60,12 @@ namespace Konoha.Networking
                     }
                 }
 
-                ApplyBodySilhouette((PrototypeHero)Mathf.Clamp(hero, 0, 3));
+            }
+
+            if (force || heroChanged || knockoutChanged)
+            {
+                ApplyBodySilhouette((PrototypeHero)Mathf.Clamp(hero, 0, 3), knockedOut);
+                ApplyModelState(hero, knockedOut);
             }
 
             if (force || teamChanged || knockoutChanged)
@@ -73,7 +79,7 @@ namespace Konoha.Networking
                 ApplyHeroAccessoryColor((PrototypeHero)Mathf.Clamp(hero, 0, 3), knockedOut);
         }
 
-        private void ApplyBodySilhouette(PrototypeHero hero)
+        private void ApplyBodySilhouette(PrototypeHero hero, bool knockedOut)
         {
             if (bodyTransform == null)
                 return;
@@ -93,6 +99,30 @@ namespace Konoha.Networking
                     bodyTransform.localScale = new Vector3(0.98f, 1.00f, 0.98f);
                     break;
             }
+            // In the recorded build every fighter kept the same pale cylinder, making
+            // the ornaments disappear at match camera distance. Keep fabric colours
+            // distinct while the team allegiance remains on the ground ring.
+            Renderer body = bodyTransform.GetComponent<Renderer>();
+            if (body == null) return;
+            Color fabric = hero == PrototypeHero.Mega ? new Color(0.19f, 0.08f, 0.11f) :
+                hero == PrototypeHero.Prabowo ? new Color(0.82f, 0.75f, 0.65f) :
+                hero == PrototypeHero.Abah ? new Color(0.08f, 0.29f, 0.23f) :
+                new Color(0.84f, 0.77f, 0.67f);
+            if (knockedOut) fabric = Color.Lerp(fabric, Color.black, 0.72f);
+            var block = new MaterialPropertyBlock();
+            block.SetColor("_BaseColor", fabric);
+            body.SetPropertyBlock(block);
+        }
+
+        // A rigged 3D hero (HeroVisualCatalog) replaces the capsule body. Primitive heroes
+        // keep it visible, exactly as before.
+        private void ApplyModelState(int hero, bool knockedOut)
+        {
+            GameObject visual = heroVisuals != null && hero >= 0 && hero < heroVisuals.Length ? heroVisuals[hero] : null;
+            bool usesModel = HeroAnimatorDriver.UsesModel(visual);
+            Renderer body = bodyTransform != null ? bodyTransform.GetComponent<Renderer>() : null;
+            if (body != null) body.enabled = !usesModel;
+            if (usesModel) visual.GetComponent<HeroAnimatorDriver>().SetRuntuh(knockedOut);
         }
 
         private void ApplyHeroAccessoryColor(PrototypeHero hero, bool knockedOut)
@@ -110,6 +140,8 @@ namespace Konoha.Networking
             {
                 // Keep each generated material's original palette. Recoloring all pieces
                 // with the hero accent turned fabric, metal and ornaments into one flat hue.
+                // One property block tints every sub-mesh, so multi-material model renderers are skipped.
+                if (renderer.sharedMaterials.Length > 1) continue;
                 Material source = renderer.sharedMaterial;
                 if (source == null) continue;
                 string property = source.HasProperty("_BaseColor") ? "_BaseColor" :

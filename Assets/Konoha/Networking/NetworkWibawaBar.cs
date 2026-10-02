@@ -56,9 +56,9 @@ namespace Konoha.Networking
             if (combat == null || worldCanvas == null)
                 return;
 
-            bool localHuman = GetComponent<NetworkBotController>() == null && IsOwner;
-            NetworkMatchManager match = NetworkMatchManager.Instance;
-            bool ruler = match != null && match.IsRuler(NetworkObject);
+            bool localHuman = !NetworkTeamUtility.IsAiActor(this) && IsOwner;
+            ICombatRules rules = CombatRules.Current;
+            bool ruler = rules != null && rules.IsRuler(NetworkObject);
             float distance = GetViewerDistance();
 
             bool visible = localHuman ||
@@ -72,7 +72,7 @@ namespace Konoha.Networking
             if (!visible)
                 return;
 
-            float healthRatio = Mathf.Clamp01(combat.Wibawa / (float)NetworkPlayerCombat.MaxWibawa);
+            float healthRatio = Mathf.Clamp01(combat.Wibawa / (float)combat.MaxWibawaValue);
             float shieldRatio = Mathf.Clamp01(combat.Shield / 50f);
 
             if (healthFill != null)

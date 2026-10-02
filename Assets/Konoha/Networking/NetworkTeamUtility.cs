@@ -7,6 +7,8 @@ namespace Konoha.Networking
     {
         public const int CyanTeam = 0;
         public const int OrangeTeam = 1;
+        // Jalur Takhta enemies. Never used by Rebut Kursi.
+        public const int SistemTeam = 2;
 
         private static readonly Vector3[] CyanFormation =
         {
@@ -24,7 +26,15 @@ namespace Konoha.Networking
             new Vector3(10.5f, 0.1f, -3.2f)
         };
 
+        // The active mode decides human teams (PvP alternates; the campaign unites them).
+        // Without a registered mode the original PvP alternation applies.
         public static int GetTeam(ulong clientId)
+        {
+            ICombatRules rules = CombatRules.Current;
+            return rules != null ? rules.GetHumanTeam(clientId) : GetPvpTeam(clientId);
+        }
+
+        public static int GetPvpTeam(ulong clientId)
         {
             return (int)(clientId % 2UL);
         }
@@ -34,17 +44,24 @@ namespace Konoha.Networking
             if (networkObject == null)
                 return -1;
 
-            NetworkBotController bot = networkObject.GetComponent<NetworkBotController>();
-            if (bot != null)
-                return bot.Team;
+            // TryGetComponent: an interface lookup must not see the editor's fake-null object.
+            if (networkObject.TryGetComponent(out INetworkAiActor ai))
+                return ai.Team;
 
             return GetTeam(networkObject.OwnerClientId);
+        }
+
+        // Server-driven actor (PvP bot or campaign enemy), as opposed to a human's hero.
+        public static bool IsAiActor(Component actor)
+        {
+            return actor != null && actor.TryGetComponent(out INetworkAiActor _);
         }
 
         public static bool IsCombatActor(NetworkObject networkObject)
         {
             return networkObject != null &&
-                   networkObject.GetComponent<NetworkPlayerCombat>() != null;
+                   networkObject.GetComponent<NetworkPlayerCombat>() != null &&
+                   (!networkObject.TryGetComponent(out ICombatActorState state) || state.IsTargetable);
         }
 
         public static int GetHumanSlot(ulong clientId)
@@ -54,7 +71,7 @@ namespace Konoha.Networking
 
         public static string GetTeamName(int team)
         {
-            return team == CyanTeam ? "CYAN" : team == OrangeTeam ? "ORANGE" : "NEUTRAL";
+            return team == CyanTeam ? "CYAN" : team == OrangeTeam ? "ORANGE" : team == SistemTeam ? "SISTEM" : "NEUTRAL";
         }
 
         public static Color GetTeamColor(int team)
@@ -63,7 +80,9 @@ namespace Konoha.Networking
                 ? new Color(0.15f, 0.90f, 0.80f)
                 : team == OrangeTeam
                     ? new Color(1.00f, 0.55f, 0.18f)
-                    : new Color(0.72f, 0.78f, 0.84f);
+                    : team == SistemTeam
+                        ? new Color(0.78f, 0.16f, 0.20f)
+                        : new Color(0.72f, 0.78f, 0.84f);
         }
 
         public static Vector3 GetSpawnPosition(ulong clientId)

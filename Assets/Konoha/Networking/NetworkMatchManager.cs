@@ -13,7 +13,7 @@ namespace Konoha.Networking
         Result = 5
     }
 
-    public sealed class NetworkMatchManager : NetworkBehaviour
+    public sealed class NetworkMatchManager : NetworkBehaviour, ICombatRules
     {
         public const ulong NoClient = ulong.MaxValue;
         public const int PowerToWin = 100;
@@ -149,6 +149,7 @@ namespace Konoha.Networking
         {
             base.OnNetworkSpawn();
             Instance = this;
+            CombatRules.Register(this);
 
             if (IsServer)
                 ResetWaitingState();
@@ -161,8 +162,63 @@ namespace Konoha.Networking
             if (Instance == this)
                 Instance = null;
 
+            CombatRules.Unregister(this);
             base.OnNetworkDespawn();
         }
+
+        // ICombatRules: the Rebut Kursi answers the shared combat components relied on
+        // before the interface existed (same checks, same spawn points and delay).
+        public bool CanSelectHero =>
+            State == GreyboxMatchState.Waiting || State == GreyboxMatchState.Result;
+
+        public int GetHumanTeam(ulong clientId)
+        {
+            return NetworkTeamUtility.GetPvpTeam(clientId);
+        }
+
+        public bool ServerOnActorKnockedOut(NetworkObject actor, NetworkObject attacker)
+        {
+            HandleActorKnockedOut(actor);
+            return true;
+        }
+
+        public float GetRespawnDelay(NetworkObject actor, float defaultDelay)
+        {
+            return defaultDelay;
+        }
+
+        public Vector3 GetRespawnPosition(NetworkObject actor)
+        {
+            return NetworkTeamUtility.GetSpawnPosition(actor);
+        }
+
+        public Quaternion GetRespawnRotation(NetworkObject actor)
+        {
+            return NetworkTeamUtility.GetSpawnRotation(actor);
+        }
+
+        public void ServerOnActorRespawned(NetworkObject actor)
+        {
+        }
+
+        // PvP has no mode damage modifiers.
+        public float GetDamageMultiplier(NetworkObject attacker, NetworkObject target)
+        {
+            return 1f;
+        }
+
+        public float GetCooldownMultiplier(NetworkObject actor)
+        {
+            return 1f;
+        }
+
+        public float GetBasicRangeBonus(NetworkObject actor)
+        {
+            return 0f;
+        }
+
+        // PvP keeps the original hero kit.
+        public bool UsesSoloHeroKit => false;
 
         private void Update()
         {

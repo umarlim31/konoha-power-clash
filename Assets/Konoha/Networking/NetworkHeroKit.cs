@@ -6,6 +6,8 @@ using UnityEngine.UI;
 
 namespace Konoha.Networking
 {
+    // Internal identifiers kept for serialized/network compatibility. Player-facing UI
+    // always uses the fictional names MEGA, GEMOY, ABAH and PAK WI (GetHeroName).
     public enum PrototypeHero
     {
         Mega = 0,
@@ -94,7 +96,7 @@ namespace Konoha.Networking
             NetworkManager != null ? NetworkManager.ServerTime.Time : Time.realtimeSinceStartupAsDouble;
 
         private ulong DamageSourceClientId =>
-            GetComponent<NetworkBotController>() != null
+            NetworkTeamUtility.IsAiActor(this)
                 ? NetworkMatchManager.NoClient
                 : OwnerClientId;
 
@@ -118,7 +120,7 @@ namespace Konoha.Networking
             if (IsServer)
                 heroId.Value = bot != null ? (int)bot.Hero : (int)(OwnerClientId % 4UL);
 
-            if (IsOwner && bot == null)
+            if (IsOwner && !NetworkTeamUtility.IsAiActor(this))
                 BindHud();
 
             RefreshIdentityLabel();
@@ -139,7 +141,7 @@ namespace Konoha.Networking
             if (IsServer)
                 ServerTickPassive();
 
-            if (!IsOwner || GetComponent<NetworkBotController>() != null)
+            if (!IsOwner || NetworkTeamUtility.IsAiActor(this))
                 return;
 
             TickLocalPassive();
@@ -150,47 +152,43 @@ namespace Konoha.Networking
             RefreshHud();
         }
 
-        public int GetBasicDamage()
-        {
-            switch (Hero)
-            {
-                case PrototypeHero.Prabowo: return 24;
-                case PrototypeHero.Abah: return 17;
-                case PrototypeHero.Jokowi: return 15;
-                default: return 18;
-            }
-        }
+        // Numbers live in HeroBalance (PvP profile = the original values; solo profile for
+        // Jalur Takhta, 0.2.4).
+        public int GetBasicDamage() => HeroBalance.BasicDamage(Hero, SoloKit);
 
-        public float GetBasicRange()
-        {
-            switch (Hero)
-            {
-                case PrototypeHero.Abah: return 6.8f;
-                case PrototypeHero.Prabowo: return 2.8f;
-                default: return 2.7f;
-            }
-        }
+        public float GetBasicRange() => HeroBalance.BasicRange(Hero);
 
-        public float GetBasicCooldown()
-        {
-            switch (Hero)
-            {
-                case PrototypeHero.Prabowo: return IsGarudaActive ? 0.62f : 0.88f;
-                case PrototypeHero.Abah: return 0.72f;
-                case PrototypeHero.Jokowi: return 0.68f;
-                default: return 0.64f;
-            }
-        }
+        public float GetBasicCooldown() => HeroBalance.BasicCooldown(Hero, IsGarudaActive);
 
         public float GetOutgoingDamageMultiplier()
         {
-            return Hero == PrototypeHero.Prabowo && IsGarudaActive ? 1.30f : 1f;
+            if (Hero == PrototypeHero.Prabowo && IsGarudaActive)
+                return 1.30f;
+            return OnOwnSoloRoad() ? HeroBalance.SoloRoadDamageMultiplier : 1f;
         }
 
         public float GetIncomingDamageMultiplier()
         {
-            return Hero == PrototypeHero.Prabowo && IsGarudaActive ? 0.72f : 1f;
+            if (Hero == PrototypeHero.Prabowo && IsGarudaActive)
+                return 0.72f;
+            return OnOwnSoloRoad() ? HeroBalance.SoloRoadDamageTakenMultiplier : 1f;
         }
+
+        // Jalur Takhta uses the solo hero kit (HeroBalance); PvP never does.
+        private static bool SoloKit
+        {
+            get
+            {
+                ICombatRules rules = CombatRules.Current;
+                return rules != null && rules.UsesSoloHeroKit;
+            }
+        }
+
+        // Solo PAK WI standing on his own INFRASTRUKTUR road.
+        private bool OnOwnSoloRoad() =>
+            Hero == PrototypeHero.Jokowi && IsSpawned && SoloKit &&
+            ServerClock < roadUntil.Value &&
+            HorizontalDistanceSqr(transform.position, roadCenter.Value) <= 25f;
 
         public float GetMovementSpeedMultiplier()
         {
@@ -240,6 +238,16 @@ namespace Konoha.Networking
             }
 
             pengaruh.Value = Mathf.Clamp(pengaruh.Value + amount, 0, MaxPengaruh);
+        }
+
+        // Campaign Runtuh penalty (§6): keep this fraction of Pengaruh, rounded down.
+        public void ServerScalePengaruh(float keepFraction)
+        {
+            if (!IsServer)
+                return;
+
+            pengaruh.Value = Mathf.Clamp(
+                Mathf.FloorToInt(pengaruh.Value * Mathf.Clamp01(keepFraction)), 0, MaxPengaruh);
         }
 
         public void ServerResetForMatch()
@@ -435,12 +443,47 @@ namespace Konoha.Networking
             if (!IsOwner || !IsSpawned)
                 return;
 
-            NetworkMatchManager match = NetworkMatchManager.Instance;
-            if (match == null ||
-                (match.State != GreyboxMatchState.Waiting && match.State != GreyboxMatchState.Result))
+            ICombatRules rules = CombatRules.Current;
+            if (rules == null || !rules.CanSelectHero)
                 return;
 
             SelectHeroServerRpc(((int)Hero + 1) % 4);
+        }
+
+        // Server: move the owning hero to an exact point (campaign SALAH LOKET). The owner
+        // applies it, like ApplyDisplacementClientRpc, because movement is owner-authoritative.
+        public void ServerTeleport(Vector3 destination)
+        {
+            if (IsServer)
+                TeleportOwnerClientRpc(destination);
+        }
+
+        [ClientRpc]
+        private void TeleportOwnerClientRpc(Vector3 destination)
+        {
+            if (!IsOwner)
+                return;
+
+            CharacterController controller = GetComponent<CharacterController>();
+            bool wasEnabled = controller != null && controller.enabled;
+            if (controller != null)
+                controller.enabled = false;
+            transform.position = destination;
+            if (controller != null)
+                controller.enabled = wasEnabled;
+        }
+
+        // Direct pick (Jalur Takhta hero screen). Same server rule as TryCycleHero.
+        public void TrySelectHero(PrototypeHero hero)
+        {
+            if (!IsOwner || !IsSpawned || hero == Hero)
+                return;
+
+            ICombatRules rules = CombatRules.Current;
+            if (rules == null || !rules.CanSelectHero)
+                return;
+
+            SelectHeroServerRpc((int)hero);
         }
 
         public void TryS1()
@@ -474,16 +517,16 @@ namespace Konoha.Networking
 
         private bool CanUseHeroAbility()
         {
-            NetworkMatchManager match = NetworkMatchManager.Instance;
+            ICombatRules rules = CombatRules.Current;
             NetworkPlayerCombat combat = GetComponent<NetworkPlayerCombat>();
 
             return IsOwner &&
                    IsSpawned &&
                    combat != null &&
                    !combat.IsKnockedOut &&
-                   match != null &&
-                   match.AllowsGameplay &&
-                   !match.IsRuler(OwnerClientId) &&
+                   rules != null &&
+                   rules.AllowsGameplay &&
+                   !rules.IsRuler(OwnerClientId) &&
                    !IsSilenced &&
                    !IsStunned;
         }
@@ -491,9 +534,8 @@ namespace Konoha.Networking
         [ServerRpc]
         private void SelectHeroServerRpc(int requestedHero)
         {
-            NetworkMatchManager match = NetworkMatchManager.Instance;
-            if (match == null ||
-                (match.State != GreyboxMatchState.Waiting && match.State != GreyboxMatchState.Result))
+            ICombatRules rules = CombatRules.Current;
+            if (rules == null || !rules.CanSelectHero)
                 return;
 
             heroId.Value = Mathf.Clamp(requestedHero, 0, 3);
@@ -583,6 +625,8 @@ namespace Konoha.Networking
                     PlayAbilityFxClientRpc((int)Hero, 2, transform.position, direction);
                     break;
                 case PrototypeHero.Jokowi:
+                    if (SoloKit)
+                        ServerSoloBlusukan(transform.position, direction, 5.8f);
                     ApplyDisplacementClientRpc(direction * 5.8f, true);
                     PlayAbilityFxClientRpc((int)Hero, 2, transform.position, direction);
                     break;
@@ -621,20 +665,20 @@ namespace Konoha.Networking
 
         private bool ServerCanCast()
         {
-            NetworkMatchManager match = NetworkMatchManager.Instance;
+            ICombatRules rules = CombatRules.Current;
             NetworkPlayerCombat combat = GetComponent<NetworkPlayerCombat>();
-            NetworkBotController bot = GetComponent<NetworkBotController>();
+            bool ai = NetworkTeamUtility.IsAiActor(this);
 
-            bool isRuler = match != null &&
-                           (bot != null
-                               ? match.IsRuler(NetworkObject)
-                               : match.IsRuler(OwnerClientId));
+            bool isRuler = rules != null &&
+                           (ai
+                               ? rules.IsRuler(NetworkObject)
+                               : rules.IsRuler(OwnerClientId));
 
             return IsServer &&
                    combat != null &&
                    !combat.IsKnockedOut &&
-                   match != null &&
-                   match.AllowsGameplay &&
+                   rules != null &&
+                   rules.AllowsGameplay &&
                    !isRuler &&
                    ServerClock >= silencedUntil.Value &&
                    ServerClock >= stunnedUntil.Value;
@@ -671,6 +715,8 @@ namespace Konoha.Networking
             Vector3 center = transform.position + transform.forward * 2.4f;
             PlayAbilityFxClientRpc((int)Hero, 2, center, transform.forward);
             ServerGainPengaruh(4);
+            if (SoloKit)
+                GetComponent<NetworkPlayerCombat>()?.ServerGrantShield(HeroBalance.SoloKaderShield);
         }
 
         private void ServerMoncongPutih(Vector3 direction)
@@ -742,10 +788,14 @@ namespace Konoha.Networking
                 }
                 else if (facingDot >= 0.25f)
                 {
-                    combat?.ServerReceiveDamage(10, DamageSourceClientId, DamageSourceActorNetworkObjectId);
+                    combat?.ServerReceiveDamage(SoloKit ? HeroBalance.SoloBarisDamage : HeroBalance.PvpBarisDamage,
+                        DamageSourceClientId, DamageSourceActorNetworkObjectId);
                     kit?.ServerApplyKnockback(toward * 3.0f);
                 }
             }
+
+            if (SoloKit)
+                GetComponent<NetworkPlayerCombat>()?.ServerGrantShield(HeroBalance.SoloBarisSelfShield);
 
             PlayAbilityFxClientRpc((int)Hero, 2, transform.position, direction);
         }
@@ -768,7 +818,11 @@ namespace Konoha.Networking
 
                 enemy.ServerApplySilence(3f);
                 NetworkPlayerCombat combat = enemy.GetComponent<NetworkPlayerCombat>();
-                combat?.ServerReceiveDamage(18, DamageSourceClientId, DamageSourceActorNetworkObjectId);
+                bool solo = SoloKit;
+                combat?.ServerReceiveDamage(solo ? HeroBalance.SoloPidatoDamage : HeroBalance.PvpPidatoDamage,
+                    DamageSourceClientId, DamageSourceActorNetworkObjectId);
+                if (solo)
+                    enemy.ServerApplyKnockback(FlattenDirection(enemy.transform.position - transform.position) * HeroBalance.SoloPidatoKnockback);
             }
 
             PlayAbilityFxClientRpc((int)Hero, 3, transform.position, Vector3.forward);
@@ -784,7 +838,38 @@ namespace Konoha.Networking
 
         private void ServerProyekNasional()
         {
-            PlayAbilityFxClientRpc((int)Hero, 3, Vector3.zero, Vector3.forward);
+            if (!SoloKit)
+            {
+                PlayAbilityFxClientRpc((int)Hero, 3, Vector3.zero, Vector3.forward);
+                return;
+            }
+
+            // Solo: ground-breaking blast around PAK WI instead of the fixed PvP walls.
+            float radiusSqr = HeroBalance.SoloProyekRadius * HeroBalance.SoloProyekRadius;
+            foreach (NetworkHeroKit enemy in ServerEnemies())
+            {
+                if (HorizontalDistanceSqr(enemy.transform.position, transform.position) > radiusSqr)
+                    continue;
+                enemy.GetComponent<NetworkPlayerCombat>()?.ServerReceiveDamage(HeroBalance.SoloProyekDamage,
+                    DamageSourceClientId, DamageSourceActorNetworkObjectId);
+                enemy.ServerApplyKnockback(FlattenDirection(enemy.transform.position - transform.position) * HeroBalance.SoloProyekKnockback);
+            }
+            GetComponent<NetworkPlayerCombat>()?.ServerGrantShield(HeroBalance.SoloProyekShield);
+            PlayAbilityFxClientRpc((int)Hero, 3, transform.position, transform.forward);
+        }
+
+        // Solo BLUSUKAN: enemies along the dash take damage; PAK WI gets a small shield.
+        private void ServerSoloBlusukan(Vector3 start, Vector3 direction, float distance)
+        {
+            Vector3 end = start + direction * distance;
+            foreach (NetworkHeroKit enemy in ServerEnemies())
+            {
+                if (DistancePointToSegmentXZ(enemy.transform.position, start, end) > HeroBalance.SoloBlusukanWidth)
+                    continue;
+                enemy.GetComponent<NetworkPlayerCombat>()?.ServerReceiveDamage(HeroBalance.SoloBlusukanDamage,
+                    DamageSourceClientId, DamageSourceActorNetworkObjectId);
+            }
+            GetComponent<NetworkPlayerCombat>()?.ServerGrantShield(HeroBalance.SoloBlusukanShield);
         }
 
         private NetworkHeroKit[] ServerEnemies()
@@ -842,8 +927,22 @@ namespace Konoha.Networking
             if (!isActiveAndEnabled)
                 return;
 
+            // Presentation hooks (Jalur Takhta sound and skill effects). No listener in PvP.
+            AbilityFxPlayed?.Invoke(this, slot, position);
+            AbilityCast?.Invoke(this, slot, position, direction);
             StartCoroutine(AbilityFxRoutine((PrototypeHero)hero, slot, position, direction));
         }
+
+        // Every peer: a hero ability played its effect (slot 1 = S1, 2 = S2, 3 = ultimate).
+        public static event Action<NetworkHeroKit, int, Vector3> AbilityFxPlayed;
+
+        // Every peer: same moment, with the cast direction (Jalur Takhta skill effects).
+        public static event Action<NetworkHeroKit, int, Vector3, Vector3> AbilityCast;
+
+        // PvP keeps the prototype ground boxes. Jalur Takhta (0.2.3) turns this off and draws
+        // its own skill effects; gameplay objects (Kader blockers, proyek nodes, zone and road
+        // outlines) are still created, the Kader blockers just stay invisible.
+        public static bool LegacyAbilityFx = true;
 
         private IEnumerator AbilityFxRoutine(PrototypeHero hero, int slot, Vector3 position, Vector3 direction)
         {
@@ -869,7 +968,8 @@ namespace Konoha.Networking
                 yield break;
             }
 
-            if (hero == PrototypeHero.Jokowi && slot == 3)
+            // PvP proyek walls (the solo ULT is a blast around PAK WI, drawn by Jalur Takhta).
+            if (hero == PrototypeHero.Jokowi && slot == 3 && !SoloKit)
             {
                 GameObject[] structures =
                 {
@@ -885,6 +985,9 @@ namespace Konoha.Networking
 
                 yield break;
             }
+
+            if (!LegacyAbilityFx)
+                yield break;
 
             Color color = Color.Lerp(HeroFxColor(hero), Color.black, 0.20f);
             Vector3 size = slot == 3 ? new Vector3(3.3f, 0.045f, 6.2f) : new Vector3(2.6f, 0.04f, 2.6f);
@@ -970,6 +1073,12 @@ namespace Konoha.Networking
             Vector3 right = transform.right;
             GameObject a = CreateBox("Kader_A", center + right * 1.2f + Vector3.up, new Vector3(1.1f, 2f, 0.8f), new Color(0.75f,0.18f,0.20f), true);
             GameObject b = CreateBox("Kader_B", center - right * 1.2f + Vector3.up, new Vector3(1.1f, 2f, 0.8f), new Color(0.75f,0.18f,0.20f), true);
+            if (!LegacyAbilityFx)
+            {
+                // Still blocking; Jalur Takhta draws Kader people with shields in their place.
+                a.GetComponent<Renderer>().enabled = false;
+                b.GetComponent<Renderer>().enabled = false;
+            }
             yield return new WaitForSecondsRealtime(duration);
             if (a != null) Destroy(a);
             if (b != null) Destroy(b);
@@ -994,6 +1103,12 @@ namespace Konoha.Networking
             {
                 Collider c = box.GetComponent<Collider>();
                 if (c != null) Destroy(c);
+            }
+            else
+            {
+                // Still blocks movement, but camera/occlusion raycasts ignore it (the Jalur
+                // Takhta orbit camera used to zoom in when a skill placed a box beside the hero).
+                box.layer = 2; // Ignore Raycast
             }
 
             return box;
@@ -1054,9 +1169,8 @@ namespace Konoha.Networking
 
         private void RefreshHud()
         {
-            NetworkMatchManager match = NetworkMatchManager.Instance;
-            bool heroSelectable = match != null &&
-                                  (match.State == GreyboxMatchState.Waiting || match.State == GreyboxMatchState.Result);
+            ICombatRules rules = CombatRules.Current;
+            bool heroSelectable = rules != null && rules.CanSelectHero;
 
             if (heroButton != null)
                 heroButton.interactable = heroSelectable;
@@ -1144,7 +1258,18 @@ namespace Konoha.Networking
                 identity.RefreshOwnershipLabel();
         }
 
-        private float GetS1Cooldown()
+        // Single modifier point for skill cooldowns (campaign STEMPEL TUNDA). PvP rules return 1.
+        private float ModeCooldownMultiplier()
+        {
+            ICombatRules rules = CombatRules.Current;
+            return rules != null && IsSpawned ? Mathf.Max(0.1f, rules.GetCooldownMultiplier(NetworkObject)) : 1f;
+        }
+
+        private float GetS1Cooldown() => GetBaseS1Cooldown() * ModeCooldownMultiplier();
+
+        private float GetS2Cooldown() => GetBaseS2Cooldown() * ModeCooldownMultiplier();
+
+        private float GetBaseS1Cooldown()
         {
             switch (Hero)
             {
@@ -1156,7 +1281,7 @@ namespace Konoha.Networking
             }
         }
 
-        private float GetS2Cooldown()
+        private float GetBaseS2Cooldown()
         {
             switch (Hero)
             {
@@ -1184,7 +1309,7 @@ namespace Konoha.Networking
         {
             switch (Hero)
             {
-                case PrototypeHero.Mega: return "BANTENG\nCHARGE";
+                case PrototypeHero.Mega: return "SERUAN\nIBU";
                 case PrototypeHero.Prabowo: return "CMD\nLEAP";
                 case PrototypeHero.Abah: return "NARASI";
                 case PrototypeHero.Jokowi: return "INFRA\nSTRUKTUR";
@@ -1196,7 +1321,7 @@ namespace Konoha.Networking
         {
             switch (Hero)
             {
-                case PrototypeHero.Mega: return "KADER!";
+                case PrototypeHero.Mega: return "PERISAI\nRAKYAT";
                 case PrototypeHero.Prabowo: return "BARIS!";
                 case PrototypeHero.Abah: return "ELECTRIC\nDASH";
                 case PrototypeHero.Jokowi: return "BLUSUKAN";

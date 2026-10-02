@@ -42,3 +42,7 @@ The initial two-seal MVP is a **prototype decision**, not a numeric rule stated 
 The four submitted hero sheets guide color and silhouettes, but are 2D references rather than production-ready models. Final assets should have original faces, costume shapes and faction symbols suitable for monetized release.
 
 The three new EditMode cases check distinct seals, an optional 3-of-5 path, and Power stopping after the ruler is displaced. These tests still require the owner's manual Unity Build Automation run; the static source check cannot execute C# tests.
+
+## First playable preview branch
+
+`feat/jalur-takhta-first-playable` generates a separate solo greybox scene and exercises `CampaignRunState` on Android. It provides route discovery, two provisional timed sector objectives, a basic guard encounter, a gated chair and one counterattack. These placeholder sector interactions **do not yet satisfy** the distinct faction mechanics, resources or branching paths required for the MVP. See `Docs/JALUR_TAKHTA_FIRST_PLAYABLE_007.md` for exact manual-build and playthrough steps.
