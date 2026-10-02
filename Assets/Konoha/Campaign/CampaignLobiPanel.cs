@@ -62,15 +62,15 @@ namespace Konoha.Campaign
             int cost = CampaignObjectiveDirector.RangkulCost(sector);
             bool majelis = sector == CampaignSector.MajelisDaun;
             if (titleText != null)
-                titleText.text = majelis ? "MAJELIS DAUN" : "BIRO PROSEDUR";
+                titleText.text = majelis ? "REKOMENDASI KOALISI" : "BERKAS DI KELURAHAN";
             if (bodyText != null)
                 bodyText.text = (majelis
-                        ? "Sidang sedang berlangsung. LAWAN blok mereka di aula,\natau RANGKUL lewat rapat tertutup jam 02.00."
-                        : "Tiga loket, antrean panjang, \"sistem sedang gangguan\".\nLAWAN prosedurnya, atau RANGKUL lewat \"jalur khusus\".") +
+                        ? "Tanpa rekomendasi partai, kamu bukan calon.\nLAWAN para elite di markas, atau BAYAR MAHAR ke Ketum."
+                        : "Fotokopi KTP, cap RT/RW, legalisir. Antre panjang,\n\"sistem sedang gangguan\". LAWAN antreannya, atau BAYAR CALO.") +
                     "\nMODAL kamu: " + director.Modal + "  •  Jatah ditagih saat berkuasa.";
             if (rangkulLabel != null)
                 rangkulLabel.text = director.Modal >= cost
-                    ? "RANGKUL\n-" + cost + " MODAL • JATAH +1"
+                    ? (majelis ? "BAYAR MAHAR" : "BAYAR CALO") + "\n-" + cost + " MODAL • JATAH +1"
                     : "PINJAM KONSORSIUM\nJATAH +" + (1 + CampaignTuning.Politik.LoanExtraJatah) + " • RESTU " +
                         (CampaignTuning.Politik.RestuLoan + CampaignTuning.Politik.RestuRangkul);
         }

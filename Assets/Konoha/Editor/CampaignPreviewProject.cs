@@ -19,7 +19,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.4.0")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.5.0")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +27,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.4.0";
-            PlayerSettings.Android.bundleVersionCode = 44;
+            PlayerSettings.bundleVersion = "0.5.0";
+            PlayerSettings.Android.bundleVersionCode = 45;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -231,7 +231,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.4.0  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.5.0  •  SOLO PREVIEW";
             // 0.3.1: which owner models (Art/Models/<Slot>) are in this build; hidden when none.
             string modelSummary = CampaignModelSlots.Summary();
             if (modelSummary.Length > 0)
@@ -325,6 +325,44 @@ namespace Konoha.Editor
             aura.SetActive(false);
             preview.restuAura = aura.transform;
 
+            // 0.5.0 Jalan Nyaleg: a gold light pillar on the current target, and the blusukan rings.
+            var glow = CampaignRigBuilder.Unlit("PenandaTujuan", new Color(1f, 0.80f, 0.32f));
+            var beacon = new GameObject("PenandaTujuan").transform;
+            Glow(beacon, "PenandaTujuan pilar", PrimitiveType.Cylinder, new Vector3(0f, 14f, 0f), new Vector3(0.28f, 14f, 0.28f), glow);
+            Glow(beacon, "PenandaTujuan cincin", PrimitiveType.Cylinder, new Vector3(0f, 0.07f, 0f), new Vector3(1.4f, 0.01f, 1.4f), glow);
+            Glow(beacon, "PenandaTujuan puncak", PrimitiveType.Sphere, new Vector3(0f, 28.2f, 0f), Vector3.one * 0.9f, glow);
+            beacon.gameObject.SetActive(false);
+            preview.beacon = beacon;
+            var zoneGlow = CampaignRigBuilder.Unlit("BlusukanZona", new Color(0.95f, 0.70f, 0.22f));
+            var zones = new Renderer[stage.blusukanPoints.Length];
+            var zoneLabels = new TextMesh[stage.blusukanPoints.Length];
+            for (int i = 0; i < stage.blusukanPoints.Length; i++)
+            {
+                Vector3 point = stage.blusukanPoints[i];
+                float diameter = CampaignTuning.Blusukan.ZoneRadius * 2f;
+                zones[i] = Glow(null, "Blusukan zona " + (i + 1), PrimitiveType.Cylinder, point + Vector3.up * 0.06f,
+                    new Vector3(diameter, 0.01f, diameter), zoneGlow);
+                var label = new GameObject("Blusukan label " + (i + 1));
+                label.transform.position = point + Vector3.up * 2.9f;
+                label.transform.rotation = Quaternion.Euler(12f, 0f, 0f);
+                label.transform.localScale = Vector3.one * 0.32f;
+                var text = label.AddComponent<TextMesh>();
+                text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                label.GetComponent<MeshRenderer>().sharedMaterial = text.font.material;
+                text.characterSize = 0.25f;
+                text.fontSize = 48;
+                text.anchor = TextAnchor.MiddleCenter;
+                text.alignment = TextAlignment.Center;
+                text.fontStyle = FontStyle.Bold;
+                text.color = new Color(1f, 0.86f, 0.42f);
+                text.text = "SAPA WARGA";
+                zoneLabels[i] = text;
+                zones[i].gameObject.SetActive(false);
+                label.SetActive(false);
+            }
+            preview.blusukanZones = zones;
+            preview.blusukanLabels = zoneLabels;
+
             var heroSelect = CreateHeroSelect(safe);
 
             // Sound effects (0.0.9.4): synthesised at runtime, SUARA toggle under KAMERA AWAL.
@@ -363,6 +401,7 @@ namespace Konoha.Editor
             (follow != null ? follow.gameObject : previewCamera.gameObject).AddComponent<CampaignCameraShake>();
 
             var lobi = CreateLobiPanel(safe);
+            CreateChecklist(safe, lobi.panel);
             var result = CreateResultScreen(safe);
             // Draw order on top of the HUD: result screen < hero screen < mode menu.
             result.panel.transform.SetAsLastSibling();
@@ -477,6 +516,44 @@ namespace Konoha.Editor
             rect.sizeDelta = new Vector2(940, 3);
             line.GetComponent<Image>().color = color;
             line.GetComponent<Image>().raycastTarget = false;
+        }
+
+        private static Renderer Glow(Transform parent, string name, PrimitiveType type, Vector3 local, Vector3 scale, Material mat)
+        {
+            var go = GameObject.CreatePrimitive(type);
+            go.name = name;
+            UnityEngine.Object.DestroyImmediate(go.GetComponent<Collider>());
+            if (parent != null) go.transform.SetParent(parent, false);
+            go.transform.localPosition = local;
+            go.transform.localScale = scale;
+            var renderer = go.GetComponent<Renderer>();
+            renderer.sharedMaterial = mat;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            return renderer;
+        }
+
+        // 0.5.0 Jalan Nyaleg: the step list on the left, under the hero line.
+        private static CampaignChecklist CreateChecklist(Transform safe, GameObject lobiPanel)
+        {
+            var panelObject = new GameObject("ChecklistPanel", typeof(RectTransform), typeof(Image));
+            var panel = (RectTransform)panelObject.transform;
+            panel.SetParent(safe, false);
+            panel.anchorMin = panel.anchorMax = new Vector2(0f, 1f);
+            panel.pivot = new Vector2(0f, 1f);
+            panel.anchoredPosition = new Vector2(14, -184);
+            panel.sizeDelta = new Vector2(400, 178);
+            var image = panelObject.GetComponent<Image>();
+            image.color = new Color(0.04f, 0.05f, 0.06f, 0.55f);
+            image.raycastTarget = false;
+            var list = Text("ChecklistText", panel, new Vector2(0f, 1f), new Vector2(12, -8), new Vector2(380, 166), 15);
+            list.alignment = TextAnchor.UpperLeft;
+            list.supportRichText = true;
+            list.gameObject.AddComponent<Outline>().effectColor = new Color(0f, 0f, 0f, 0.8f);
+            var checklist = new GameObject("CampaignChecklist").AddComponent<CampaignChecklist>();
+            checklist.panel = panelObject;
+            checklist.listText = list;
+            checklist.hideWhenActive = lobiPanel;
+            return checklist;
         }
 
         // 0.4.0 Musim Pemilu: the LAWAN / RANGKUL panel (left of the hero, above the joystick).

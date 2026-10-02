@@ -170,16 +170,16 @@ namespace Konoha.Editor
         private Transform BuildMajelisDaun()
         {
             var sector = Institution("Majelis Daun", new Vector3(-28, 0, WingCorridorZ), false, majelisCloth, majelisTrim);
-            Sign("MAJELIS DAUN", new Vector3(-28, 6.2f, -2.4f), 0f, 1f);
-            Sign("< MAJELIS DAUN", new Vector3(-6.5f, 2.6f, -3.6f), 0f, .7f);
+            Sign("MARKAS KOALISI", new Vector3(-28, 6.2f, -2.4f), 0f, 1f);
+            Sign("< REKOMENDASI KOALISI", new Vector3(-6.5f, 2.6f, -3.6f), 0f, .7f);
             return sector;
         }
 
         private Transform BuildBiroProsedur()
         {
             var sector = Institution("Biro Prosedur", new Vector3(28, 0, WingCorridorZ), true, biroCloth, biroTrim);
-            Sign("BIRO PROSEDUR", new Vector3(28, 6.6f, -2.4f), 0f, 1f);
-            Sign("BIRO PROSEDUR >", new Vector3(6.5f, 2.6f, -3.6f), 0f, .7f);
+            Sign("KANTOR KELURAHAN", new Vector3(28, 6.6f, -2.4f), 0f, 1f);
+            Sign("BERKAS KELURAHAN >", new Vector3(6.5f, 2.6f, -3.6f), 0f, .7f);
             BuildBiroOffice();
             BuildLokets();
             return sector;
@@ -243,7 +243,7 @@ namespace Konoha.Editor
                 Block("Kantor Kepala Biro coping", new Vector3(span.x + width * .5f, 2.46f, OfficeSouthZ),
                     new Vector3(width + .36f, .12f, .36f), biroTrim);
             }
-            Sign("KANTOR KEPALA BIRO", new Vector3(centerX, 3.0f, OfficeSouthZ - .2f), 0f, .55f);
+            Sign("KANTOR PAK LURAH", new Vector3(centerX, 3.0f, OfficeSouthZ - .2f), 0f, .55f);
 
             // The door: solid until every loket is stamped, then two leaves fold outward (decor only).
             BiroDoorClosed = new GameObject("Pintu Kepala Biro - locked");
@@ -290,7 +290,7 @@ namespace Konoha.Editor
                 Block("Loket counter top", counter + Vector3.up * 1.14f, new Vector3(1.95f, .08f, .72f), biroTrim);
                 Block("Loket window", counter + new Vector3(0f, 1.7f, .05f), new Vector3(1.4f, 1f, .06f), dark);
                 Block("Loket window frame", counter + new Vector3(0f, 2.24f, .05f), new Vector3(1.6f, .1f, .1f), biroTrim);
-                LoketLabels[i] = Sign("LOKET " + (i + 1), counter + new Vector3(0f, 2.8f, 0f), 0f, .5f);
+                LoketLabels[i] = Sign(CampaignDirector.LoketName(i), counter + new Vector3(0f, 2.8f, 0f), 0f, .5f);
             }
         }
 
@@ -351,7 +351,7 @@ namespace Konoha.Editor
                 Statue(new Vector3(side * 9.6f, 0, 36.5f));
             }
             Block("Takhta processional lane", new Vector3(0, .028f, 24), new Vector3(4.5f, .025f, 14), paving);
-            Sign("GARDA TAKHTA", new Vector3(0, 3.2f, 21.2f), 0f, .9f);
+            Sign("GARDA ISTANA", new Vector3(0, 3.2f, 21.2f), 0f, .9f);
             BuildGardaLockdown(post);
             return Objective("Garda Takhta", post, 1.2f);
         }

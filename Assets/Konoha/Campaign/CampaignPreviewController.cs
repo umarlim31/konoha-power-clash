@@ -34,6 +34,10 @@ namespace Konoha.Campaign
         // 0.1.0: Garda LOCKDOWN ring (colliders + posts) and the seat lock on the joystick.
         public GameObject gardaLockdown;
         public CampaignTraversal traversal;
+        // 0.5.0 Jalan Nyaleg: light pillar on the current target, blusukan ground rings + labels.
+        public Transform beacon;
+        public Renderer[] blusukanZones = new Renderer[0];
+        public TextMesh[] blusukanLabels = new TextMesh[0];
 
         private static readonly Color LoketIdle = new Color(0.22f, 0.34f, 0.52f);
         private static readonly Color LoketFull = new Color(0.95f, 0.74f, 0.26f);
@@ -92,6 +96,7 @@ namespace Konoha.Campaign
             if (biroDoorOpen != null && biroDoorOpen.activeSelf == officeLocked)
                 biroDoorOpen.SetActive(!officeLocked);
             RefreshLokets(director);
+            RefreshBlusukan(director);
 
             if (gardaLockdown != null && gardaLockdown.activeSelf != director.GardaLockdown)
                 gardaLockdown.SetActive(director.GardaLockdown);
@@ -108,6 +113,7 @@ namespace Konoha.Campaign
                 if (objectiveProgress != null) objectiveProgress.fillAmount = 0f;
                 if (waypointText != null) waypointText.text = string.Empty;
                 if (sitButton != null) sitButton.gameObject.SetActive(false);
+                if (beacon != null && beacon.gameObject.activeSelf) beacon.gameObject.SetActive(false);
                 RefreshHero(director, hero);
                 if (feedbackText != null)
                     feedbackText.text = Time.time < director.LastMessageUntil ? director.LastMessage : string.Empty;
@@ -142,10 +148,11 @@ namespace Konoha.Campaign
             switch (director.Phase)
             {
                 case CampaignPhase.GerbangRakyat:
-                    objectiveText.text = director.GateCleared
-                        ? "GERBANG RAKYAT • Menuju PLAZA ASPIRASI"
-                        : "GERBANG RAKYAT • Kroni " + (gateTotal - director.GateRemaining) + "/" + gateTotal +
-                            " • hadiah RESTU";
+                    objectiveText.text = !director.GateCleared
+                        ? "GANG • Usir PREMAN BAYARAN (" + (gateTotal - director.GateRemaining) + "/" + gateTotal + ")"
+                        : !director.BlusukanDone
+                            ? "BLUSUKAN • Sapa warga (SUARA " + director.SuaraCount + "/" + director.BlusukanCount + ")"
+                            : "SUARA CUKUP • Menuju PLAZA ASPIRASI";
                     break;
                 case CampaignPhase.PlazaAspirasi:
                     switch (PlazaFocus(director))
@@ -157,7 +164,7 @@ namespace Konoha.Campaign
                             objectiveText.text = BiroObjective(director);
                             break;
                         default:
-                            objectiveText.text = "PLAZA • Lawan atau rangkul MAJELIS & BIRO";
+                            objectiveText.text = "PLAZA • Cari REKOMENDASI & BERKAS";
                             break;
                     }
                     break;
@@ -198,7 +205,10 @@ namespace Konoha.Campaign
             switch (director.Phase)
             {
                 case CampaignPhase.GerbangRakyat:
-                    fill = director.GateCleared ? 1f : (gateTotal - director.GateRemaining) / (float)gateTotal;
+                    fill = !director.GateCleared ? (gateTotal - director.GateRemaining) / (float)gateTotal
+                        : director.BlusukanCount > 0
+                            ? (director.SuaraCount + director.BlusukanProgress) / director.BlusukanCount
+                            : 1f;
                     break;
                 case CampaignPhase.PlazaAspirasi:
                     PlazaTask task = PlazaFocus(director);
@@ -243,33 +253,33 @@ namespace Konoha.Campaign
         // Kept under ~46 characters: longer lines were cut off on the tablet (0.0.9.2).
         private static string MajelisObjective(CampaignDirector director)
         {
-            const string head = "MAJELIS • ";
+            const string head = "KOALISI • ";
             if (!director.MajelisStarted)
-                return head + "Datangi sidang di sayap kiri";
+                return head + "Rekomendasi di markas (kiri)";
             if (director.MajelisBlock)
-                return head + "BLOK -40%! Kalahkan SENIOR (" + director.SeniorsAlive + " lagi)";
+                return head + "SOLID -40%! Kalahkan ELITE (" + director.SeniorsAlive + " lagi)";
             if (!director.MajelisLeaderDown)
-                return head + "Blok pecah! Tumbangkan KETUA";
-            return head + "Kalahkan sisa pejabat (" + director.MajelisRemaining + ")";
+                return head + "Solid pecah! Tumbangkan KETUM";
+            return head + "Kalahkan sisa elite (" + director.MajelisRemaining + ")";
         }
 
         // §8.2 "Sahkan Berkas": lokets first, then the Kepala Biro. Kept under ~46 characters.
         private static string BiroObjective(CampaignDirector director)
         {
-            const string head = "BIRO • ";
+            const string head = "KELURAHAN • ";
             int stamped = director.LoketStampedCount;
             if (!director.BiroStarted)
-                return head + "Datangi loket di sayap kanan";
+                return head + "Urus berkas di sayap kanan";
             if (!director.BiroDoorOpen)
             {
                 for (int i = 0; i < director.LoketCount; i++)
                     if (director.LoketContested(i) && !director.LoketStamped(i))
-                        return head + "Cap LOKET " + stamped + "/3 • usir ANTRIAN";
-                return head + "Berdiri di LOKET untuk cap (" + stamped + "/3)";
+                        return head + "Loket " + stamped + "/3 • usir PENYEROBOT";
+                return head + "Berdiri di loket (" + stamped + "/3)";
             }
             return director.BiroLeaderDown
                 ? head + "Selesaikan loket (" + stamped + "/3)"
-                : head + "Pintu terbuka! Tumbangkan KEPALA BIRO";
+                : head + "Pintu terbuka! Hadapi PAK LURAH";
         }
 
         private static float BiroFill(CampaignDirector director)
@@ -309,8 +319,8 @@ namespace Konoha.Campaign
                     if (loketLabelState[i] != state + 1)
                     {
                         loketLabelState[i] = state + 1;
-                        loketLabels[i].text = "LOKET " + (i + 1) + "\n" + (stamped ? "TERCAP"
-                            : queue ? "ANTRIAN"
+                        loketLabels[i].text = CampaignDirector.LoketName(i) + "\n" + (stamped ? "BERES"
+                            : queue ? "DISEROBOT"
                             : state > 0 ? state + "%"
                             : "BERDIRI DI SINI");
                     }
@@ -324,7 +334,7 @@ namespace Konoha.Campaign
             if (debuffText == null)
                 return;
             bool slowed = hero != null && CampaignEnemy.InsideStempelTunda(hero.transform.position);
-            debuffText.text = slowed ? "STEMPEL TUNDA: cooldown skill +30%" : string.Empty;
+            debuffText.text = slowed ? "JAM ISTIRAHAT: cooldown skill +30%" : string.Empty;
         }
 
         private void RefreshAura(CampaignDirector director, NetworkObject hero)
@@ -394,7 +404,13 @@ namespace Konoha.Campaign
             {
                 case CampaignPhase.GerbangRakyat:
                     if (!director.GateCleared && NearestEnemy(hero.transform.position, out destination))
-                        label = "KRONI";
+                        label = "PREMAN";
+                    else if (!director.BlusukanDone && NextBlusukan(director, hero.transform.position, out int group))
+                    {
+                        destination = stage.blusukanPoints[group];
+                        label = group < CampaignTuning.Blusukan.Groups.Length ? CampaignTuning.Blusukan.Groups[group] : "WARGA";
+                        arrival = CampaignTuning.Blusukan.ZoneRadius * 0.8f;
+                    }
                     else
                     {
                         destination = stage.plaza.position;
@@ -408,7 +424,7 @@ namespace Konoha.Campaign
                         if (!BiroTarget(director, hero.transform.position, out destination, out label, out arrival))
                         {
                             destination = stage.biro.position;
-                            label = "BIRO";
+                            label = "KELURAHAN";
                             arrival = CampaignTuning.PreviewSlice.SectorRadius;
                         }
                     }
@@ -420,7 +436,7 @@ namespace Konoha.Campaign
                     else
                     {
                         destination = stage.majelis.position;
-                        label = "MAJELIS";
+                        label = "KOALISI";
                         arrival = CampaignTuning.PreviewSlice.SectorRadius;
                     }
                     break;
@@ -441,16 +457,26 @@ namespace Konoha.Campaign
                     break;
                 default:
                     waypointText.text = string.Empty;
+                    if (beacon != null && beacon.gameObject.activeSelf) beacon.gameObject.SetActive(false);
                     return;
+            }
+
+            // 0.5.0: the light pillar stands on the current target, visible from far away.
+            if (beacon != null)
+            {
+                if (!beacon.gameObject.activeSelf) beacon.gameObject.SetActive(true);
+                beacon.position = new Vector3(destination.x, 0f, destination.z);
             }
 
             Vector3 delta = destination - hero.transform.position;
             float distance = new Vector2(delta.x, delta.z).magnitude;
             if (distance < arrival)
             {
-                waypointText.text = label.StartsWith("LOKET")
-                    ? "DI " + label + ": tetap berdiri sampai tercap"
-                    : "DI LOKASI: " + label;
+                waypointText.text = director.Phase == CampaignPhase.PlazaAspirasi && arrival < CampaignTuning.Biro.LoketRadius
+                    ? "DI LOKET " + label + ": tetap berdiri sampai beres"
+                    : director.Phase == CampaignPhase.GerbangRakyat && director.GateCleared && !director.BlusukanDone
+                        ? "SAPA WARGA " + label + ": tetap berdiri sebentar"
+                        : "DI LOKASI: " + label;
                 return;
             }
 
@@ -483,7 +509,7 @@ namespace Konoha.Campaign
             if (!director.BiroStarted)
             {
                 position = stage.biro.position;
-                label = "BIRO";
+                label = "KELURAHAN";
                 arrival = CampaignTuning.PreviewSlice.SectorRadius;
                 return true;
             }
@@ -491,13 +517,13 @@ namespace Konoha.Campaign
             if (director.BiroDoorOpen && !director.BiroLeaderDown &&
                 NearestEnemy(from, out position, FactionId.BiroProsedur, UnitRole.Pemimpin))
             {
-                label = "KEPALA BIRO";
+                label = "PAK LURAH";
                 arrival = CampaignTuning.PreviewSlice.WaypointArrivalRadius;
                 return true;
             }
 
             position = Vector3.zero;
-            label = "BIRO";
+            label = "KELURAHAN";
             float best = float.MaxValue;
             for (int i = 0; i < stage.loketPoints.Length && i < director.LoketCount; i++)
             {
@@ -508,7 +534,7 @@ namespace Konoha.Campaign
                 {
                     best = distance;
                     position = stage.loketPoints[i];
-                    label = "LOKET " + (i + 1);
+                    label = CampaignDirector.LoketName(i);
                 }
             }
             return best < float.MaxValue;
@@ -518,16 +544,54 @@ namespace Konoha.Campaign
         {
             if (director.MajelisBlock && NearestEnemy(from, out position, FactionId.MajelisDaun, UnitRole.Senior))
             {
-                label = "SENIOR";
+                label = "ELITE";
                 return true;
             }
             if (!director.MajelisLeaderDown && NearestEnemy(from, out position, FactionId.MajelisDaun, UnitRole.Pemimpin))
             {
-                label = "KETUA";
+                label = "KETUM";
                 return true;
             }
-            label = "MAJELIS";
+            label = "KOALISI";
             return NearestEnemy(from, out position, FactionId.MajelisDaun, null);
+        }
+
+        private bool NextBlusukan(CampaignDirector director, Vector3 from, out int index)
+        {
+            index = -1;
+            float best = float.MaxValue;
+            for (int i = 0; i < stage.blusukanPoints.Length; i++)
+            {
+                if (director.BlusukanGreeted(i)) continue;
+                Vector3 d = stage.blusukanPoints[i] - from;
+                float distance = d.x * d.x + d.z * d.z;
+                if (distance < best) { best = distance; index = i; }
+            }
+            return index >= 0;
+        }
+
+        // Blusukan rings: gold while waiting, filling white while greeting; gone once greeted.
+        private void RefreshBlusukan(CampaignDirector director)
+        {
+            bool active = director.HeroLocked && director.Phase == CampaignPhase.GerbangRakyat && director.GateCleared;
+            for (int i = 0; i < blusukanZones.Length; i++)
+            {
+                bool show = active && !director.BlusukanGreeted(i);
+                if (blusukanZones[i] != null && blusukanZones[i].gameObject.activeSelf != show)
+                    blusukanZones[i].gameObject.SetActive(show);
+                if (i < blusukanLabels.Length && blusukanLabels[i] != null)
+                {
+                    if (blusukanLabels[i].gameObject.activeSelf != show)
+                        blusukanLabels[i].gameObject.SetActive(show);
+                    if (show)
+                    {
+                        string group = i < CampaignTuning.Blusukan.Groups.Length ? CampaignTuning.Blusukan.Groups[i] : "WARGA";
+                        blusukanLabels[i].text = director.BlusukanCurrent == i
+                            ? "MENYAPA " + group + "... " + Mathf.RoundToInt(director.BlusukanProgress * 100f) + "%"
+                            : "SAPA " + group;
+                    }
+                }
+            }
         }
 
         private static bool NearestEnemy(Vector3 from, out Vector3 position)
