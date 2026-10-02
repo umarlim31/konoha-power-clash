@@ -33,8 +33,8 @@ Urutan versi:
 | 0.3.1 | (aset) | 16 slot model 3D bangunan, pohon & properti (FBX/OBJ dari owner, fallback kode, collider tetap) + `Docs/PANDUAN_MODEL_3D.md` + paket model Nusantara | ✅ Uji A & B lolos di tablet ("lancar"); di-merge bersama paket model |
 | 0.3.2 | (polish) | Baris MODEL 3D ringkas (tidak keluar layar), kota pesisir di teluk memakai model ruko/rumah | Diuji di tablet: kota tampak **makin sepi** (model tidak tergambar) → 0.3.3 |
 | 0.3.3 | (perbaikan) | Model 3D benar-benar tergambar (mesh gabungan kehilangan segitiga di 0.3.1/0.3.2); pengaman: bentuk kode tidak dihapus bila mesh model kosong | ✅ Diuji di tablet ("udah normal kembali"); masukan: pendopo hilang saat didekati, warga tanpa muka → 0.3.4 |
-| 0.3.4 | (perbaikan+visual) | Hanya atap model yang memudar (pendopo dll.), mata kartun berkedip untuk hero/musuh, warga bermuka & membulat, jilbab membingkai wajah; usulan alur v2 `Docs/REKOMENDASI_ALUR_JALUR_TAKHTA_v2.md` | Dikerjakan (branch `feat/warga-hidup-0.3.4`), menunggu uji tablet |
-| 0.4.0 | (alur) | Musim Pemilu tahap 1: LAWAN/RANGKUL Majelis & Biro, Modal + Jatah + Restu, sekutu di Garda, Koran Konoha 3 ending, disclaimer | Rencana: berikutnya setelah 0.3.4 lolos (`Docs/GAME_LOGIC_JALUR_TAKHTA_v2.md` §6–7) |
+| 0.3.4 | (perbaikan+visual) | Hanya atap model yang memudar (pendopo dll.), mata kartun berkedip untuk hero/musuh, warga bermuka & membulat, jilbab membingkai wajah; usulan alur v2 `Docs/REKOMENDASI_ALUR_JALUR_TAKHTA_v2.md` | ✅ Diuji di tablet ("sudah ada matanya"); di-merge |
+| 0.4.0 | (alur) | Musim Pemilu tahap 1: LAWAN/RANGKUL Majelis & Biro, Modal + Jatah + Restu, sekutu di Garda, Koran Konoha 3 ending, disclaimer | Dikerjakan (branch `feat/musim-pemilu-0.4.0`), menunggu uji tablet |
 | 0.4.1–0.4.4 | (alur) | Kartu Kebijakan & Latar Belakang → Kampanye Suara → Krisis → Sidang Kilat & ending lengkap | Rencana |
 | 0.5–0.7 | (meta/multi) | Arsip ending & retensi → Co-op Bentuk Koalisi 2–4 → Pilpres PvP & rilis | Rencana |
 
