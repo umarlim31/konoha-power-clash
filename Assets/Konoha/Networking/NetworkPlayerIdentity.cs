@@ -10,6 +10,9 @@ namespace Konoha.Networking
         public Renderer facingRenderer;
         public GameObject localOwnerMarker;
         public TextMesh ownershipLabel;
+        // 0.6.0 KARIER: the local player's own citizen name replaces "HERO • YOU". Null in
+        // PvP and Jalur Takhta (never set there), so their labels are unchanged.
+        public static string LocalNameOverride;
 
         public float nameplateVisibleDistance = 15f;
         public float nameplateScaleNear = 1f;
@@ -80,7 +83,7 @@ namespace Konoha.Networking
             string identity = bot != null
                 ? heroName + " • BOT"
                 : IsOwner
-                    ? heroName + " • YOU"
+                    ? (string.IsNullOrEmpty(LocalNameOverride) ? heroName + " • YOU" : LocalNameOverride)
                     : heroName + " • P" + OwnerClientId;
 
             bool ruler = match != null && match.IsRuler(NetworkObject);

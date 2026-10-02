@@ -22,6 +22,11 @@ namespace Konoha.Campaign
         public bool seatLocked;
         // 0.6.0 KARIER: ojol motor (faster), cement sack or LEMAS (slower).
         public float speedBonus = 1f;
+        // 0.6.1 KARIER arrest: the hero is walked by script (escort), or held completely
+        // (riding the police motor / in the cell) so nothing clamps or moves him.
+        public bool scripted;
+        public Vector2 scriptedAxis;
+        public bool frozen;
         public Vector2 boundaryCenter = new Vector2(0, 4);
         public Vector2 boundaryRadii = new Vector2(26, 29);
         private Vector3 lastSafe = new Vector3(0, .1f, -9);
@@ -43,9 +48,10 @@ namespace Konoha.Campaign
 
         private void Update()
         {
-            if (!focused || paused || Time.timeScale <= 0f || motor == null || Locked) return;
+            if (frozen || !focused || paused || Time.timeScale <= 0f || motor == null || Locked) return;
             float dt = Mathf.Min(Time.deltaTime, .05f);
-            Vector2 axis = seatLocked ? Vector2.zero : CameraRelative(joystick.Value, movementCamera.forward);
+            Vector2 axis = scripted ? Vector2.ClampMagnitude(scriptedAxis, 1f)
+                : seatLocked ? Vector2.zero : CameraRelative(joystick.Value, movementCamera.forward);
             // Clip intended horizontal movement first, preserving grounding and jump at the boundary.
             float bonus = Mathf.Max(.1f, speedBonus);
             float travel = motor.definition.speed * Mathf.Max(.1f, motor.speedMultiplier) * bonus * dt;
@@ -79,7 +85,7 @@ namespace Konoha.Campaign
 
         public void Jump()
         {
-            if (focused && !paused && Time.timeScale > 0f && motor != null && !Locked && !seatLocked) motor.TryJump();
+            if (focused && !paused && Time.timeScale > 0f && motor != null && !Locked && !seatLocked && !scripted && !frozen) motor.TryJump();
         }
 
         public static Vector2 CameraRelative(Vector2 axis, Vector3 forward)

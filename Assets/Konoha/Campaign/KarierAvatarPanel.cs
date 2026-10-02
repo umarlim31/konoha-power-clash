@@ -61,6 +61,8 @@ namespace Konoha.Campaign
         public void Open()
         {
             hasSave = PlayerPrefs.HasKey(CampaignKarier.SaveKey);
+            if (controller != null)
+                controller.EnterCreator();
             draft = KarierAvatar.TryParse(PlayerPrefs.GetString(CampaignKarier.AvatarKey, string.Empty), out KarierAvatar saved)
                 ? saved : KarierAvatar.Default;
             CampaignKarier.SetAvatar(draft);

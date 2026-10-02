@@ -23,6 +23,10 @@ namespace Konoha.Campaign
         // a cement sack held on the right shoulder. Set by KarierController.
         public bool riding;
         public bool carrying;
+        // 0.6.1 KARIER: pedalling a bicycle, hands cuffed behind the back, eating (hand to mouth).
+        public bool pedaling;
+        public bool cuffed;
+        public bool eating;
 
         public enum Travel { None, Dash, Leap }
 
@@ -231,16 +235,36 @@ namespace Konoha.Campaign
                 armR = -62f; elbowR = -35f; armRZ = -4f;
             }
 
-            if (riding)
+            if (riding || pedaling)
             {
                 legL = legR = -78f; kneeL = kneeR = 82f;
                 armL = armR = -55f; elbowL = elbowR = -25f; armLZ = 8f; armRZ = -8f;
                 spineX = 6f + Mathf.Sin(now * 2.1f) * .6f; headX = 0f; bob = 0f;
+                if (pedaling)
+                {
+                    // Pedals turn with the bike's speed: the legs go round in opposite phase.
+                    float crank = phase * 1.4f;
+                    legL = -70f + Mathf.Sin(crank) * 22f; legR = -70f - Mathf.Sin(crank) * 22f;
+                    kneeL = 70f + Mathf.Cos(crank) * 25f; kneeR = 70f - Mathf.Cos(crank) * 25f;
+                    spineX = 14f;
+                }
             }
             else if (carrying)
             {
                 armR = -150f; elbowR = -95f; armRZ = -10f;
                 spineX += 4f;
+            }
+            if (cuffed)
+            {
+                // Hands together behind the back, head a little down.
+                armL = armR = 28f; elbowL = elbowR = -70f; armLZ = -14f; armRZ = 14f;
+                headX += 10f;
+            }
+            else if (eating && !riding && !pedaling)
+            {
+                float bite = Mathf.Abs(Mathf.Sin(now * 2.6f));
+                armR = -40f - 60f * bite; elbowR = -110f * bite - 20f; armRZ = 14f;
+                armL = -35f; elbowL = -70f; armLZ = -10f;
             }
 
             // Punch: wind-up, strike, recover; arms alternate.

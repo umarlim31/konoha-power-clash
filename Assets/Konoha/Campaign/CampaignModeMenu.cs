@@ -58,6 +58,7 @@ namespace Konoha.Campaign
                 return;
             leaving = true;
             CampaignKarier.Active = false;
+            Konoha.Networking.NetworkPlayerIdentity.LocalNameOverride = null;
             if (panel != null)
                 panel.SetActive(false);
             if (session != null)
@@ -88,6 +89,7 @@ namespace Konoha.Campaign
 
         private IEnumerator LoadPvp()
         {
+            Konoha.Networking.NetworkPlayerIdentity.LocalNameOverride = null;
             // The campaign NetworkManager never started; remove it (it may be marked
             // DontDestroyOnLoad) and wait a frame so the PvP scene owns the singleton.
             if (session != null)

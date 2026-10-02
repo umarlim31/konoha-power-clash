@@ -40,9 +40,17 @@ namespace Konoha.Campaign
         public GameObject policePanel;
         public Text policeText;
         public Button kaburButton, damaiButton, polsekButton;
+        // 0.6.1: "SAKSI WARGA" (shown when warga defend a hero they trust).
+        public Button saksiButton;
         public GameObject waPanel;
         public Text waText;
         public Button waCloseButton;
+        // 0.6.1: TERIMA / TOLAK for the TAWARAN GELAP mission.
+        public Button waAcceptButton, waRejectButton;
+        // 0.6.1: POLSEK cell countdown with TEBUS.
+        public GameObject jailPanel;
+        public Text jailText;
+        public Button tebusButton;
         public GameObject rebahanPanel;
         public Text rebahanText;
         public Image fade;
@@ -61,6 +69,16 @@ namespace Konoha.Campaign
         public Transform ojolMotor;
         public GameObject ojolPassenger;
         public Transform sack;
+        // 0.6.1: jajan stalls, rentals, the POLSEK, and street chatter.
+        public Vector3 siomayPoint, salomePoint, baksoPoint, sepedaPoint, motorRentPoint;
+        public Transform rentMotor;
+        public Transform bike;
+        public Transform plate;
+        public Vector3 polsekDoor = new Vector3(16.4f, 0f, -31f);
+        public Vector3 polsekCell = new Vector3(22.9f, 0f, -31f);
+        public GameObject cellBars;
+        public CampaignCityLife city;
+        public TextMesh chatterBubble;
 
         private KarierLife life;
         private bool started;
@@ -77,9 +95,14 @@ namespace Konoha.Campaign
         private string lastTarget;
         private string lastSave;
         private float nextSave;
-        private float fadeUntil = -1f;
-        private bool polsekPending;
-        private int polsekStage;
+        private enum Arrest { None, Approach, Escort, Ride, WalkIn, Cell }
+        private Arrest arrest = Arrest.None;
+        private float arrestTimer;
+        private bool officerLeaving;
+        private bool offerShown;
+        private float nextChatter;
+        private float chatterUntil;
+        private Transform chatterTarget;
         private KarierAction shownAction = KarierAction.None;
         private int shownSapa = -1;
         private float nextFeed;
@@ -87,6 +110,14 @@ namespace Konoha.Campaign
         private System.Random random;
         private Text actionLabel;
         private bool runtuhPending;
+
+        // 0.6.1 street chatter of the warga near the hero (owner: "lingkungannya betul-betul hidup").
+        private static readonly string[] Chatter =
+        {
+            "Panas banget hari ini...", "Cabe naik lagi, Bu!", "Udah makan belum?", "Katanya mau ada pemilihan RT",
+            "Anakku minta HP baru...", "Listrik naik, gaji tetap", "Mas, ojolnya bintang 5 ya!", "Hati-hati, preman lagi keliling",
+            "Pinjol nelpon terus...", "Nanti malam ronda, jangan lupa", "Jalanan bolong belum diaspal", "Viral lagi tuh di grup"
+        };
 
         private static readonly string[] Feed =
         {
@@ -115,7 +146,11 @@ namespace Konoha.Campaign
             Listen(kaburButton, () => Police(KarierPoliceChoice.Kabur));
             Listen(damaiButton, () => Police(KarierPoliceChoice.Damai));
             Listen(polsekButton, () => Police(KarierPoliceChoice.Polsek));
+            Listen(saksiButton, () => Police(KarierPoliceChoice.Saksi));
             Listen(waCloseButton, () => SetActive(waPanel, false));
+            Listen(waAcceptButton, () => AnswerOffer(true));
+            Listen(waRejectButton, () => AnswerOffer(false));
+            Listen(tebusButton, Tebus);
             actionLabel = actionButton != null ? actionButton.GetComponentInChildren<Text>(true) : null;
             CampaignKarier.HeroRuntuh += OnHeroRuntuh;
             ShowHud(false);
@@ -125,7 +160,8 @@ namespace Konoha.Campaign
         {
             CampaignKarier.HeroRuntuh -= OnHeroRuntuh;
             foreach (Button button in new[] { phoneButton, closePhoneButton, ojolButton, kuliButton, buzzerButton,
-                rebahanButton, actionButton, kaburButton, damaiButton, polsekButton, waCloseButton })
+                rebahanButton, actionButton, kaburButton, damaiButton, polsekButton, waCloseButton, saksiButton,
+                waAcceptButton, waRejectButton, tebusButton })
                 if (button != null) button.onClick.RemoveAllListeners();
             if (life != null)
             {
@@ -145,6 +181,20 @@ namespace Konoha.Campaign
         {
             if (button != null)
                 button.onClick.AddListener(action);
+        }
+
+        // 0.6.1: the character creator opened (KARIER chosen). Hero-only controls and the
+        // Jalur Takhta texts must not show behind it (owner screenshot).
+        public void EnterCreator()
+        {
+            HideHeroControls();
+            if (objectiveText != null) objectiveText.text = "BUAT WARGAMU, lalu tekan MULAI HIDUP";
+            if (statusText != null) statusText.text = string.Empty;
+            if (waypointText != null) waypointText.text = string.Empty;
+            if (heroText != null) heroText.text = string.Empty;
+            if (feedbackText != null) feedbackText.text = string.Empty;
+            if (objectiveProgress != null) objectiveProgress.fillAmount = 0f;
+            CampaignGuideArrow.Hide();
         }
 
         // MULAI HIDUP / LANJUTKAN HIDUP on the character creator.
@@ -173,6 +223,10 @@ namespace Konoha.Campaign
                 : "Selamat datang kembali, " + name + ". Hidup berlanjut, cicilan juga.");
             Say("Target LEVEL 1: jadi KETUA RT. Syarat: " + KarierLife.Rupiah(CampaignTuning.Karier.SyukuranRT) +
                 " untuk syukuran + RESTU " + CampaignTuning.Karier.RestuSyaratRT + ".");
+            if (!life.AllMissionsDone)
+                Say("MISI: " + life.MissionTitle + ". " + life.MissionIntroText);
+            if (cellBars != null)
+                cellBars.SetActive(false);
             SaveNow();
         }
 
@@ -187,7 +241,12 @@ namespace Konoha.Campaign
                 Warkop = Point(warkop),
                 PosRt = Point(posRt),
                 SapaNames = (string[])sapaNames.Clone(),
-                SapaPoints = new KarierPoint[sapaPoints.Length]
+                SapaPoints = new KarierPoint[sapaPoints.Length],
+                Siomay = Point(siomayPoint),
+                Salome = Point(salomePoint),
+                Bakso = Point(baksoPoint),
+                SewaSepeda = Point(sepedaPoint),
+                SewaMotor = Point(motorRentPoint)
             };
             for (int i = 0; i < placePoints.Length; i++)
                 layout.Places[i] = Point(placePoints[i]);
@@ -236,7 +295,9 @@ namespace Konoha.Campaign
             CountBeaten();
             UpdatePreman(director, dt, fighting);
             UpdateKeributan(director, position, premanAt);
-            UpdatePolsek(director);
+            UpdateArrest(hero, dt);
+            UpdateOffer();
+            UpdateChatter(position);
             UpdateJobVisuals();
             UpdateGuidance(position);
             UpdateAction(position);
@@ -245,7 +306,8 @@ namespace Konoha.Campaign
             UpdateRebahanFeed();
 
             if (traversal != null)
-                traversal.seatLocked = life.Rebahan || life.PoliceArrived || polsekPending;
+                traversal.seatLocked = life.Rebahan || life.PoliceArrived ||
+                    arrest == Arrest.Approach || (waPanel != null && waPanel.activeSelf && offerShown);
 
             if (Time.unscaledTime >= nextSave)
             {
@@ -324,7 +386,7 @@ namespace Konoha.Campaign
                 return;
             }
             premanSince = -1f;
-            if (life.PoliceCalled || life.Rebahan || !director.IsServer)
+            if (life.PoliceCalled || life.PoliceEta >= 0f || life.Rebahan || life.InJail || arrest != Arrest.None || !director.IsServer)
                 return;
             premanClock += dt;
             if (premanClock < nextPremanAt)
@@ -372,7 +434,7 @@ namespace Konoha.Campaign
                     OpenPolicePanel();
                 }
                 // The show is over: the crowd goes home a few seconds after things calm down.
-                if (crowd.Gathered && !police && life.Keributan <= 0f && StandingPreman() == 0)
+                if (crowd.Gathered && !police && life.PoliceEta < 0f && arrest == Arrest.None && life.Keributan <= 0f && StandingPreman() == 0)
                 {
                     if (calmSince < 0f) calmSince = Time.time;
                     else if (Time.time - calmSince > 3f)
@@ -409,7 +471,17 @@ namespace Konoha.Campaign
             Caption(damaiButton, "DAMAI DI TEMPAT\n" + KarierLife.Rupiah(life.DamaiPrice) + (life.CanDamai ? string.Empty : " (duit kurang)"));
             if (damaiButton != null)
                 damaiButton.interactable = life.CanDamai;
-            Caption(polsekButton, "IKUT KE POLSEK\nsemalam, " + KarierLife.Rupiah(CampaignTuning.Karier.PolsekBiaya));
+            Caption(polsekButton, "IKUT KE POLSEK\ndiborgol, masuk sel");
+            if (saksiButton != null)
+            {
+                bool saksi = life.CanSaksi;
+                saksiButton.gameObject.SetActive(saksi);
+                Caption(saksiButton, "SAKSI WARGA\n\"dia yang nolong!\"");
+            }
+            if (policeText != null && life.BeatenThisFight && !hoaks)
+                policeText.text = "\"Siapa yang menghajar preman ini?\"\nWarga menunjuk ke arahmu sambil merekam.\n" +
+                    (life.CanSaksi ? "Warga siap jadi SAKSI untukmu (RESTU tinggi)." : "RESTU kurang: warga diam saja.") +
+                    "\n\nCATATAN HITAM: " + life.CatatanHitam;
         }
 
         private void Police(KarierPoliceChoice choice)
@@ -417,46 +489,247 @@ namespace Konoha.Campaign
             if (life == null || !life.ResolvePolice(choice))
                 return;
             SetActive(policePanel, false);
-            if (crowd != null)
-            {
-                crowd.PoliceLeave();
-                crowd.Disperse();
-            }
             if (choice == KarierPoliceChoice.Polsek)
             {
-                polsekPending = true;
-                polsekStage = 0;
-                fadeUntil = Time.unscaledTime + 1.6f;
-                SetFade(0f);
+                // 0.6.1 (owner): really cuffed and taken away, not "the next day...".
+                arrest = Arrest.Approach;
+                arrestTimer = 0f;
+                officerLeaving = false;
+                ClosePhone();
+                Play(CampaignSound.Door, 0.6f, 1.4f);
             }
+            else if (crowd != null)
+            {
+                crowd.PoliceLeave();
+            }
+            if (crowd != null)
+                crowd.Disperse();
             SaveNow();
         }
 
-        // IKUT KE POLSEK: fade to black, the night passes, back at home.
-        private void UpdatePolsek(CampaignDirector director)
+        // Cuffs -> escort to the patrol motor -> ride to the POLSEK -> walk into the cell -> wait or TEBUS.
+        private void UpdateArrest(NetworkObject hero, float dt)
         {
-            if (!polsekPending)
+            if (arrest == Arrest.None)
                 return;
-            float left = fadeUntil - Time.unscaledTime;
-            if (polsekStage == 0)
+            arrestTimer += dt;
+            var heroMotor = hero.GetComponent<Konoha.Character.CharacterMotor>();
+            Vector3 position = hero.transform.position;
+            switch (arrest)
             {
-                SetFade(1f - Mathf.Clamp01(left / 1.6f));
-                if (left <= 0f)
-                {
-                    polsekStage = 1;
-                    fadeUntil = Time.unscaledTime + 1.6f;
-                    if (director.IsServer)
-                        director.ServerKarierTeleportHero(homePoint);
-                }
+                case Arrest.Approach:
+                    if (crowd != null)
+                        crowd.OfficerWalkTo(position);
+                    if (crowd == null || crowd.OfficerArrived || arrestTimer > 6f)
+                    {
+                        arrest = Arrest.Escort;
+                        arrestTimer = 0f;
+                        Say("KLIK! Borgol terpasang. Polisi menggiringmu ke motor patroli.");
+                        Play(CampaignSound.Stamp, 0.8f, 1.6f);
+                    }
+                    break;
+                case Arrest.Escort:
+                    if (crowd == null || !crowd.PoliceBusy)
+                    {
+                        StartWalkIn(heroMotor);
+                        break;
+                    }
+                    Vector3 to = crowd.MotorPosition - position;
+                    to.y = 0f;
+                    crowd.OfficerWalkTo(position);
+                    if (to.magnitude < 1.5f || arrestTimer > 9f)
+                    {
+                        if (traversal != null)
+                        {
+                            traversal.scripted = false;
+                            traversal.frozen = true;
+                        }
+                        Vector3 motor = crowd.MotorPosition;
+                        crowd.BeginRide(new[] { new Vector3(0f, 0f, motor.z), new Vector3(0f, 0f, polsekDoor.z), polsekDoor }, 7f);
+                        arrest = Arrest.Ride;
+                        arrestTimer = 0f;
+                        Say("Dibonceng motor patroli ke POLSEK KONOHA. Warga melambai sambil live streaming.");
+                    }
+                    else if (traversal != null)
+                    {
+                        Vector3 direction = to.normalized * 0.5f;
+                        traversal.scripted = true;
+                        traversal.scriptedAxis = new Vector2(direction.x, direction.z);
+                    }
+                    break;
+                case Arrest.Ride:
+                    if (heroMotor != null && crowd != null)
+                    {
+                        heroMotor.Teleport(crowd.PassengerSeat + Vector3.up * 0.05f);
+                        hero.transform.rotation = crowd.MotorRotation;
+                    }
+                    if (crowd == null || crowd.RideDone || arrestTimer > 25f)
+                        StartWalkIn(heroMotor);
+                    break;
+                case Arrest.WalkIn:
+                    if (crowd != null && !officerLeaving)
+                        crowd.OfficerWalkTo(position);
+                    if (position.x >= polsekCell.x - 0.35f || arrestTimer > 7f)
+                    {
+                        if (position.x < polsekCell.x - 0.35f && heroMotor != null)
+                            heroMotor.Teleport(polsekCell + Vector3.up * 0.1f);
+                        if (traversal != null)
+                            traversal.scripted = false;
+                        if (cellBars != null)
+                            cellBars.SetActive(true);
+                        life.EnterJail();
+                        arrest = Arrest.Cell;
+                        arrestTimer = 0f;
+                        SetActive(jailPanel, true);
+                        Play(CampaignSound.Door, 0.8f, 0.8f);
+                        if (crowd != null)
+                        {
+                            crowd.OfficerWalkTo(polsekDoor + Vector3.left * 1.5f);
+                            officerLeaving = true;
+                        }
+                    }
+                    else if (traversal != null)
+                    {
+                        traversal.scripted = true;
+                        traversal.scriptedAxis = new Vector2(0.5f, (polsekCell.z - position.z) * 0.5f);
+                    }
+                    break;
+                case Arrest.Cell:
+                    if (officerLeaving && crowd != null && (crowd.OfficerArrived || arrestTimer > 5f))
+                    {
+                        crowd.PoliceLeave();
+                        officerLeaving = false;
+                    }
+                    if (jailText != null)
+                        jailText.text = "SEL POLSEK KONOHA\nBebas dalam " + Mathf.CeilToInt(life.JailLeft) + " detik";
+                    Caption(tebusButton, "TEBUS " + KarierLife.Rupiah(life.TebusPrice) + "\n(tanpa kuitansi)");
+                    if (tebusButton != null)
+                        tebusButton.interactable = life.Duit >= life.TebusPrice;
+                    if (!life.InJail)
+                    {
+                        if (cellBars != null)
+                            cellBars.SetActive(false);
+                        SetActive(jailPanel, false);
+                        if (officerLeaving && crowd != null)
+                            crowd.PoliceLeave();
+                        officerLeaving = false;
+                        arrest = Arrest.None;
+                        Say("Pintu sel terbuka. Keluar lewat pintu depan POLSEK, hidup berlanjut.");
+                    }
+                    break;
             }
-            else
+            CampaignHumanoid body = bodies != null ? bodies.LocalBody() : null;
+            if (body != null)
+                body.cuffed = arrest == Arrest.Escort || arrest == Arrest.Ride || arrest == Arrest.WalkIn;
+        }
+
+        // From the POLSEK door the hero walks (escorted) into the cell; the bars close behind him.
+        private void StartWalkIn(Konoha.Character.CharacterMotor heroMotor)
+        {
+            if (heroMotor != null)
+                heroMotor.Teleport(polsekDoor + Vector3.up * 0.1f);
+            NetworkObject hero = LocalHero();
+            if (hero != null)
+                hero.transform.rotation = Quaternion.LookRotation(polsekCell - polsekDoor);
+            if (traversal != null)
             {
-                SetFade(Mathf.Clamp01(left / 1.6f));
-                if (left <= 0f)
+                traversal.frozen = false;
+                traversal.scripted = true;
+                traversal.scriptedAxis = new Vector2(0.5f, 0f);
+            }
+            if (cellBars != null)
+                cellBars.SetActive(false);
+            arrest = Arrest.WalkIn;
+            arrestTimer = 0f;
+        }
+
+        private void Tebus()
+        {
+            if (life != null && life.Tebus())
+                SaveNow();
+        }
+
+        // TAWARAN GELAP: a WA from an unknown number with TERIMA / TOLAK.
+        private void UpdateOffer()
+        {
+            bool busy = life.PoliceCalled || arrest != Arrest.None || life.Rebahan ||
+                (policePanel != null && policePanel.activeSelf) || (phonePanel != null && phonePanel.activeSelf);
+            if (!life.OfferPending || busy)
+            {
+                if (offerShown && !life.OfferPending)
+                    CloseOffer();
+                return;
+            }
+            if (offerShown)
+                return;
+            offerShown = true;
+            SetActive(waPanel, true);
+            SetActive(waAcceptButton != null ? waAcceptButton.gameObject : null, true);
+            SetActive(waRejectButton != null ? waRejectButton.gameObject : null, true);
+            SetActive(waCloseButton != null ? waCloseButton.gameObject : null, false);
+            if (waText != null)
+                waText.text = "<b>+62 812-XXXX-XXXX:</b> Halo kak, mau duit cepat? Sebar pesan di bawah ke semua grup WA. " +
+                    KarierLife.Rupiah(CampaignTuning.Karier.TawaranPay) + " langsung cair, tanpa ribet.\n\n" +
+                    "<i>\"WASPADA! Air galon bisa bikin lupa ingatan, sebarkan sebelum dihapus!!!\"</i>\n\n" +
+                    "<b>Pak RT 03 (grup):</b> Warga, hati-hati ada nomor asing nawarin duit buat sebar pesan aneh.\n\n" +
+                    "TERIMA = duit cepat, CATATAN HITAM naik.  TOLAK = RESTU warga naik.";
+            Play(CampaignSound.Notif, 0.8f);
+        }
+
+        private void AnswerOffer(bool accept)
+        {
+            if (life != null && life.AnswerOffer(accept))
+                SaveNow();
+            CloseOffer();
+        }
+
+        private void CloseOffer()
+        {
+            offerShown = false;
+            SetActive(waPanel, false);
+            SetActive(waAcceptButton != null ? waAcceptButton.gameObject : null, false);
+            SetActive(waRejectButton != null ? waRejectButton.gameObject : null, false);
+            SetActive(waCloseButton != null ? waCloseButton.gameObject : null, true);
+        }
+
+        // Now and then a warga near the hero says something (bubble above the head).
+        private void UpdateChatter(Vector3 heroPosition)
+        {
+            if (chatterBubble == null)
+                return;
+            float now = Time.time;
+            if (chatterTarget != null && now < chatterUntil && chatterTarget.gameObject.activeInHierarchy)
+            {
+                chatterBubble.transform.position = chatterTarget.position + Vector3.up * 2.2f;
+                Camera view = Camera.main;
+                if (view != null)
                 {
-                    polsekPending = false;
-                    SetFade(0f);
+                    Vector3 look = chatterBubble.transform.position - view.transform.position;
+                    if (look.sqrMagnitude > 0.01f)
+                        chatterBubble.transform.rotation = Quaternion.LookRotation(look);
                 }
+                return;
+            }
+            if (chatterBubble.gameObject.activeSelf)
+                chatterBubble.gameObject.SetActive(false);
+            chatterTarget = null;
+            if (now < nextChatter || city == null || city.walkers == null || city.walkers.Length == 0)
+                return;
+            nextChatter = now + 5f + (float)random.NextDouble() * 6f;
+            for (int attempt = 0; attempt < 6; attempt++)
+            {
+                CampaignCityLife.Walker walker = city.walkers[random.Next(city.walkers.Length)];
+                if (walker == null || walker.root == null || !walker.root.gameObject.activeInHierarchy)
+                    continue;
+                Vector3 d = walker.root.position - heroPosition;
+                d.y = 0f;
+                if (d.sqrMagnitude > 144f)
+                    continue;
+                chatterTarget = walker.root;
+                chatterUntil = now + 3f;
+                chatterBubble.text = Chatter[random.Next(Chatter.Length)];
+                chatterBubble.gameObject.SetActive(true);
+                return;
             }
         }
 
@@ -479,7 +752,7 @@ namespace Konoha.Campaign
             if (life == null || phonePanel == null)
                 return;
             bool open = !phonePanel.activeSelf;
-            if (open && (life.PoliceArrived || polsekPending))
+            if (open && (life.PoliceArrived || arrest != Arrest.None || offerShown))
                 return;
             phonePanel.SetActive(open);
             if (open)
@@ -600,44 +873,62 @@ namespace Konoha.Campaign
         private void UpdateJobVisuals()
         {
             NetworkObject hero = LocalHero();
-            bool riding = life.Job == KarierJob.Ojol;
+            bool ojol = life.Job == KarierJob.Ojol;
+            bool motorRent = !ojol && life.Ride == KarierRide.Motor;
+            bool sepeda = !ojol && life.Ride == KarierRide.Sepeda;
             bool carrying = life.Carrying;
-            if (ojolMotor != null && hero != null)
-            {
-                if (riding && ojolMotor.parent != hero.transform)
-                {
-                    ojolMotor.SetParent(hero.transform, false);
-                    ojolMotor.localPosition = Vector3.zero;
-                    ojolMotor.localRotation = Quaternion.identity;
-                }
-                if (ojolMotor.gameObject.activeSelf != riding)
-                    ojolMotor.gameObject.SetActive(riding);
-            }
-            SetActive(ojolPassenger, riding && life.Step == KarierStep.OjolAntar);
-            if (sack != null && hero != null)
-            {
-                if (carrying && sack.parent != hero.transform)
-                {
-                    sack.SetParent(hero.transform, false);
-                    sack.localPosition = new Vector3(0.24f, 1.78f, -0.05f);
-                    sack.localRotation = Quaternion.Euler(0f, 0f, -12f);
-                }
-                if (sack.gameObject.activeSelf != carrying)
-                    sack.gameObject.SetActive(carrying);
-            }
+            bool onPoliceMotor = arrest == Arrest.Ride;
+            Attach(ojolMotor, hero, ojol, Vector3.zero, Quaternion.identity);
+            Attach(rentMotor, hero, motorRent, Vector3.zero, Quaternion.identity);
+            Attach(bike, hero, sepeda, Vector3.zero, Quaternion.identity);
+            SetActive(ojolPassenger, ojol && life.Step == KarierStep.OjolAntar);
+            Attach(sack, hero, carrying, new Vector3(0.24f, 1.78f, -0.05f), Quaternion.Euler(0f, 0f, -12f));
+
             CampaignHumanoid body = bodies != null ? bodies.LocalBody() : null;
             if (body != null)
             {
-                body.riding = riding;
-                body.carrying = carrying && !riding;
+                body.riding = ojol || motorRent || onPoliceMotor;
+                body.pedaling = sepeda && !onPoliceMotor;
+                body.carrying = carrying && !ojol;
+                body.eating = life.Eating;
+                if (plate != null)
+                {
+                    bool eat = life.Eating && body.elbowRight != null && !body.riding && !body.pedaling;
+                    if (eat && plate.parent != body.elbowRight)
+                    {
+                        plate.SetParent(body.elbowRight, false);
+                        plate.localPosition = new Vector3(0f, -0.34f, 0.06f);
+                        plate.localRotation = Quaternion.identity;
+                    }
+                    if (plate.gameObject.activeSelf != eat)
+                        plate.gameObject.SetActive(eat);
+                }
             }
             if (traversal != null)
             {
-                float speed = riding ? CampaignTuning.Karier.OjolSpeed : carrying ? CampaignTuning.Karier.KuliCarrySpeed : 1f;
-                if (life.Lemas && !riding)
+                float speed = ojol ? CampaignTuning.Karier.OjolSpeed
+                    : motorRent ? CampaignTuning.Karier.MotorSpeed
+                    : sepeda ? CampaignTuning.Karier.SepedaSpeed
+                    : carrying ? CampaignTuning.Karier.KuliCarrySpeed : 1f;
+                if (life.Lemas && !ojol && !motorRent)
                     speed *= CampaignTuning.Karier.LemasSpeed;
                 traversal.speedBonus = speed;
             }
+        }
+
+        // Shows a prop on the hero (parented once) or hides it.
+        private static void Attach(Transform prop, NetworkObject hero, bool show, Vector3 localPosition, Quaternion localRotation)
+        {
+            if (prop == null)
+                return;
+            if (show && hero != null && prop.parent != hero.transform)
+            {
+                prop.SetParent(hero.transform, false);
+                prop.localPosition = localPosition;
+                prop.localRotation = localRotation;
+            }
+            if (prop.gameObject.activeSelf != show)
+                prop.gameObject.SetActive(show);
         }
 
         private void UpdateGuidance(Vector3 heroPosition)
@@ -694,6 +985,8 @@ namespace Konoha.Campaign
         private void UpdateAction(Vector3 heroPosition)
         {
             KarierAction action = life.ActionAt(Point(heroPosition), out int sapa);
+            if (arrest != Arrest.None)
+                action = KarierAction.None;
             if (action == shownAction && sapa == shownSapa)
                 return;
             shownAction = action;
@@ -709,6 +1002,24 @@ namespace Konoha.Campaign
             {
                 case KarierAction.Makan:
                     actionLabel.text = "MAKAN\n" + KarierLife.Rupiah(CampaignTuning.Karier.MakanPrice);
+                    break;
+                case KarierAction.BeliSiomay:
+                    actionLabel.text = "SIOMAY\n" + KarierLife.Rupiah(CampaignTuning.Karier.SiomayPrice);
+                    break;
+                case KarierAction.BeliSalome:
+                    actionLabel.text = "SALOME\n" + KarierLife.Rupiah(CampaignTuning.Karier.SalomePrice);
+                    break;
+                case KarierAction.BeliBakso:
+                    actionLabel.text = "BAKSO\n" + KarierLife.Rupiah(CampaignTuning.Karier.BaksoPrice);
+                    break;
+                case KarierAction.SewaSepeda:
+                    actionLabel.text = "SEWA\nSEPEDA " + (CampaignTuning.Karier.SewaSepedaPrice / 1000) + "rb";
+                    break;
+                case KarierAction.SewaMotor:
+                    actionLabel.text = "SEWA\nMOTOR " + (CampaignTuning.Karier.SewaMotorPrice / 1000) + "rb";
+                    break;
+                case KarierAction.Turun:
+                    actionLabel.text = "TURUN";
                     break;
                 case KarierAction.Sapa:
                     actionLabel.text = "SAPA\n" + (sapa >= 0 && sapa < sapaNames.Length ? sapaNames[sapa] : "WARGA");
@@ -747,10 +1058,24 @@ namespace Konoha.Campaign
 
         private string Objective()
         {
+            switch (arrest)
+            {
+                case Arrest.Approach:
+                case Arrest.Escort:
+                    return "DITANGKAP • Diborgol, digiring ke motor patroli";
+                case Arrest.Ride:
+                    return "DIBAWA KE POLSEK • Warga sibuk merekam";
+                case Arrest.WalkIn:
+                    return "POLSEK • Masuk sel";
+                case Arrest.Cell:
+                    return "DI SEL • Tunggu " + Mathf.CeilToInt(life.JailLeft) + " dtk atau TEBUS";
+            }
             if (life.PoliceArrived)
                 return "POLISI • Pilih: kabur, damai, atau ikut ke polsek";
             if (life.PoliceCalled)
                 return "SIRENE! • Polisi menuju ke sini";
+            if (life.PoliceEta > 0f)
+                return "ADA YANG LAPOR POLISI • datang " + Mathf.CeilToInt(life.PoliceEta) + " dtk lagi";
             if (life.MeleraiActive)
                 return "DILERAI WARGA • Tahan dulu...";
             if (life.Rebahan)
@@ -769,10 +1094,14 @@ namespace Konoha.Campaign
                 case KarierStep.BuzzerKetik:
                     return "BUZZER • Duduk di WARKOP, sebar pesan";
             }
-            if (life.Registered)
-                return "CALON KETUA RT • Pemilihan menyusul, tetap cari duit";
             if (life.CanDaftar)
                 return "SYARAT LENGKAP • Daftar CALON RT di POS RONDA";
+            if (life.Ride != KarierRide.None)
+                return (life.Ride == KarierRide.Motor ? "NAIK MOTOR" : "NAIK SEPEDA") + " • tekan TURUN untuk mengembalikan";
+            if (!life.AllMissionsDone)
+                return "MISI " + (life.Mission + 1) + " • " + life.MissionProgress;
+            if (life.Registered)
+                return "CALON KETUA RT • Pemilihan menyusul, tetap cari duit";
             return "WARGA BIASA • Tekan HP > KONOHA KERJA";
         }
 
@@ -803,7 +1132,9 @@ namespace Konoha.Campaign
             bool duit = life.Registered || life.Duit >= CampaignTuning.Karier.SyukuranRT;
             bool restu = life.Restu >= CampaignTuning.Karier.RestuSyaratRT;
             string done = "<color=#F2C35A>■ ", todo = "<color=#FFFFFF>□ ", end = "</color>\n";
-            string text = "<b>LEVEL 1 • WARGA BIASA</b>\nTarget: KETUA RT 03\n" +
+            string text = "<b>MISI " + Mathf.Min(life.Mission + 1, KarierLife.MissionTitles.Length) + "/" + KarierLife.MissionTitles.Length +
+                ": " + life.MissionTitle + "</b>\n<color=#BFE8C8>" + life.MissionProgress + "</color>\n" +
+                "<b>LEVEL 1 • target KETUA RT 03</b>\n" +
                 (duit ? done : todo) + "Syukuran " + KarierLife.Rupiah(CampaignTuning.Karier.SyukuranRT) + end +
                 (restu ? done : todo) + "Restu warga " + life.Restu + "/" + CampaignTuning.Karier.RestuSyaratRT + end +
                 (life.Registered ? done : todo) + "Daftar di POS RONDA" + end +
@@ -820,6 +1151,10 @@ namespace Konoha.Campaign
             SetActive(policePanel, false);
             SetActive(waPanel, false);
             SetActive(rebahanPanel, false);
+            SetActive(jailPanel, false);
+            SetActive(waAcceptButton != null ? waAcceptButton.gameObject : null, false);
+            SetActive(waRejectButton != null ? waRejectButton.gameObject : null, false);
+            SetActive(saksiButton != null ? saksiButton.gameObject : null, false);
             if (actionButton != null) actionButton.gameObject.SetActive(false);
             SetFade(0f);
         }
@@ -892,6 +1227,7 @@ namespace Konoha.Campaign
                 case KarierCue.Sirene: Play(CampaignSound.Sirene, 0.8f); break;
                 case KarierCue.Restu: Play(CampaignSound.Restu, 0.8f); break;
                 case KarierCue.Daftar: Play(CampaignSound.Victory, 0.9f); break;
+                case KarierCue.Misi: Play(CampaignSound.Seal, 0.8f); break;
             }
         }
 

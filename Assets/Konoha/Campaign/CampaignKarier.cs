@@ -23,6 +23,8 @@ namespace Konoha.Campaign
         {
             Avatar = avatar.Clamped();
             AvatarVersion++;
+            // 0.6.1: the name above the hero follows the creator (owner: "masih tertulis MEGA").
+            Konoha.Networking.NetworkPlayerIdentity.LocalNameOverride = Active ? Avatar.Name : null;
         }
 
         public static void RaiseHeroRuntuh() => HeroRuntuh?.Invoke();
