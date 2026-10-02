@@ -34,13 +34,13 @@ namespace Konoha.Campaign
         private static readonly UnitRole[] NoRoles = new UnitRole[0];
         private static readonly FactionDefinition[] All =
         {
-            new FactionDefinition(FactionId.MajelisDaun, "MAJELIS DAUN", true,
+            new FactionDefinition(FactionId.MajelisDaun, "MARKAS KOALISI", true,
                 new FactionColor(0.45f, 0.09f, 0.16f), new FactionColor(0.86f, 0.66f, 0.28f),
                 new[] { UnitRole.Pemimpin, UnitRole.Senior, UnitRole.Kroni, UnitRole.Guard }),
-            new FactionDefinition(FactionId.BiroProsedur, "BIRO PROSEDUR", true,
+            new FactionDefinition(FactionId.BiroProsedur, "KANTOR KELURAHAN", true,
                 new FactionColor(0.72f, 0.68f, 0.60f), new FactionColor(0.20f, 0.36f, 0.58f),
                 new[] { UnitRole.Pemimpin, UnitRole.Spesialis, UnitRole.Kroni, UnitRole.Guard }),
-            new FactionDefinition(FactionId.GardaTakhta, "GARDA TAKHTA", true,
+            new FactionDefinition(FactionId.GardaTakhta, "GARDA ISTANA", true,
                 new FactionColor(0.09f, 0.13f, 0.24f), new FactionColor(0.86f, 0.66f, 0.28f),
                 new[] { UnitRole.Pemimpin, UnitRole.Guard, UnitRole.Kroni }),
             // Deferred factions (§15): identity only, no roster until they are designed.

@@ -86,7 +86,7 @@ namespace Konoha.Tests
             Assert.That(director.MajelisEngaged, Is.True);
             Assert.That(director.Run.GetSectorState(CampaignSector.MajelisDaun), Is.EqualTo(SectorState.Berlangsung));
             Assert.That(director.Run.Checkpoint, Is.EqualTo(CampaignCheckpoint.MajelisDaun));
-            Assert.That(messages.FindAll(m => m.StartsWith("LAWAN MAJELIS")), Has.Count.EqualTo(1));
+            Assert.That(messages.FindAll(m => m.StartsWith("LAWAN KOALISI")), Has.Count.EqualTo(1));
             Hold(director, Majelis, 3f);
             Assert.That(director.Run.HasSeal(CampaignSector.MajelisDaun), Is.False, "Standing in the hall no longer earns the seal");
         }
@@ -103,7 +103,7 @@ namespace Konoha.Tests
             Assert.That(director.CompleteMajelis(), Is.True);
             Assert.That(director.Run.HasSeal(CampaignSector.MajelisDaun), Is.True);
             Assert.That(director.CompleteMajelis(), Is.False, "Only once");
-            Assert.That(messages.FindAll(m => m.StartsWith("SEGEL MAJELIS")), Has.Count.EqualTo(1));
+            Assert.That(messages.FindAll(m => m.StartsWith("REKOMENDASI KOALISI")), Has.Count.EqualTo(1));
         }
 
         [Test]
@@ -120,7 +120,7 @@ namespace Konoha.Tests
             director.Tick(Biro, Frame);
             Assert.That(director.BiroEngaged, Is.True);
             Assert.That(director.Run.Checkpoint, Is.EqualTo(CampaignCheckpoint.BiroProsedur));
-            Assert.That(messages.FindAll(m => m.StartsWith("BIRO PROSEDUR")), Has.Count.EqualTo(1));
+            Assert.That(messages.FindAll(m => m.StartsWith("LAWAN KELURAHAN")), Has.Count.EqualTo(1));
             Assert.That(director.Interact(Biro, 1f), Is.False, "No SAHKAN button any more");
             Assert.That(director.Run.HasSeal(CampaignSector.BiroProsedur), Is.False);
         }

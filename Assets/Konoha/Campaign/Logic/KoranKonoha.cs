@@ -49,13 +49,13 @@ namespace Konoha.Campaign
             }
 
             if (majelis == SectorPath.Dirangkul)
-                news.Add("Majelis Daun sahkan undang-undang penting pukul 02.00; peserta rapat kompak menguap.");
+                news.Add("Rekomendasi koalisi terbit pukul 02.00 setelah \"mahar\" diterima; Ketum: \"itu uang saksi\".");
             else if (majelis == SectorPath.Dilawan)
-                news.Add("Ketua Majelis Daun tumbang; sidang pindah ke ruang tunggu, palu disita.");
+                news.Add("Ketum koalisi dilawan terbuka; elite partai mendadak \"sejak awal mendukung\".");
             if (biro == SectorPath.Dirangkul)
-                news.Add("Biro Prosedur buka \"Jalur Khusus\". Warga tetap antre di jalur biasa, sistem sedang gangguan.");
+                news.Add("Berkas pencalonan beres lewat calo dalam 5 menit. Warga lain: \"sistem sedang gangguan, balik besok\".");
             else if (biro == SectorPath.Dilawan)
-                news.Add("Tiga loket Biro Prosedur tercap paksa; Kepala Biro mengaku \"sudah sesuai prosedur\".");
+                news.Add("Tiga loket kelurahan ditaklukkan; Pak Lurah mengaku \"sudah sesuai prosedur\".");
 
             news.Add(restu >= 70
                 ? "Survei: rakyat puas " + restu + "%. Yang tidak puas sedang \"diberi pembinaan\"."

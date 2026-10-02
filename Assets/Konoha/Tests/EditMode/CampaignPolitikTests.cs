@@ -100,6 +100,46 @@ namespace Konoha.Tests
         }
 
         [Test]
+        public void BlusukanGreetsThreeGroupsBeforeThePlaza()
+        {
+            Vector3[] groups = { new Vector3(-8.6f, 0, -26), new Vector3(8.6f, 0, -26), new Vector3(13, 0, -21) };
+            var director = new CampaignObjectiveDirector(new CampaignObjectiveLayout(Plaza, Majelis, Biro,
+                new Vector3(0, 0, 28), new Vector3(0, 0, 49), groups));
+            director.MarkGateCleared();
+            director.Tick(Plaza, Frame);
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.GerbangRakyat), "SUARA first");
+            Assert.That(director.BlusukanDone, Is.False);
+
+            int modal = director.Run.Modal;
+            for (int i = 0; i < groups.Length; i++)
+            {
+                director.Tick(groups[i], Frame);
+                Assert.That(director.BlusukanCurrent, Is.EqualTo(i));
+                for (float t = 0; t < CampaignTuning.Blusukan.GreetSeconds + 0.1f; t += Frame)
+                    director.Tick(groups[i], Frame);
+                Assert.That(director.SuaraCount, Is.EqualTo(i + 1));
+            }
+            Assert.That(director.BlusukanDone, Is.True);
+            Assert.That(director.Run.Modal, Is.EqualTo(modal - CampaignTuning.Blusukan.ModalCost[1]));
+            director.Tick(Plaza, Frame);
+            Assert.That(director.Run.Phase, Is.EqualTo(CampaignPhase.PlazaAspirasi));
+        }
+
+        [Test]
+        public void LeavingAGroupResetsTheGreeting()
+        {
+            Vector3[] groups = { new Vector3(-8.6f, 0, -26) };
+            var director = new CampaignObjectiveDirector(new CampaignObjectiveLayout(Plaza, Majelis, Biro,
+                new Vector3(0, 0, 28), new Vector3(0, 0, 49), groups));
+            director.MarkGateCleared();
+            for (float t = 0; t < 1f; t += Frame) director.Tick(groups[0], Frame);
+            Assert.That(director.BlusukanProgress, Is.GreaterThan(0.4f));
+            director.Tick(Vector3.zero, Frame);
+            Assert.That(director.BlusukanProgress, Is.EqualTo(0f));
+            Assert.That(director.SuaraCount, Is.EqualTo(0));
+        }
+
+        [Test]
         public void EndingRules()
         {
             Assert.That(CampaignRunState.EndingFor(0, 0), Is.EqualTo(CampaignEnding.TakhtaBesi));

@@ -167,6 +167,22 @@ namespace Konoha.Campaign
             public const float PanglimaWeakenPerRangkul = 0.15f; // Each embraced institution "conditions" the Panglima.
         }
 
+        // 0.5.0 Jalan Nyaleg: BLUSUKAN, greet three groups of warga after the gang.
+        public static class Blusukan
+        {
+            public const float ZoneRadius = 2.8f;
+            public const float GreetSeconds = 2f;       // Standing in the zone this long greets the group.
+            public const int RestuPerGroup = 5;
+            public static readonly string[] Groups = { "POS RONDA", "IBU-IBU", "OJOL" };
+            public static readonly string[] Lines =
+            {
+                "BAPAK-BAPAK POS RONDA: \"Jalan kampung bolong 3 tahun!\"  Kamu janji aspal mulus \"setelah terpilih\". SUARA +1",
+                "IBU-IBU: \"Harga cabai naik, minyak langka!\"  Kamu ikut ngerumpi dan bagi kaos (MODAL -5). SUARA +1",
+                "DRIVER OJOL: \"Potongan aplikasi kegedean!\"  Kamu foto bareng pakai jaket hijau. SUARA +1"
+            };
+            public static readonly int[] ModalCost = { 0, 5, 0 };
+        }
+
         // 0.0.9.2.1 RESTU RAKYAT: reward for clearing the Gerbang Rakyat, lasts for the run
         // (kept after Runtuh, cleared by ULANG). Tuning assumption, not in §5–§9.
         public static class Restu
