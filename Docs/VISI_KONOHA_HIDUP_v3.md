@@ -1,6 +1,6 @@
 # Visi v3 — "HIDUP DI KONOHA": dari Warga Biasa sampai Presiden
 
-Status: **USULAN untuk diputuskan owner** (2026-10-02). Belum ada yang dikunci. Kalau disetujui, dokumen ini menjadi arah produk baru dan `GAME_LOGIC_JALUR_TAKHTA_v2.md` turun menjadi aturan untuk **level terakhir (Presiden)**.
+Status: **DISETUJUI owner 2026-10-02** ("aku setuju dengan rekomendasimu"): karier bertahap 5 level, avatar = diri sendiri dengan hero sebagai rival, build berikutnya = 0.6.0 Fondasi Level 1. Dokumen ini menjadi arah produk; `GAME_LOGIC_JALUR_TAKHTA_v2.md` tetap berlaku untuk **MODE PRESIDEN** (level terakhir). Angka di sini adalah angka awal; nilai yang berlaku ada di `CampaignTuning.Karier` (misalnya syukuran RT 0.6.0 = Rp 1.000.000).
 
 Masukan owner setelah memainkan 0.5.0:
 - Game masih terlalu mudah, karena mahar dan calo bisa dibayar walaupun hero tidak punya apa-apa. Uang seharusnya dikumpulkan dulu, entah dengan cara bersih, korupsi, atau kerja keras.

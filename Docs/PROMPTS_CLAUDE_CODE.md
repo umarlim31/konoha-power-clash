@@ -35,7 +35,12 @@ Urutan versi:
 | 0.3.3 | (perbaikan) | Model 3D benar-benar tergambar (mesh gabungan kehilangan segitiga di 0.3.1/0.3.2); pengaman: bentuk kode tidak dihapus bila mesh model kosong | ✅ Diuji di tablet ("udah normal kembali"); masukan: pendopo hilang saat didekati, warga tanpa muka → 0.3.4 |
 | 0.3.4 | (perbaikan+visual) | Hanya atap model yang memudar (pendopo dll.), mata kartun berkedip untuk hero/musuh, warga bermuka & membulat, jilbab membingkai wajah; usulan alur v2 `Docs/REKOMENDASI_ALUR_JALUR_TAKHTA_v2.md` | ✅ Diuji di tablet ("sudah ada matanya"); di-merge |
 | 0.4.0 | (alur) | Musim Pemilu tahap 1: LAWAN/RANGKUL Majelis & Biro, Modal + Jatah + Restu, sekutu di Garda, Koran Konoha 3 ending, disclaimer | ✅ Dimainkan di tablet (3 koran dibaca); masukan: alur masih membingungkan, Majelis/Biro aneh → 0.5.0 |
-| 0.5.0 | (alur+suasana) | "Jalan Nyaleg": Gang → Blusukan (SUARA) → Rekomendasi Koalisi/MAHAR → Berkas Kelurahan/CALO → Pelantikan; daftar langkah + pilar cahaya; warga kepo merekam, rumah duka, ibu-ibu & tukang sayur, pos ronda, ojol, bonceng tiga, motor jatuh | Dikerjakan (branch `feat/jalan-nyaleg-0.5.0`), menunggu uji tablet |
+| 0.5.0 | (alur+suasana) | "Jalan Nyaleg": Gang → Blusukan (SUARA) → Rekomendasi Koalisi/MAHAR → Berkas Kelurahan/CALO → Pelantikan; daftar langkah + pilar cahaya; warga kepo merekam, rumah duka, ibu-ibu & tukang sayur, pos ronda, ojol, bonceng tiga, motor jatuh | ✅ Dimainkan di tablet ("cukup seru"); masukan: terlalu mudah, pilar jelek, mau karier warga → presiden → visi v3 + 0.6.0 |
+| 0.6.0 | (karier L1) | KARIER Level 1 "Warga Biasa" (`Docs/VISI_KONOHA_HIDUP_v3.md`): menu 3 mode, buat warga sendiri, HP KONOHA KERJA (ojol, kuli, buzzer hoaks, rebahan), Duit/Energi/Restu/Catatan Hitam, preman + warga teriak/melerai + polisi (kabur/damai/polsek), daftar Ketua RT + Grup WA, simpan progres, panah kecil pengganti pilar; MODE PRESIDEN: Modal awal 25, pinjaman sekali | Dikerjakan (branch `feat/0.6.0-warga-biasa`), menunggu uji tablet |
+| 0.6.1 | (karier L1) | Siklus pagi–malam, kerja gorengan/konten/parkir liar, acara kampung (melayat, ronda, kerja bakti) | Rencana |
+| 0.6.2 | (karier L1) | Pemilihan Ketua RT (rival Juragan Kos & Pak Haji, serangan fajar), ending Grup WA, Level 1 tamat | Rencana |
+| 0.6.3 | (aset) | Slot model warga 3D (FBX rig humanoid) untuk avatar & warga | Rencana |
+| 0.7–0.9 | (karier L2–L5) | Kepala Desa → Caleg → Kepala Daerah → Presiden (ibu kota sekarang) | Rencana |
 | 0.5.1+ | (alur) | Kartu Kebijakan & Latar Belakang → Krisis → Sidang Kilat & ending lengkap (nomor lama 0.4.1–0.4.4) | Rencana |
 | 0.5–0.7 | (meta/multi) | Arsip ending & retensi → Co-op Bentuk Koalisi 2–4 → Pilpres PvP & rilis | Rencana |
 

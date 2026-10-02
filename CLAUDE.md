@@ -13,7 +13,7 @@ Owner bekerja HANYA dari HP/tablet Android (tanpa PC, tanpa Unity Editor lokal).
 ## Sumber kebenaran (urutan prioritas)
 1. Kode di repo ini (kondisi nyata).
 2. `Docs/GAME_LOGIC_JALUR_TAKHTA_v2.md` = **design authority alur 0.4.x "Musim Pemilu"** (dikunci owner 2026-10-02); `Docs/GAME_LOGIC_JALUR_TAKHTA_v1.md` tetap berlaku untuk combat, angka musuh, Garda, dan arsitektur yang tidak diubah v2.
-3. `Docs/GAME_BIBLE_V2_IMPLEMENTATION.md` + Game Concept Bible v2.0 (arah produk jangka panjang).
+3. `Docs/VISI_KONOHA_HIDUP_v3.md` = **arah produk KARIER** (warga biasa → presiden, 5 level; disetujui owner 2026-10-02). `Docs/GAME_BIBLE_V2_IMPLEMENTATION.md` + Game Concept Bible v2.0 (arah produk jangka panjang).
 4. Catatan versi di `Docs/JALUR_TAKHTA_*.md`.
 5. Screenshot & deskripsi lama.
 Urutan versi & tugas tiap versi: `Docs/PROMPTS_CLAUDE_CODE.md`. Kerjakan HANYA versi yang diminta di sesi ini.
