@@ -37,9 +37,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.3.4  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.3.4"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(43));
+                    Is.EqualTo("JALUR TAKHTA 0.4.0  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.4.0"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(44));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -108,6 +108,14 @@ namespace Konoha.Tests
                 Assert.That(result.panel, Is.Not.SameAs(result.gameObject));
                 Assert.That(result.retryButton, Is.Not.Null);
                 Assert.That(result.changeHeroButton, Is.Not.Null);
+                // 0.4.0 Musim Pemilu: Koran Konoha front page and the LAWAN / RANGKUL panel.
+                Assert.That(result.headlineText, Is.Not.Null);
+                Assert.That(result.newsText, Is.Not.Null);
+                var lobi = Object.FindFirstObjectByType<CampaignLobiPanel>();
+                Assert.That(lobi, Is.Not.Null);
+                Assert.That(lobi.lawanButton, Is.Not.Null);
+                Assert.That(lobi.rangkulButton, Is.Not.Null);
+                Assert.That(lobi.panel.activeSelf, Is.True, "Hidden by the component at runtime, built visible");
                 Assert.That(EditorBuildSettings.scenes, Has.Length.EqualTo(2));
                 Assert.That(EditorBuildSettings.scenes[0].path, Is.EqualTo(CampaignPreviewProject.ScenePath));
                 Assert.That(EditorBuildSettings.scenes[1].path, Is.EqualTo(SpikeProject.ScenePath));
