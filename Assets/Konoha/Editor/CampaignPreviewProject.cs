@@ -19,7 +19,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.3.2")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.3.3")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +27,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.3.2";
-            PlayerSettings.Android.bundleVersionCode = 41;
+            PlayerSettings.bundleVersion = "0.3.3";
+            PlayerSettings.Android.bundleVersionCode = 42;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -231,7 +231,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.3.2  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.3.3  •  SOLO PREVIEW";
             // 0.3.1: which owner models (Art/Models/<Slot>) are in this build; hidden when none.
             string modelSummary = CampaignModelSlots.Summary();
             if (modelSummary.Length > 0)
