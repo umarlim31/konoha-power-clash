@@ -37,9 +37,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.3.3  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.3.3"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(42));
+                    Is.EqualTo("JALUR TAKHTA 0.3.4  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.3.4"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(43));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -284,7 +284,7 @@ namespace Konoha.Tests
                     kota++;
                     Assert.That(decor.GetComponent<Collider>(), Is.Null, "Kota Hidup must not collide: " + decor.name);
                 }
-                Assert.That(kota, Is.InRange(AnyModel() ? 50 : 300, 2300), "Kota Hidup budget for the tablet (0.2.7 house details)");
+                Assert.That(kota, Is.InRange(AnyModel() ? 50 : 300, 2800), "Kota Hidup budget for the tablet (0.2.7 house details, 0.3.4 warga faces)");
                 Assert.That(GameObject.Find("KotaTall spanduk lambang Konoha"), Is.Not.Null);
                 Assert.That(GameObject.Find("Kota ruko"), Is.Not.Null);
                 Assert.That(GameObject.Find("Kota teluk"), Is.Not.Null);

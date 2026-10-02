@@ -12,7 +12,7 @@ Owner bekerja HANYA dari HP/tablet Android (tanpa PC, tanpa Unity Editor lokal).
 
 ## Sumber kebenaran (urutan prioritas)
 1. Kode di repo ini (kondisi nyata).
-2. `Docs/GAME_LOGIC_JALUR_TAKHTA_v1.md` = **design authority MVP** (aturan, angka awal, faksi, arsitektur).
+2. `Docs/GAME_LOGIC_JALUR_TAKHTA_v2.md` = **design authority alur 0.4.x "Musim Pemilu"** (dikunci owner 2026-10-02); `Docs/GAME_LOGIC_JALUR_TAKHTA_v1.md` tetap berlaku untuk combat, angka musuh, Garda, dan arsitektur yang tidak diubah v2.
 3. `Docs/GAME_BIBLE_V2_IMPLEMENTATION.md` + Game Concept Bible v2.0 (arah produk jangka panjang).
 4. Catatan versi di `Docs/JALUR_TAKHTA_*.md`.
 5. Screenshot & deskripsi lama.
@@ -53,6 +53,7 @@ batas gerak oval tak terlihat, mode LIHAT ARENA / KEMBALI MAIN.
 - Commit dikelompokkan per perubahan yang bermakna. Akhiri pekerjaan dengan PR ke branch kerja, bukan ke `main`.
 
 ## IP & satire (wajib)
+Satir tajam (keputusan owner 2026-10-02): sindir kebijakan, perilaku, dan sistem; keempat hero disindir setara; tanpa tuduhan pidana spesifik terhadap orang nyata.
 Dunia, institusi, lambang, gedung, dan karakter adalah **fiksi Negara Konoha**.
 Jangan meniru lambang Garuda resmi, logo partai/lembaga nyata, gedung nyata 1:1, atau wajah tokoh nyata 1:1.
 Nama hero di UI: MEGA, GEMOY, ABAH, PAK WI.

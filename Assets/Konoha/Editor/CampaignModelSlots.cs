@@ -38,6 +38,9 @@ namespace Konoha.Editor
             public bool castShadows = true;
             // Occluder name prefix, so the camera fades the model like the code-built shape.
             public string occluder;
+            // 0.3.4: when > 0, only the part above this height fraction (roof, umbrella) fades
+            // for the camera; the rest stays visible (the whole pendopo vanished in 0.3.3).
+            public float occluderAbove;
             // Height (fraction of the fitted model) where the code-built name sign (shop name,
             // gang name, warung name) is kept on the model's front; 0 drops the signs.
             public float signHeight;
@@ -62,14 +65,14 @@ namespace Konoha.Editor
             new Slot { name = "PohonPisang", label = "pohon pisang", box = new Vector3(3f, 3.4f, 3f), castShadows = false, maxTriangles = 4000, instances = 10 },
             new Slot { name = "Becak", label = "becak", box = new Vector3(1.2f, 1.9f, 2.3f), maxTriangles = 10000, instances = 2 },
             new Slot { name = "MotorBebek", label = "motor bebek parkir", box = new Vector3(.7f, 1.2f, 1.4f), castShadows = false, maxTriangles = 8000, instances = 3 },
-            new Slot { name = "GerobakBakso", label = "gerobak bakso", box = new Vector3(2.2f, 3.1f, 2.2f), frontYaw = 180f, occluder = "NusantaraTall model", maxTriangles = 10000, instances = 1 },
-            new Slot { name = "WarungKopi", label = "warung kopi", box = new Vector3(4.6f, 3.3f, 4f), frontYaw = 180f, occluder = "NusantaraTall model", signHeight = .73f, maxTriangles = 20000, instances = 1 },
+            new Slot { name = "GerobakBakso", label = "gerobak bakso", box = new Vector3(2.2f, 3.1f, 2.2f), frontYaw = 180f, occluder = "NusantaraTall model", occluderAbove = .85f, maxTriangles = 10000, instances = 1 },
+            new Slot { name = "WarungKopi", label = "warung kopi", box = new Vector3(4.6f, 3.3f, 4f), frontYaw = 180f, occluder = "NusantaraTall model", occluderAbove = .7f, signHeight = .73f, maxTriangles = 20000, instances = 1 },
             new Slot { name = "LampuPJU", label = "lampu jalan PJU", box = new Vector3(.6f, 7.6f, 2.2f), frontYaw = 180f, useOrigin = true, castShadows = false, maxTriangles = 2000, instances = 22 },
-            new Slot { name = "GapuraKampung", label = "gapura kampung", box = new Vector3(4.5f, 4.5f, .8f), frontYaw = 180f, occluder = "NusantaraTall model", signHeight = .77f, maxTriangles = 10000, instances = 2 },
-            new Slot { name = "RumahKampung", label = "rumah kampung", box = new Vector3(7f, 5.3f, 6f), frontYaw = 180f, occluder = "KotaTall model", maxTriangles = 5000, instances = 22 },
+            new Slot { name = "GapuraKampung", label = "gapura kampung", box = new Vector3(4.5f, 4.5f, .8f), frontYaw = 180f, occluder = "NusantaraTall model", occluderAbove = .65f, signHeight = .77f, maxTriangles = 10000, instances = 2 },
+            new Slot { name = "RumahKampung", label = "rumah kampung", box = new Vector3(7f, 5.3f, 6f), frontYaw = 180f, occluder = "KotaTall model", occluderAbove = .6f, maxTriangles = 5000, instances = 22 },
             new Slot { name = "Ruko", label = "ruko dua lantai", box = new Vector3(7.8f, 7.7f, 8.4f), frontYaw = 180f, occluder = "KotaTall model", signHeight = .56f, maxTriangles = 6000, instances = 16 },
-            new Slot { name = "GedungLama", label = "gedung lama", box = new Vector3(4.4f, 40f, 4.4f), frontYaw = 180f, occluder = "NusantaraTall model", maxTriangles = 15000, instances = 6 },
-            new Slot { name = "Pendopo", label = "pendopo taman", box = new Vector3(5.4f, 5.3f, 5.4f), occluder = "NusantaraTall model", maxTriangles = 20000, instances = 2 },
+            new Slot { name = "GedungLama", label = "gedung lama", box = new Vector3(4.4f, 40f, 4.4f), frontYaw = 180f, occluder = "NusantaraTall model", occluderAbove = .7f, maxTriangles = 15000, instances = 6 },
+            new Slot { name = "Pendopo", label = "pendopo taman", box = new Vector3(5.4f, 5.3f, 5.4f), occluder = "NusantaraTall model", occluderAbove = .5f, maxTriangles = 20000, instances = 2 },
         };
 
         private sealed class Entry
@@ -82,7 +85,8 @@ namespace Konoha.Editor
             public Texture2D colorFallback;
             // One combined mesh per slot (a submesh per material) and its URP materials:
             // one renderer per placed model instead of one per part of the file.
-            public Mesh mesh;
+            public Mesh mesh, upperMesh;
+            public Bounds bounds;
             public Material[] materials;
             public int merged;
             public readonly Dictionary<string, Color> mtlColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
@@ -185,25 +189,22 @@ namespace Konoha.Editor
                 holder.transform.SetParent(root, false);
                 // Fit in the holder's own frame; the holder moves to the spot afterwards.
                 holder.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
-                var model = new GameObject(slot.occluder != null ? slot.occluder + " " + slot.name : slot.name,
-                    typeof(MeshFilter), typeof(MeshRenderer));
-                model.transform.SetParent(holder.transform, false);
-                model.GetComponent<MeshFilter>().sharedMesh = entry.mesh;
-                var renderer = model.GetComponent<MeshRenderer>();
-                renderer.sharedMaterials = entry.materials;
-                renderer.shadowCastingMode = (castShadows ?? slot.castShadows) ? ShadowCastingMode.On : ShadowCastingMode.Off;
-
                 Quaternion turn = Quaternion.Euler(0f, slot.frontYaw + entry.settings.yaw, 0f);
-                Bounds bounds = TurnedBounds(entry.mesh.bounds, turn);
+                Bounds bounds = TurnedBounds(entry.bounds, turn);
                 if (bounds.size.sqrMagnitude < 1e-6f)
                     throw new InvalidOperationException("model tanpa bagian yang terlihat");
                 float scale = (entry.settings.originalSize ? 1f : FitScale(bounds.size, boxOverride ?? slot.box)) * entry.settings.scale;
-                model.transform.localRotation = turn;
-                model.transform.localScale = Vector3.one * scale;
-                model.transform.localPosition = new Vector3(slot.useOrigin ? 0f : -bounds.center.x * scale,
+                var position = new Vector3(slot.useOrigin ? 0f : -bounds.center.x * scale,
                     -bounds.min.y * scale + entry.settings.lift, slot.useOrigin ? 0f : -bounds.center.z * scale);
+                bool shadows = castShadows ?? slot.castShadows;
+                bool split = slot.occluderAbove > 0f;
+                if (entry.mesh != null)
+                    Part(holder.transform, split || slot.occluder == null ? slot.name : slot.occluder + " " + slot.name,
+                        entry.mesh, entry.materials, turn, scale, position, shadows);
+                if (entry.upperMesh != null)
+                    Part(holder.transform, slot.occluder != null ? slot.occluder + " " + slot.name + " atas" : slot.name + " atas",
+                        entry.upperMesh, entry.materials, turn, scale, position, shadows);
                 holder.transform.SetPositionAndRotation(anchor, Quaternion.Euler(0f, yaw, 0f));
-                GameObjectUtility.SetStaticEditorFlags(model, StaticEditorFlags.BatchingStatic);
 
                 // Keep the Indonesian name signs (TOKO KELONTONG, GANG MERDEKA, WARKOP RAKYAT) on
                 // the front of the model at the slot's sign height.
@@ -229,6 +230,21 @@ namespace Konoha.Editor
                 Debug.LogWarning("Model slot " + slot.name + " (" + entry.path + "): " + exception.Message + "; bentuk kode dipakai.");
                 return false;
             }
+        }
+
+        private static void Part(Transform holder, string name, Mesh mesh, Material[] materials, Quaternion turn, float scale,
+            Vector3 position, bool shadows)
+        {
+            var model = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+            model.transform.SetParent(holder, false);
+            model.transform.localRotation = turn;
+            model.transform.localScale = Vector3.one * scale;
+            model.transform.localPosition = position;
+            model.GetComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = model.GetComponent<MeshRenderer>();
+            renderer.sharedMaterials = materials;
+            renderer.shadowCastingMode = shadows ? ShadowCastingMode.On : ShadowCastingMode.Off;
+            GameObjectUtility.SetStaticEditorFlags(model, StaticEditorFlags.BatchingStatic);
         }
 
         // One line for the HUD: empty when the owner has not uploaded any model.
@@ -417,33 +433,76 @@ namespace Konoha.Editor
             if (vertices.Count == 0 || triangleCount == 0)
                 throw new InvalidOperationException("mesh gabungan kosong (mesh tidak bisa dibaca)");
 
-            var combined = new Mesh { name = slot.name + "Gabungan" };
-            // The index format is chosen before any data is set.
-            combined.indexFormat = vertices.Count > 65000 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16;
-            combined.SetVertices(vertices);
-            combined.SetNormals(normals);
-            combined.SetUVs(0, uvs);
-            combined.subMeshCount = submeshes.Count;
-            for (int i = 0; i < submeshes.Count; i++)
-                combined.SetTriangles(submeshes[i], i, false);
-            if (!allNormals) combined.RecalculateNormals();
-            combined.RecalculateBounds();
+            var full = new Bounds(vertices[0], Vector3.zero);
+            foreach (var vertex in vertices) full.Encapsulate(vertex);
+            entry.bounds = full;
+
+            // Split off the upper part (roof, umbrella) when only that should fade for the camera.
+            List<List<int>> upper = null;
+            if (slot.occluderAbove > 0f)
+            {
+                float cut = full.min.y + full.size.y * slot.occluderAbove;
+                upper = new List<List<int>>();
+                for (int i = 0; i < submeshes.Count; i++)
+                {
+                    var low = new List<int>();
+                    var high = new List<int>();
+                    var indices = submeshes[i];
+                    for (int t = 0; t + 2 < indices.Count; t += 3)
+                    {
+                        float centre = (vertices[indices[t]].y + vertices[indices[t + 1]].y + vertices[indices[t + 2]].y) / 3f;
+                        var target = centre > cut ? high : low;
+                        target.Add(indices[t]); target.Add(indices[t + 1]); target.Add(indices[t + 2]);
+                    }
+                    submeshes[i] = low;
+                    upper.Add(high);
+                }
+            }
 
             entry.materials = new Material[groups.Count];
             for (int i = 0; i < groups.Count; i++)
                 entry.materials[i] = CreateLit(slot, groups[i].Key, entry.colorFallback, entry.mtlColors, i);
 
+            int lowCount = Count(submeshes), highCount = upper != null ? Count(upper) : 0;
+            entry.mesh = lowCount > 0 ? SaveMesh(slot.name + "Gabungan", vertices, normals, uvs, submeshes, allNormals, lowCount) : null;
+            entry.upperMesh = highCount > 0 ? SaveMesh(slot.name + "Atas", vertices, normals, uvs, upper, allNormals, highCount) : null;
+            if (entry.mesh == null && entry.upperMesh == null)
+                throw new InvalidOperationException("mesh gabungan kosong");
+            entry.merged = triangleCount;
+        }
+
+        private static int Count(List<List<int>> submeshes)
+        {
+            int count = 0;
+            foreach (var indices in submeshes) count += indices.Count / 3;
+            return count;
+        }
+
+        private static Mesh SaveMesh(string name, List<Vector3> vertices, List<Vector3> normals, List<Vector2> uvs,
+            List<List<int>> submeshes, bool hasNormals, int expectedTriangles)
+        {
+            var mesh = new Mesh { name = name };
+            // The index format is chosen before any data is set.
+            mesh.indexFormat = vertices.Count > 65000 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16;
+            mesh.SetVertices(vertices);
+            mesh.SetNormals(normals);
+            mesh.SetUVs(0, uvs);
+            mesh.subMeshCount = submeshes.Count;
+            for (int i = 0; i < submeshes.Count; i++)
+                mesh.SetTriangles(submeshes[i], i, false);
+            if (!hasNormals) mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
             EnsureFolder();
-            string path = MaterialFolder + "/" + slot.name + "Gabungan.asset";
+            string path = MaterialFolder + "/" + name + ".asset";
             // A fresh asset every generation (never an in-place copy over an older mesh).
             if (AssetDatabase.LoadAssetAtPath<Mesh>(path) != null) AssetDatabase.DeleteAsset(path);
-            AssetDatabase.CreateAsset(combined, path);
+            AssetDatabase.CreateAsset(mesh, path);
             var saved = AssetDatabase.LoadAssetAtPath<Mesh>(path);
-            if (saved == null) saved = combined;
-            if (CountTriangles(saved) != triangleCount)
+            if (saved == null) saved = mesh;
+            if (CountTriangles(saved) != expectedTriangles)
                 throw new InvalidOperationException("mesh gabungan kehilangan segitiga");
-            entry.mesh = saved;
-            entry.merged = triangleCount;
+            return saved;
         }
 
         private static int CountTriangles(Mesh mesh)

@@ -33,7 +33,7 @@ namespace Konoha.Editor
             public readonly List<Renderer> accent = new List<Renderer>();
         }
 
-        private static Material peciBlack, lips;
+        private static Material peciBlack, lips, eyeWhite, cheek;
         private const string MeshFolder = SpikeProject.Generated + "/Rig";
 
         internal static Material Lit(string name, Color color, float smooth = .2f)
@@ -76,6 +76,9 @@ namespace Konoha.Editor
         {
             peciBlack = Lit("RigPeciHitam", new Color(.05f, .05f, .06f), .35f);
             lips = Lit("RigBibir", new Color(.42f, .20f, .17f), .3f);
+            eyeWhite = Lit("RigMataPutih", new Color(.96f, .95f, .92f), .5f);
+            cheek = Lit("RigPipi", new Color(.76f, .50f, .43f), .2f);
+            var eyes = new List<Transform>();
             var root = new GameObject(style.name).transform;
             root.SetParent(parent, false);
             root.localScale = new Vector3(style.width, style.height, style.width);
@@ -120,14 +123,21 @@ namespace Konoha.Editor
             Part(parts, "Wajah", PrimitiveType.Sphere, head, new Vector3(0f, .13f, .01f), new Vector3(.22f, .27f, .24f), style.skin, style.heroShadows);
             Part(parts, "Dagu", PrimitiveType.Sphere, head, new Vector3(0f, .04f, .05f), new Vector3(.13f, .1f, .13f), style.skin, false);
             Part(parts, "Hidung", PrimitiveType.Capsule, head, new Vector3(0f, .12f, .12f), new Vector3(.04f, .035f, .045f), style.skin, false);
-            Part(parts, "Mulut", PrimitiveType.Sphere, head, new Vector3(0f, .06f, .108f), new Vector3(.065f, .016f, .02f), lips, false);
+            Part(parts, "Mulut", PrimitiveType.Sphere, head, new Vector3(0f, .06f, .118f), new Vector3(.065f, .016f, .02f), lips, false);
             foreach (int s in new[] { -1, 1 })
             {
-                Part(parts, "Mata", PrimitiveType.Sphere, head, new Vector3(s * .052f, .155f, .105f), new Vector3(.04f, .028f, .03f), style.hair, false);
-                Part(parts, "Alis", PrimitiveType.Capsule, head, new Vector3(s * .055f, .195f, .112f), new Vector3(.015f, .035f, .015f), style.hair, false)
+                // 0.3.4: cartoon eyes (white with a dark pupil and a light glint) that blink.
+                var eye = Part(parts, "Mata", PrimitiveType.Sphere, head, new Vector3(s * .05f, .155f, .113f), new Vector3(.052f, .042f, .03f), eyeWhite, false).transform;
+                var pupil = Part(parts, "Pupil", PrimitiveType.Sphere, eye, new Vector3(0f, -.05f, .42f), new Vector3(.52f, .66f, .5f), style.hair, false).transform;
+                Part(parts, "Kilau mata", PrimitiveType.Sphere, pupil, new Vector3(.25f, .3f, .55f), new Vector3(.3f, .3f, .3f), eyeWhite, false);
+                eyes.Add(eye);
+                Part(parts, "Alis", PrimitiveType.Capsule, head, new Vector3(s * .055f, .186f, .114f), new Vector3(.015f, .035f, .015f), style.hair, false)
                     .transform.localRotation = Quaternion.Euler(0f, 0f, 90f - s * 8f);
                 Part(parts, "Telinga", PrimitiveType.Sphere, head, new Vector3(s * .115f, .13f, 0f), new Vector3(.04f, .075f, .05f), style.skin, false);
             }
+            Part(parts, "Pipi", PrimitiveType.Sphere, head, new Vector3(-.066f, .1f, .1f), new Vector3(.045f, .026f, .02f), cheek, false);
+            Part(parts, "Pipi", PrimitiveType.Sphere, head, new Vector3(.066f, .1f, .1f), new Vector3(.045f, .026f, .02f), cheek, false);
+            root.gameObject.AddComponent<CampaignBlink>().eyes = eyes.ToArray();
             Part(parts, "Rambut", PrimitiveType.Sphere, head, new Vector3(0f, .18f, -.025f), new Vector3(.245f, .22f, .265f), style.hair, false);
             if (style.headwear == Headwear.Bun)
                 Part(parts, "Sanggul", PrimitiveType.Sphere, head, new Vector3(0f, .16f, -.16f), new Vector3(.17f, .14f, .13f), style.hair, false);

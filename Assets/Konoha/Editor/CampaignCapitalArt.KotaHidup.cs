@@ -507,8 +507,15 @@ namespace Konoha.Editor
 
         // Primitive Indonesian passer-by (about 1.7 m) with pivoted limbs for the walk cycle.
         // Seed picks skin, clothes and headwear: hair, jilbab, peci or topi.
+        private Material wargaEyeWhite, wargaLips;
+
         private CampaignCityLife.Walker Person(Vector3 at, float yaw, int seed, bool idle)
         {
+            if (wargaEyeWhite == null)
+            {
+                wargaEyeWhite = CampaignRigBuilder.Lit("RigMataPutih", new Color(.96f, .95f, .92f), .5f);
+                wargaLips = CampaignRigBuilder.Lit("RigBibir", new Color(.42f, .20f, .17f), .3f);
+            }
             var person = new GameObject(idle ? "Kota warga diam" : "Kota warga jalan").transform;
             person.SetParent(kotaRoot, false);
             person.position = at;
@@ -528,42 +535,61 @@ namespace Konoha.Editor
 
             var legLeft = Pivot("Kota warga pinggul kiri", new Vector3(-.1f, .9f, 0f));
             var legRight = Pivot("Kota warga pinggul kanan", new Vector3(.1f, .9f, 0f));
+            // 0.3.4: rounded limbs and torso (capsules) instead of boxes, like the hero bodies.
             foreach (var leg in new[] { legLeft, legRight })
             {
-                KotaPart(leg, "Kota warga kaki", PrimitiveType.Cylinder, new Vector3(0f, -.44f, 0f), new Vector3(.15f, .43f, .15f), gamis ? hijabCloth : pants);
-                KotaPart(leg, "Kota warga sandal", PrimitiveType.Cube, new Vector3(0f, -.87f, .05f), new Vector3(.13f, .05f, .26f), rubber);
+                KotaPart(leg, "Kota warga kaki", PrimitiveType.Capsule, new Vector3(0f, -.43f, 0f), new Vector3(.15f, .45f, .15f), gamis ? hijabCloth : pants);
+                KotaPart(leg, "Kota warga sandal", PrimitiveType.Sphere, new Vector3(0f, -.87f, .05f), new Vector3(.13f, .07f, .26f), rubber);
             }
-            KotaPart(person, "Kota warga badan", PrimitiveType.Cube,
-                gamis ? new Vector3(0f, 1.05f, 0f) : new Vector3(0f, 1.2f, 0f),
-                gamis ? new Vector3(.44f, .9f, .26f) : new Vector3(.42f, .6f, .24f), gamis ? hijabCloth : shirt, true);
+            KotaPart(person, "Kota warga badan", PrimitiveType.Capsule,
+                gamis ? new Vector3(0f, 1.08f, 0f) : new Vector3(0f, 1.2f, 0f),
+                gamis ? new Vector3(.44f, .5f, .28f) : new Vector3(.42f, .33f, .26f), gamis ? hijabCloth : shirt, true);
             if (!gamis)
-                KotaPart(person, "Kota warga pinggang", PrimitiveType.Cube, new Vector3(0f, .93f, 0f), new Vector3(.4f, .14f, .23f), pants);
+                KotaPart(person, "Kota warga pinggang", PrimitiveType.Sphere, new Vector3(0f, .93f, 0f), new Vector3(.38f, .2f, .25f), pants);
 
             var armLeft = Pivot("Kota warga bahu kiri", new Vector3(-.27f, 1.44f, 0f));
             var armRight = Pivot("Kota warga bahu kanan", new Vector3(.27f, 1.44f, 0f));
             foreach (var arm in new[] { armLeft, armRight })
             {
-                KotaPart(arm, "Kota warga lengan", PrimitiveType.Cylinder, new Vector3(0f, -.16f, 0f), new Vector3(.12f, .16f, .12f), gamis ? hijabCloth : shirt);
-                KotaPart(arm, "Kota warga lengan bawah", PrimitiveType.Cylinder, new Vector3(0f, -.46f, 0f), new Vector3(.1f, .16f, .1f), gamis ? hijabCloth : skin);
+                KotaPart(arm, "Kota warga lengan", PrimitiveType.Capsule, new Vector3(0f, -.16f, 0f), new Vector3(.12f, .18f, .12f), gamis ? hijabCloth : shirt);
+                KotaPart(arm, "Kota warga lengan bawah", PrimitiveType.Capsule, new Vector3(0f, -.45f, 0f), new Vector3(.1f, .17f, .1f), gamis ? hijabCloth : skin);
+                KotaPart(arm, "Kota warga tangan", PrimitiveType.Sphere, new Vector3(0f, -.64f, .01f), new Vector3(.085f, .1f, .09f), skin);
             }
 
+            KotaPart(person, "Kota warga leher", PrimitiveType.Capsule, new Vector3(0f, 1.53f, -.01f), new Vector3(.09f, .06f, .09f), skin);
             KotaPart(person, "Kota warga kepala", PrimitiveType.Sphere, new Vector3(0f, 1.66f, -.02f), new Vector3(.22f, .26f, .23f), skin);
+            // 0.3.4: a face (owner: "warganya kayak nggak punya muka"): blinking cartoon eyes,
+            // eyebrows, nose, mouth, ears. Head front is at z ~0.095.
+            var eyes = new List<Transform>();
+            foreach (int s in new[] { -1, 1 })
+            {
+                var eye = KotaPart(person, "Kota warga mata", PrimitiveType.Sphere, new Vector3(s * .048f, 1.685f, .088f), new Vector3(.05f, .04f, .028f), wargaEyeWhite).transform;
+                KotaPart(eye, "Kota warga pupil", PrimitiveType.Sphere, new Vector3(0f, -.05f, .42f), new Vector3(.52f, .66f, .5f), hair);
+                eyes.Add(eye);
+                KotaPart(person, "Kota warga alis", PrimitiveType.Capsule, new Vector3(s * .052f, 1.72f, .086f), new Vector3(.014f, .032f, .014f), hair)
+                    .transform.localRotation = Quaternion.Euler(0f, 0f, 90f - s * 8f);
+                KotaPart(person, "Kota warga telinga", PrimitiveType.Sphere, new Vector3(s * .112f, 1.66f, -.02f), new Vector3(.04f, .07f, .05f), skin);
+            }
+            KotaPart(person, "Kota warga hidung", PrimitiveType.Capsule, new Vector3(0f, 1.65f, .1f), new Vector3(.04f, .033f, .045f), skin);
+            KotaPart(person, "Kota warga mulut", PrimitiveType.Sphere, new Vector3(0f, 1.59f, .093f), new Vector3(.06f, .015f, .02f), wargaLips);
+            person.gameObject.AddComponent<CampaignBlink>().eyes = eyes.ToArray();
             switch (headwear)
             {
                 case 1:
-                    KotaPart(person, "Kota warga jilbab", PrimitiveType.Sphere, new Vector3(0f, 1.68f, .035f), new Vector3(.27f, .3f, .27f), hijabCloth);
-                    KotaPart(person, "Kota warga jilbab kerudung", PrimitiveType.Cube, new Vector3(0f, 1.5f, .02f), new Vector3(.36f, .16f, .28f), hijabCloth);
+                    // 0.3.4: the jilbab frames the face (it used to cover it completely).
+                    KotaPart(person, "Kota warga jilbab", PrimitiveType.Sphere, new Vector3(0f, 1.69f, -.06f), new Vector3(.27f, .31f, .26f), hijabCloth);
+                    KotaPart(person, "Kota warga jilbab kerudung", PrimitiveType.Sphere, new Vector3(0f, 1.49f, -.02f), new Vector3(.38f, .22f, .3f), hijabCloth);
                     break;
                 case 2:
-                    KotaPart(person, "Kota warga rambut", PrimitiveType.Sphere, new Vector3(0f, 1.72f, .02f), new Vector3(.235f, .2f, .24f), hair);
+                    KotaPart(person, "Kota warga rambut", PrimitiveType.Sphere, new Vector3(0f, 1.73f, -.035f), new Vector3(.235f, .19f, .24f), hair);
                     KotaPart(person, "Kota warga peci", PrimitiveType.Cylinder, new Vector3(0f, 1.8f, .01f), new Vector3(.22f, .05f, .22f), hair);
                     break;
                 case 4:
-                    KotaPart(person, "Kota warga rambut", PrimitiveType.Sphere, new Vector3(0f, 1.72f, .02f), new Vector3(.235f, .2f, .24f), hair);
+                    KotaPart(person, "Kota warga rambut", PrimitiveType.Sphere, new Vector3(0f, 1.73f, -.035f), new Vector3(.235f, .19f, .24f), hair);
                     KotaPart(person, "Kota warga topi", PrimitiveType.Cylinder, new Vector3(0f, 1.79f, -.05f), new Vector3(.3f, .02f, .34f), shirts[(seed + 2) % shirts.Length]);
                     break;
                 default:
-                    KotaPart(person, "Kota warga rambut", PrimitiveType.Sphere, new Vector3(0f, 1.72f, .02f), new Vector3(.235f, .2f, .24f), hair);
+                    KotaPart(person, "Kota warga rambut", PrimitiveType.Sphere, new Vector3(0f, 1.73f, -.035f), new Vector3(.235f, .19f, .24f), hair);
                     break;
             }
 
