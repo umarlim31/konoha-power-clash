@@ -1,6 +1,6 @@
 # Rekomendasi Alur Jalur Takhta v2 — "Musim Pemilu"
 
-Status: **USULAN, belum dikunci.** Design authority tetap `Docs/GAME_LOGIC_JALUR_TAKHTA_v1.md` sampai owner menyetujui dokumen ini. Setelah disetujui, isinya dipindahkan ke `GAME_LOGIC_JALUR_TAKHTA_v2.md`.
+Status: **DISETUJUI owner 2026-10-02** → dikunci sebagai `Docs/GAME_LOGIC_JALUR_TAKHTA_v2.md`. (Teks di bawah adalah usulan aslinya.) Design authority tetap `Docs/GAME_LOGIC_JALUR_TAKHTA_v1.md` sampai owner menyetujui dokumen ini. Setelah disetujui, isinya dipindahkan ke `GAME_LOGIC_JALUR_TAKHTA_v2.md`.
 
 Dasar usulan ini:
 - keluhan owner (2026-10-02): "Mega masuk, penjaga dihabisin, ke Majelis Daun, baru ke Prosedur… aneh, kurang menarik";
