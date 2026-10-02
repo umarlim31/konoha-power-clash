@@ -183,6 +183,101 @@ namespace Konoha.Campaign
             public static readonly int[] ModalCost = { 0, 5, 0 };
         }
 
+        // 0.6.0 KARIER Level 1 "Warga Biasa" (Docs/VISI_KONOHA_HIDUP_v3.md §3). Money is
+        // earned before anything can be bought; dirty money is fast but leaves a record.
+        // Starting values, tuned on the tablet.
+        public static class Karier
+        {
+            // Resources.
+            public const int DuitStart = 50000;
+            public const int EnergiMax = 100;
+            public const int RestuStart = 30;
+            public const int RestuMax = 100;
+            public const int CatatanMax = 100;
+            public const int EnergiLemas = 15;          // Below this the hero walks slowly.
+            public const float LemasSpeed = 0.75f;
+
+            // Goal of Level 1: register for the Ketua RT election.
+            public const int SyukuranRT = 1000000;      // Nasi kotak for the whole RT.
+            public const int RestuSyaratRT = 50;
+            public const float ZoneRadius = 2.6f;
+
+            // OJOL: pick a passenger up, take them across the city.
+            public const int OjolBaseFare = 10000;
+            public const int OjolFarePerMeter = 900;
+            public const float OjolAppCut = 0.20f;      // "Potongan aplikasi".
+            public const float OjolSpeed = 1.6f;        // Riding the motor.
+            public const float OjolMinTrip = 15f;
+            public const float OjolSecondsPerMeter = 0.25f;
+            public const float OjolGraceSeconds = 12f;
+            public const float OjolPickupSeconds = 1f;
+            public const int OjolEnergi = 6;
+            public const int OjolRestuOnTime = 1;
+
+            // KULI BANGUNAN: carry five sacks of cement from the pile to the project.
+            public const int KuliSacks = 5;
+            public const int KuliWage = 150000;
+            public const int KuliMandorCut = 25000;     // "Uang rokok" for the mandor.
+            public const float KuliPickSeconds = 1.2f;
+            public const float KuliDropSeconds = 0.8f;
+            public const float KuliCarrySpeed = 0.85f;
+            public const int KuliEnergiPerSack = 5;
+            public const int KuliRestu = 2;
+
+            // BUZZER HOAKS: sit at the warkop and spread a hoax in the WA groups.
+            public const int BuzzerPay = 250000;
+            public const float BuzzerTypeSeconds = 3f;
+            public const float BuzzerCooldownSeconds = 30f;
+            public const int BuzzerCatatan = 20;
+            public const int BuzzerRestu = -4;
+            public const int BuzzerEnergi = 2;
+            public const int PasalKaretFrom = 50;       // From this Catatan Hitam the police may come.
+
+            // REBAHAN and MAKAN.
+            public const float RebahanSeconds = 7f;
+            public const int RebahanEnergi = 45;
+            public const int MakanPrice = 15000;
+            public const int MakanEnergi = 35;
+
+            // SAPA WARGA (once per group per save).
+            public const int SapaRestu = 5;
+
+            // Preman memalak warga at the gang (optional fights).
+            public const float PremanFirstSeconds = 40f;
+            public const float PremanEverySeconds = 85f;
+            public const float PremanLeaveSeconds = 70f;  // Ignored long enough, they leave.
+            public const int PremanWibawa = 70;
+            public const int BosPremanWibawa = 160;
+            public const float PremanLeashRadius = 9f;
+            public const int PremanRestu = 8;           // Per preman beaten.
+            public const int PremanTip = 20000;         // Thanks from the warga.
+            public const int PingsanBiaya = 50000;      // Puskesmas after collapsing.
+            public const int PingsanEnergi = 30;
+
+            // KERIBUTAN: a fight fills it; warga shout, someone melerai, then the police come.
+            public const float FightRadius = 6f;
+            public const float KeributanFillSeconds = 9f;
+            public const float KeributanDecaySeconds = 6f;
+            public const float TeriakAt = 0.12f;
+            public const float MeleraiAt = 0.40f;
+            public const float MeleraiSeconds = 3f;
+            public const float FightEnergiPerSecond = 0.6f;
+
+            // POLISI: choices when they arrive.
+            public const int DamaiFight = 100000;
+            public const int DamaiFightPerCatatan = 1000;
+            public const int DamaiHoaks = 250000;
+            public const int DamaiHoaksPerCatatan = 2000;
+            public const int DamaiCatatan = 5;
+            public const int KaburCatatan = 20;
+            public const int KaburRestu = -4;
+            public const int PolsekBiaya = 50000;
+            public const int PolsekRestu = -6;
+            public const int PolsekCatatan = -5;
+            public const int PolsekEnergi = -20;
+            public const int ArrestPolsekCatatan = 0;   // Hoaks: the record stays.
+        }
+
         // 0.0.9.2.1 RESTU RAKYAT: reward for clearing the Gerbang Rakyat, lasts for the run
         // (kept after Runtuh, cleared by ULANG). Tuning assumption, not in §5–§9.
         public static class Restu
