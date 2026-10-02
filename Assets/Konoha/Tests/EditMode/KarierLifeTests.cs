@@ -20,6 +20,11 @@ namespace Konoha.Tests
                 KuliDrop = new KarierPoint(10f, -10f),
                 Warkop = new KarierPoint(-20f, 0f),
                 PosRt = new KarierPoint(-8.6f, -26f),
+                Siomay = new KarierPoint(-5f, -14f),
+                Salome = new KarierPoint(5f, -14f),
+                Bakso = new KarierPoint(9.4f, -40f),
+                SewaSepeda = new KarierPoint(-11f, -47f),
+                SewaMotor = new KarierPoint(15f, -24f),
                 SapaNames = new[] { "POS RONDA", "IBU-IBU", "OJOL" },
                 SapaPoints = new[] { new KarierPoint(-8.6f, -26f), new KarierPoint(8.6f, -26f), new KarierPoint(13f, -21f) }
             };
@@ -58,7 +63,10 @@ namespace Konoha.Tests
                 Assert.That(life.Carrying, Is.False);
             }
             Assert.That(life.Job, Is.EqualTo(KarierJob.None));
-            Assert.That(life.Duit - start, Is.EqualTo(CampaignTuning.Karier.KuliWage - CampaignTuning.Karier.KuliMandorCut));
+            // The first job also finishes mission KERJA PERTAMA (0.6.1).
+            Assert.That(life.Duit - start, Is.EqualTo(CampaignTuning.Karier.KuliWage - CampaignTuning.Karier.KuliMandorCut +
+                CampaignTuning.Karier.MisiKerjaReward));
+            Assert.That(life.Mission, Is.EqualTo(1));
             Assert.That(life.Energi, Is.EqualTo(CampaignTuning.Karier.EnergiMax - CampaignTuning.Karier.KuliSacks * CampaignTuning.Karier.KuliEnergiPerSack));
         }
 
@@ -88,7 +96,7 @@ namespace Konoha.Tests
             Stand(life, to, CampaignTuning.Karier.OjolPickupSeconds + 0.1f);
             int gross = KarierLife.OjolGrossFare(KarierPoint.Distance(from, to));
             int cut = KarierLife.Round500(gross * CampaignTuning.Karier.OjolAppCut);
-            Assert.That(life.Duit - start, Is.EqualTo(gross - cut));
+            Assert.That(life.Duit - start, Is.EqualTo(gross - cut + CampaignTuning.Karier.MisiKerjaReward));
             Assert.That(life.TripsOjol, Is.EqualTo(1));
             Assert.That(life.Job, Is.EqualTo(KarierJob.Ojol), "A new order comes in automatically");
             Assert.That(life.Step, Is.EqualTo(KarierStep.OjolJemput));
@@ -126,15 +134,88 @@ namespace Konoha.Tests
         }
 
         [Test]
-        public void ShortFightCalmsDownWithoutPolice()
+        public void ShortFightStillBringsThePoliceLate()
         {
             var life = new KarierLife(Layout());
             Stand(life, Away, 2f, true);
             Assert.That(life.Shouted, Is.True);
-            Stand(life, Away, CampaignTuning.Karier.KeributanDecaySeconds + 1f);
-            Assert.That(life.Keributan, Is.EqualTo(0f));
-            Assert.That(life.Shouted, Is.False);
+            Assert.That(life.PoliceEta, Is.GreaterThan(0f), "Someone called the police");
+            life.OnPremanBeaten(1);
+            Assert.That(life.BeatenThisFight, Is.True);
+            Stand(life, Away, CampaignTuning.Karier.PolisiDatangSeconds + 0.5f);
+            Assert.That(life.PoliceReason, Is.EqualTo(KarierPoliceReason.Keributan), "0.6.1: every shouted fight gets the police");
+            life.PoliceArrive();
+            Assert.That(life.CanSaksi, Is.EqualTo(life.Restu >= CampaignTuning.Karier.SaksiRestu));
+            life.AddRestu(100);
+            Assert.That(life.ResolvePolice(KarierPoliceChoice.Saksi), Is.True, "Warga testify for their hero");
             Assert.That(life.PoliceCalled, Is.False);
+            Assert.That(life.Shouted, Is.False);
+        }
+
+        [Test]
+        public void PolsekMeansJailUntilTimeOrTebus()
+        {
+            var life = new KarierLife(Layout());
+            life.CallPolice(KarierPoliceReason.Keributan);
+            life.PoliceArrive();
+            Assert.That(life.ResolvePolice(KarierPoliceChoice.Polsek), Is.True);
+            life.EnterJail();
+            Assert.That(life.InJail, Is.True);
+            Assert.That(life.TakeJob(KarierJob.Kuli, out _), Is.False);
+            Assert.That(life.Tebus(), Is.False, "Rp 50.000 is not enough bail");
+            Stand(life, Away, CampaignTuning.Karier.JailSeconds + 0.1f);
+            Assert.That(life.InJail, Is.False);
+            life.EnterJail();
+            life.AddDuit(life.TebusPrice);
+            Assert.That(life.Tebus(), Is.True);
+            Assert.That(life.InJail, Is.False);
+        }
+
+        [Test]
+        public void JajanAndRentalsCostMoney()
+        {
+            KarierLayout layout = Layout();
+            var life = new KarierLife(layout);
+            life.AddEnergi(-50);
+            Assert.That(life.ActionAt(layout.Siomay, out _), Is.EqualTo(KarierAction.BeliSiomay));
+            Assert.That(life.DoAction(KarierAction.BeliSiomay, -1), Is.True);
+            Assert.That(life.Eating, Is.True);
+            Assert.That(life.Duit, Is.EqualTo(CampaignTuning.Karier.DuitStart - CampaignTuning.Karier.SiomayPrice));
+            Assert.That(life.ActionAt(layout.SewaSepeda, out _), Is.EqualTo(KarierAction.SewaSepeda));
+            Assert.That(life.DoAction(KarierAction.SewaSepeda, -1), Is.True);
+            Assert.That(life.Ride, Is.EqualTo(KarierRide.Sepeda));
+            Assert.That(life.ActionAt(Away, out _), Is.EqualTo(KarierAction.Turun));
+            Assert.That(life.TakeJob(KarierJob.Kuli, out _), Is.True);
+            Assert.That(life.Ride, Is.EqualTo(KarierRide.None), "Jobs return the rented bike first");
+        }
+
+        [Test]
+        public void MissionChainAdvancesAndWaitsForTheOffer()
+        {
+            KarierLayout layout = Layout();
+            var life = new KarierLife(layout);
+            Assert.That(life.MissionTitle, Is.EqualTo("KERJA PERTAMA"));
+            life.TakeJob(KarierJob.Kuli, out _);
+            for (int i = 0; i < CampaignTuning.Karier.KuliSacks; i++)
+            {
+                Stand(life, layout.KuliPickup, CampaignTuning.Karier.KuliPickSeconds + 0.1f);
+                Stand(life, layout.KuliDrop, CampaignTuning.Karier.KuliDropSeconds + 0.1f);
+            }
+            for (int i = 0; i < 3; i++) life.DoAction(KarierAction.Sapa, i);
+            Stand(life, Away, 0.2f);
+            Assert.That(life.Mission, Is.EqualTo(2));
+            life.DoAction(KarierAction.BeliBakso, -1);
+            life.DoAction(KarierAction.SewaMotor, -1);
+            life.OnPremanBeaten(1);
+            Stand(life, Away, 0.5f);
+            Assert.That(life.Mission, Is.EqualTo(KarierLife.MisiTawaran));
+            Assert.That(life.OfferPending, Is.True);
+            Stand(life, Away, 0.5f);
+            Assert.That(life.Mission, Is.EqualTo(KarierLife.MisiTawaran), "The offer waits for an answer");
+            int restu = life.Restu;
+            Assert.That(life.AnswerOffer(false), Is.True);
+            Assert.That(life.Restu, Is.EqualTo(restu + CampaignTuning.Karier.TolakRestu));
+            Assert.That(life.Mission, Is.EqualTo(KarierLife.MisiTawaran + 1));
         }
 
         [Test]
@@ -183,7 +264,9 @@ namespace Konoha.Tests
             Assert.That(life.DoAction(KarierAction.Sapa, 1), Is.True);
             Assert.That(life.DoAction(KarierAction.Sapa, 1), Is.False);
             Assert.That(life.Restu, Is.EqualTo(CampaignTuning.Karier.RestuStart + CampaignTuning.Karier.SapaRestu));
-            Assert.That(life.ActionAt(layout.Warkop, out _), Is.EqualTo(KarierAction.None), "Full energy: nothing to eat for");
+            // 0.6.1: stalls always offer food; eating with full energy just says "masih kenyang".
+            Assert.That(life.ActionAt(layout.Warkop, out _), Is.EqualTo(KarierAction.Makan));
+            Assert.That(life.DoAction(KarierAction.Makan, -1), Is.False, "Full energy: still full");
             life.AddEnergi(-50);
             Assert.That(life.ActionAt(layout.Warkop, out _), Is.EqualTo(KarierAction.Makan));
             Assert.That(life.DoAction(KarierAction.Makan, -1), Is.True);
@@ -216,6 +299,9 @@ namespace Konoha.Tests
             Assert.That(copy.CatatanHitam, Is.EqualTo(35));
             Assert.That(copy.Sapa(2), Is.True);
             Assert.That(copy.TryLoad("rusak"), Is.False);
+            Assert.That(copy.TryLoad("K1;250000;80;40;10;3;0;2;1;0;1"), Is.True, "0.6.0 saves still load");
+            Assert.That(copy.Duit, Is.EqualTo(250000));
+            Assert.That(copy.Mission, Is.EqualTo(0));
 
             var avatar = new KarierAvatar { Name = "budi santoso!!", Female = true, Skin = 2, Hair = 3, Body = 2, Shirt = 9 };
             Assert.That(KarierAvatar.TryParse(avatar.Serialize(), out KarierAvatar parsed), Is.True);

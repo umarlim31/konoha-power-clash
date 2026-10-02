@@ -35,6 +35,8 @@ namespace Konoha.Campaign
         public string[] PlaceNames = new string[0];
         public KarierPoint[] Places = new KarierPoint[0];
         public KarierPoint KuliPickup, KuliDrop, Warkop, PosRt;
+        // 0.6.1: jajan stalls and rentals.
+        public KarierPoint Siomay, Salome, Bakso, SewaSepeda, SewaMotor;
         public string[] SapaNames = new string[0];
         public KarierPoint[] SapaPoints = new KarierPoint[0];
     }
@@ -45,11 +47,13 @@ namespace Konoha.Campaign
 
     public enum KarierPoliceReason { None, Keributan, Hoaks }
 
-    public enum KarierPoliceChoice { Kabur, Damai, Polsek }
+    public enum KarierPoliceChoice { Kabur, Damai, Polsek, Saksi }
 
-    public enum KarierCue { Notif, Koin, Gagal, Teriak, Melerai, Sirene, Restu, Daftar }
+    public enum KarierCue { Notif, Koin, Gagal, Teriak, Melerai, Sirene, Restu, Daftar, Misi }
 
-    public enum KarierAction { None, Makan, Sapa, DaftarRT }
+    public enum KarierAction { None, Makan, Sapa, DaftarRT, BeliSiomay, BeliSalome, BeliBakso, SewaSepeda, SewaMotor, Turun }
+
+    public enum KarierRide { None, Sepeda, Motor }
 
     // The player's own citizen (character creator). Indices pick from the name lists.
     public struct KarierAvatar
@@ -148,6 +152,11 @@ namespace Konoha.Campaign
         public int SetKuli { get; private set; }
         public int PostBuzzer { get; private set; }
         public int PremanBeaten { get; private set; }
+        public int FoodBought { get; private set; }
+        public int RideCount { get; private set; }
+        // 0.6.1 missions (index into Missions; Missions.Length = all done).
+        public int Mission { get; private set; }
+        public bool OfferPending => Mission == MisiTawaran;
 
         // --- Current activity (not saved) -------------------------------------------------
         public KarierJob Job { get; private set; }
@@ -162,6 +171,11 @@ namespace Konoha.Campaign
         public float BuzzerCooldown { get; private set; }
         public float RebahanLeft { get; private set; }
         public bool Rebahan => RebahanLeft > 0f;
+        public KarierRide Ride { get; private set; }
+        public float EatLeft { get; private set; }
+        public bool Eating => EatLeft > 0f;
+        public float JailLeft { get; private set; }
+        public bool InJail => JailLeft > 0f;
 
         // --- Keributan and police -------------------------------------------------------
         public float Keributan { get; private set; }
@@ -172,6 +186,12 @@ namespace Konoha.Campaign
         public KarierPoliceReason PoliceReason { get; private set; }
         public bool PoliceArrived { get; private set; }
         public bool PoliceCalled => PoliceReason != KarierPoliceReason.None;
+        // 0.6.1: seconds until the police arrive after warga shouted (-1 = not on the way).
+        public float PoliceEta { get; private set; } = -1f;
+        public bool BeatenThisFight { get; private set; }
+        public bool CanSaksi => PoliceReason == KarierPoliceReason.Keributan && BeatenThisFight &&
+            Restu >= CampaignTuning.Karier.SaksiRestu;
+        public int TebusPrice => CampaignTuning.Karier.TebusBase + CatatanHitam * CampaignTuning.Karier.TebusPerCatatan;
 
         public KarierLayout Layout => layout;
         public bool CanDaftar => !Registered && Duit >= CampaignTuning.Karier.SyukuranRT && Restu >= CampaignTuning.Karier.RestuSyaratRT;
@@ -199,6 +219,8 @@ namespace Konoha.Campaign
             SapaMask = 0;
             Registered = false;
             TripsOjol = SetKuli = PostBuzzer = PremanBeaten = 0;
+            FoodBought = RideCount = 0;
+            Mission = 0;
             ClearActivity();
         }
 
@@ -217,6 +239,11 @@ namespace Konoha.Campaign
             CalmLeft = 0f;
             PoliceReason = KarierPoliceReason.None;
             PoliceArrived = false;
+            PoliceEta = -1f;
+            BeatenThisFight = false;
+            Ride = KarierRide.None;
+            EatLeft = 0f;
+            JailLeft = 0f;
             energiCarry = 0f;
         }
 
@@ -227,6 +254,18 @@ namespace Konoha.Campaign
         {
             if (deltaTime <= 0f)
                 return;
+            if (EatLeft > 0f)
+                EatLeft = Math.Max(0f, EatLeft - deltaTime);
+            if (JailLeft > 0f)
+            {
+                JailLeft -= deltaTime;
+                if (JailLeft <= 0f)
+                {
+                    JailLeft = 0f;
+                    Say("Masa tahanan selesai. Pintu sel dibuka: \"Jangan diulangi, ya!\"");
+                    Cue(KarierCue.Notif);
+                }
+            }
             if (BuzzerCooldown > 0f)
                 BuzzerCooldown = Math.Max(0f, BuzzerCooldown - deltaTime);
 
@@ -243,9 +282,10 @@ namespace Konoha.Campaign
                 }
             }
 
-            if (!heroDown)
+            if (!heroDown && !InJail)
                 TickJob(hero, deltaTime);
             TickKeributan(deltaTime, fighting && !heroDown);
+            CheckMission();
         }
 
         private void TickJob(KarierPoint hero, float deltaTime)
@@ -324,6 +364,19 @@ namespace Konoha.Campaign
         {
             if (PoliceCalled)
                 return;
+            // 0.6.1: once warga shouted, someone always calls the police; they come late,
+            // even when the fight is already over (owner: the police must not skip a fight).
+            if (Shouted && PoliceEta < 0f)
+                PoliceEta = CampaignTuning.Karier.PolisiDatangSeconds;
+            if (PoliceEta > 0f)
+            {
+                PoliceEta -= deltaTime;
+                if (PoliceEta <= 0f)
+                {
+                    CallPolice(KarierPoliceReason.Keributan);
+                    return;
+                }
+            }
             if (CalmLeft > 0f)
             {
                 CalmLeft = Math.Max(0f, CalmLeft - deltaTime);
@@ -342,7 +395,7 @@ namespace Konoha.Campaign
                 if (!Shouted && Keributan >= CampaignTuning.Karier.TeriakAt)
                 {
                     Shouted = true;
-                    Say("Warga teriak: \"WOI! ADA YANG BERANTEM!\"  Tetangga berdatangan, HP sudah merekam.");
+                    Say("Warga teriak: \"WOI! ADA YANG BERANTEM!\"  Tetangga berdatangan, HP merekam, ada yang telepon polisi.");
                     Cue(KarierCue.Teriak);
                 }
                 if (!MeleraiDone && Keributan >= CampaignTuning.Karier.MeleraiAt)
@@ -358,7 +411,7 @@ namespace Konoha.Campaign
             else if (Keributan > 0f)
             {
                 Keributan = Math.Max(0f, Keributan - deltaTime / CampaignTuning.Karier.KeributanDecaySeconds);
-                if (Keributan <= 0f)
+                if (Keributan <= 0f && PoliceEta < 0f)
                     Shouted = MeleraiDone = false;
             }
         }
@@ -376,6 +429,8 @@ namespace Konoha.Campaign
                 reason = "Masih rebahan.";
             else if (PoliceCalled)
                 reason = "Urusan dengan polisi belum selesai.";
+            else if (InJail)
+                reason = "Masih di dalam sel.";
             else if (job == KarierJob.Ojol && Energi < CampaignTuning.Karier.OjolEnergi)
                 reason = "ENERGI habis. REBAHAN atau MAKAN dulu.";
             else if (job == KarierJob.Kuli && Energi < CampaignTuning.Karier.KuliEnergiPerSack * 2)
@@ -387,6 +442,11 @@ namespace Konoha.Campaign
             if (reason != null)
                 return false;
 
+            if (Ride != KarierRide.None)
+            {
+                Say((Ride == KarierRide.Motor ? "Motor sewaan" : "Sepeda sewaan") + " dikembalikan dulu.");
+                Ride = KarierRide.None;
+            }
             Job = job;
             StepProgress = 0f;
             switch (job)
@@ -529,7 +589,7 @@ namespace Konoha.Campaign
         public KarierAction ActionAt(KarierPoint hero, out int sapaIndex)
         {
             sapaIndex = -1;
-            if (Rebahan || PoliceCalled)
+            if (Rebahan || PoliceCalled || InJail)
                 return KarierAction.None;
             float radius = CampaignTuning.Karier.ZoneRadius;
             if (CanDaftar && KarierPoint.Near(hero, layout.PosRt, radius))
@@ -542,9 +602,23 @@ namespace Konoha.Campaign
                     return KarierAction.Sapa;
                 }
             }
-            if (Step != KarierStep.BuzzerKetik && Energi < CampaignTuning.Karier.EnergiMax &&
-                KarierPoint.Near(hero, layout.Warkop, radius))
+            if (Step != KarierStep.BuzzerKetik && KarierPoint.Near(hero, layout.Warkop, radius))
                 return KarierAction.Makan;
+            if (KarierPoint.Near(hero, layout.Siomay, radius))
+                return KarierAction.BeliSiomay;
+            if (KarierPoint.Near(hero, layout.Salome, radius))
+                return KarierAction.BeliSalome;
+            if (KarierPoint.Near(hero, layout.Bakso, radius))
+                return KarierAction.BeliBakso;
+            if (Ride == KarierRide.None && !Busy)
+            {
+                if (KarierPoint.Near(hero, layout.SewaSepeda, radius))
+                    return KarierAction.SewaSepeda;
+                if (KarierPoint.Near(hero, layout.SewaMotor, radius))
+                    return KarierAction.SewaMotor;
+            }
+            if (Ride != KarierRide.None)
+                return KarierAction.Turun;
             return KarierAction.None;
         }
 
@@ -560,16 +634,23 @@ namespace Konoha.Campaign
             switch (action)
             {
                 case KarierAction.Makan:
-                    if (Duit < CampaignTuning.Karier.MakanPrice)
-                    {
-                        Say("Duit kurang buat makan. Ngutang ke warkop? Ibu warkop: \"Bon kemarin aja belum lunas!\"");
-                        Cue(KarierCue.Gagal);
+                    return Eat("Nasi telur + es teh di warkop", CampaignTuning.Karier.MakanPrice, CampaignTuning.Karier.MakanEnergi);
+                case KarierAction.BeliSiomay:
+                    return Eat("Siomay bumbu kacang, pedasnya bikin melek", CampaignTuning.Karier.SiomayPrice, CampaignTuning.Karier.SiomayEnergi);
+                case KarierAction.BeliSalome:
+                    return Eat("Salome tusuk tiga, saus sambal banjir", CampaignTuning.Karier.SalomePrice, CampaignTuning.Karier.SalomeEnergi);
+                case KarierAction.BeliBakso:
+                    return Eat("Bakso urat semangkuk, ting-ting-ting", CampaignTuning.Karier.BaksoPrice, CampaignTuning.Karier.BaksoEnergi);
+                case KarierAction.SewaSepeda:
+                    return Rent(KarierRide.Sepeda, CampaignTuning.Karier.SewaSepedaPrice);
+                case KarierAction.SewaMotor:
+                    return Rent(KarierRide.Motor, CampaignTuning.Karier.SewaMotorPrice);
+                case KarierAction.Turun:
+                    if (Ride == KarierRide.None)
                         return false;
-                    }
-                    AddDuit(-CampaignTuning.Karier.MakanPrice);
-                    AddEnergi(CampaignTuning.Karier.MakanEnergi);
-                    Say("Makan nasi telur + es teh " + Rupiah(CampaignTuning.Karier.MakanPrice) + ". ENERGI +" + CampaignTuning.Karier.MakanEnergi + ".");
-                    Cue(KarierCue.Koin);
+                    Say((Ride == KarierRide.Motor ? "Motor sewaan" : "Sepeda sewaan") + " dikembalikan. Jalan kaki lagi.");
+                    Ride = KarierRide.None;
+                    Cue(KarierCue.Notif);
                     return true;
                 case KarierAction.Sapa:
                     if (sapaIndex < 0 || sapaIndex >= layout.SapaPoints.Length || Sapa(sapaIndex))
@@ -591,6 +672,50 @@ namespace Konoha.Campaign
             return false;
         }
 
+        private bool Eat(string food, int price, int energi)
+        {
+            if (Eating)
+                return false;
+            if (Energi >= CampaignTuning.Karier.EnergiMax)
+            {
+                Say("Masih kenyang. ENERGI sudah penuh.");
+                return false;
+            }
+            if (Duit < price)
+            {
+                Say("Duit kurang buat jajan. Penjual: \"Bon kemarin aja belum lunas!\"");
+                Cue(KarierCue.Gagal);
+                return false;
+            }
+            AddDuit(-price);
+            AddEnergi(energi);
+            FoodBought++;
+            EatLeft = CampaignTuning.Karier.EatSeconds;
+            Say(food + ". " + Rupiah(price) + ", ENERGI +" + energi + ".");
+            Cue(KarierCue.Koin);
+            return true;
+        }
+
+        private bool Rent(KarierRide ride, int price)
+        {
+            if (Ride != KarierRide.None || Busy)
+                return false;
+            if (Duit < price)
+            {
+                Say("Duit kurang buat sewa. Pemilik: \"KTP-nya ditinggal juga nggak cukup, Mas.\"");
+                Cue(KarierCue.Gagal);
+                return false;
+            }
+            AddDuit(-price);
+            Ride = ride;
+            RideCount++;
+            Say(ride == KarierRide.Motor
+                ? "Sewa motor " + Rupiah(price) + ". Helm? \"Deket kok, nggak usah.\"  Tekan TURUN untuk mengembalikan."
+                : "Sewa sepeda " + Rupiah(price) + ". Kring-kring! Tekan TURUN untuk mengembalikan.");
+            Cue(KarierCue.Notif);
+            return true;
+        }
+
         public bool StartRebahan(out string reason)
         {
             reason = null;
@@ -598,14 +723,17 @@ namespace Konoha.Campaign
                 reason = "Sudah rebahan.";
             else if (Busy)
                 reason = "Lagi kerja. Batalkan dulu kalau mau rebahan.";
-            else if (PoliceCalled)
+            else if (PoliceCalled || PoliceEta >= 0f)
                 reason = "Polisi sedang menuju ke sini!";
+            else if (InJail)
+                reason = "Di sel cuma bisa duduk.";
             else if (Keributan > 0f)
                 reason = "Masih ribut, mana bisa rebahan.";
             else if (Energi >= CampaignTuning.Karier.EnergiMax)
                 reason = "ENERGI masih penuh. Rebahan terus nanti jadi kaum rebahan sejati.";
             if (reason != null)
                 return false;
+            Ride = KarierRide.None;
             RebahanLeft = CampaignTuning.Karier.RebahanSeconds;
             Say("Rebahan sambil scroll sosmed...");
             return true;
@@ -618,6 +746,8 @@ namespace Konoha.Campaign
             if (count <= 0)
                 return;
             PremanBeaten += count;
+            if (Shouted || Keributan > 0f || PoliceEta >= 0f)
+                BeatenThisFight = true;
             AddRestu(CampaignTuning.Karier.PremanRestu * count);
             AddDuit(CampaignTuning.Karier.PremanTip);
             Say("Pemalak kabur! Tukang sayur kasih " + Rupiah(CampaignTuning.Karier.PremanTip) +
@@ -631,9 +761,12 @@ namespace Konoha.Campaign
             AddDuit(-pay);
             Energi = Math.Min(Energi, CampaignTuning.Karier.PingsanEnergi);
             EndJob();
+            Ride = KarierRide.None;
             Keributan = 0f;
             Shouted = MeleraiDone = false;
             CalmLeft = 0f;
+            PoliceEta = -1f;
+            BeatenThisFight = false;
             if (PoliceCalled && !PoliceArrived)
                 PoliceReason = KarierPoliceReason.None;
             Say("Pingsan dihajar preman. Warga gotong ke puskesmas, biaya " + Rupiah(pay) + ".");
@@ -646,11 +779,12 @@ namespace Konoha.Campaign
                 return;
             PoliceReason = reason;
             PoliceArrived = false;
+            PoliceEta = -1f;
             Keributan = 1f;
             CalmLeft = 0f;
             Say(reason == KarierPoliceReason.Hoaks
                 ? "Postinganmu viral dan dilaporkan! Polisi datang menjemput: PASAL KARET."
-                : "Ada yang lapor polisi! Sirene mendekat...");
+                : "Sirene mendekat! Polisi akhirnya datang (seperti biasa, setelah semuanya selesai).");
             Cue(KarierCue.Sirene);
         }
 
@@ -691,22 +825,170 @@ namespace Konoha.Campaign
                     AddCatatan(CampaignTuning.Karier.DamaiCatatan);
                     Say("DAMAI DI TEMPAT " + Rupiah(price) + ". \"Ya sudah, hati-hati di jalan.\"  Tidak ada kuitansi.");
                     break;
+                case KarierPoliceChoice.Saksi:
+                    if (!CanSaksi)
+                        return false;
+                    AddRestu(CampaignTuning.Karier.SaksiRestuGain);
+                    Say("Warga jadi saksi: \"Dia yang ngusir preman, Pak!\"  Polisi manggut-manggut... lalu minta foto bareng buat laporan.");
+                    break;
                 case KarierPoliceChoice.Polsek:
-                    AddDuit(-Math.Min(Duit, CampaignTuning.Karier.PolsekBiaya));
                     AddRestu(CampaignTuning.Karier.PolsekRestu);
                     AddEnergi(CampaignTuning.Karier.PolsekEnergi);
                     AddCatatan(hoaks ? CampaignTuning.Karier.ArrestPolsekCatatan : CampaignTuning.Karier.PolsekCatatan);
-                    Say("Semalam di POLSEK. Biaya \"administrasi\" " + Rupiah(CampaignTuning.Karier.PolsekBiaya) +
-                        ". Besoknya ibu-ibu sudah tahu semua.");
+                    Say("Tangan diborgol. \"Ikut kami ke POLSEK!\"  Ibu-ibu langsung kirim videonya ke grup.");
                     EndJob();
+                    Ride = KarierRide.None;
                     break;
             }
             PoliceReason = KarierPoliceReason.None;
             PoliceArrived = false;
+            PoliceEta = -1f;
+            BeatenThisFight = false;
             Keributan = 0f;
             Shouted = MeleraiDone = false;
             CalmLeft = 0f;
             Cue(KarierCue.Notif);
+            return true;
+        }
+
+        // The hero sits in the POLSEK cell (after the arrest ride).
+        public void EnterJail()
+        {
+            JailLeft = CampaignTuning.Karier.JailSeconds;
+            Say("Masuk sel POLSEK KONOHA. Tunggu " + (int)CampaignTuning.Karier.JailSeconds +
+                " detik, atau TEBUS " + Rupiah(TebusPrice) + " (tanpa kuitansi).");
+        }
+
+        public bool Tebus()
+        {
+            if (!InJail)
+                return false;
+            int price = TebusPrice;
+            if (Duit < price)
+            {
+                Say("Duit tidak cukup untuk \"uang jaminan\". Silakan menikmati sel.");
+                Cue(KarierCue.Gagal);
+                return false;
+            }
+            AddDuit(-price);
+            JailLeft = 0f;
+            Say("Uang jaminan " + Rupiah(price) + " diterima. Pintu sel tiba-tiba terbuka.");
+            Cue(KarierCue.Koin);
+            return true;
+        }
+
+        // --- Missions (0.6.1): a long chain that teaches the life and ends at Ketua RT -------
+
+        public const int MisiTawaran = 5;
+
+        public static readonly string[] MissionTitles =
+        {
+            "KERJA PERTAMA", "KENALAN TETANGGA", "JAJAN DULU", "COBA KENDARAAN", "PAHLAWAN GANG",
+            "TAWARAN GELAP", "TABUNGAN", "RESTU WARGA", "DAFTAR CALON RT"
+        };
+
+        private static readonly string[] MissionIntro =
+        {
+            "Ibu kos (WA): \"Kontrakan bulan ini belum dibayar ya. Cari kerja dulu: OJOL atau KULI.\"",
+            "Pak RT (WA): \"Kalau mau dikenal, sapa warga: bapak-bapak pos ronda, ibu-ibu, driver ojol.\"",
+            "Perut keroncongan. Jajan siomay, salome, bakso, atau makan di warkop.",
+            "Di dekat gerbang ada SEWA SEPEDA, di pangkalan ojol ada SEWA MOTOR. Coba salah satu.",
+            "Warga (WA): \"Preman di mulut gang malak lagi. Ada yang berani?\"",
+            "Nomor tak dikenal (WA): \"Mau duit cepat? Sebar pesan ini ke grup. Rp 250rb langsung cair.\"",
+            "Syukuran RT butuh modal. Kumpulkan dulu tabungan " + Rupiah(CampaignTuning.Karier.MisiTabungan) + ".",
+            "Pak Haji: \"Calon RT harus dipercaya warga.\"  Kumpulkan RESTU " + CampaignTuning.Karier.RestuSyaratRT + ".",
+            "Syarat hampir lengkap: " + Rupiah(CampaignTuning.Karier.SyukuranRT) + " untuk syukuran, lalu DAFTAR di POS RONDA."
+        };
+
+        public bool AllMissionsDone => Mission >= MissionTitles.Length;
+
+        public string MissionTitle => AllMissionsDone ? "MENUNGGU PEMILIHAN" : MissionTitles[Mission];
+
+        public string MissionProgress
+        {
+            get
+            {
+                switch (Mission)
+                {
+                    case 0: return "Selesaikan 1 antar OJOL atau 1 set KULI";
+                    case 1: return "Sapa warga " + SapaCount + "/" + layout.SapaPoints.Length;
+                    case 2: return "Beli jajanan atau makan";
+                    case 3: return "Sewa sepeda atau motor";
+                    case 4: return "Usir preman di mulut gang";
+                    case 5: return "Jawab WA nomor tak dikenal";
+                    case 6: return "Tabungan " + Rupiah(Duit) + " / " + Rupiah(CampaignTuning.Karier.MisiTabungan);
+                    case 7: return "RESTU " + Restu + " / " + CampaignTuning.Karier.RestuSyaratRT;
+                    case 8: return "DAFTAR di POS RONDA (" + Rupiah(CampaignTuning.Karier.SyukuranRT) + ")";
+                    default: return "Pemilihan Ketua RT hadir di versi berikutnya";
+                }
+            }
+        }
+
+        public string MissionIntroText => AllMissionsDone ? string.Empty : MissionIntro[Mission];
+
+        private bool MissionDone(int index)
+        {
+            switch (index)
+            {
+                case 0: return TripsOjol > 0 || SetKuli > 0;
+                case 1: return SapaCount >= layout.SapaPoints.Length;
+                case 2: return FoodBought > 0;
+                case 3: return RideCount > 0;
+                case 4: return PremanBeaten > 0;
+                case 5: return false; // Answered through AnswerOffer.
+                case 6: return Duit >= CampaignTuning.Karier.MisiTabungan;
+                case 7: return Restu >= CampaignTuning.Karier.RestuSyaratRT;
+                case 8: return Registered;
+                default: return false;
+            }
+        }
+
+        private void CheckMission()
+        {
+            // Several can finish at once (e.g. a loaded save); one per tick keeps messages readable.
+            if (!AllMissionsDone && MissionDone(Mission))
+                CompleteMission();
+        }
+
+        private void CompleteMission()
+        {
+            int done = Mission;
+            switch (done)
+            {
+                case 0: AddDuit(CampaignTuning.Karier.MisiKerjaReward); break;
+                case 1: AddRestu(CampaignTuning.Karier.SapaRestu); break;
+                case 2: AddEnergi(10); break;
+                case 4: AddRestu(CampaignTuning.Karier.SapaRestu); break;
+                case 6: AddRestu(3); break;
+            }
+            Mission++;
+            Say("MISI SELESAI: " + MissionTitles[done] + (done == 0 ? " (+" + Rupiah(CampaignTuning.Karier.MisiKerjaReward) + ")" : string.Empty) + ".");
+            if (!AllMissionsDone)
+                Say(MissionIntro[Mission]);
+            Cue(KarierCue.Misi);
+        }
+
+        // TAWARAN GELAP: accept (fast money, record) or refuse (restu).
+        public bool AnswerOffer(bool accept)
+        {
+            if (!OfferPending)
+                return false;
+            if (accept)
+            {
+                AddDuit(CampaignTuning.Karier.TawaranPay);
+                AddCatatan(CampaignTuning.Karier.TawaranCatatan);
+                AddRestu(-2);
+                PostBuzzer++;
+                Say("Pesan diteruskan ke 12 grup. " + Rupiah(CampaignTuning.Karier.TawaranPay) + " masuk. CATATAN HITAM +" +
+                    CampaignTuning.Karier.TawaranCatatan + ". Nomor itu lalu hilang.");
+            }
+            else
+            {
+                AddRestu(CampaignTuning.Karier.TolakRestu);
+                Say("Kamu blokir nomornya dan lapor ke grup RT. Pak RT: \"Mantap, hati-hati penipuan!\" RESTU +" +
+                    CampaignTuning.Karier.TolakRestu + ".");
+            }
+            CompleteMission();
             return true;
         }
 
@@ -734,6 +1016,34 @@ namespace Konoha.Campaign
                 point = layout.PosRt;
                 label = "DAFTAR RT: POS RONDA";
                 return true;
+            }
+            if (!InJail && !PoliceCalled)
+            {
+                // 0.6.1: the current mission points the way when no job runs.
+                switch (Mission)
+                {
+                    case 1:
+                        for (int i = 0; i < layout.SapaPoints.Length; i++)
+                            if (!Sapa(i))
+                            {
+                                point = layout.SapaPoints[i];
+                                label = "SAPA: " + (i < layout.SapaNames.Length ? layout.SapaNames[i] : "WARGA");
+                                return true;
+                            }
+                        break;
+                    case 2:
+                        point = layout.Siomay;
+                        label = "JAJAN: SIOMAY";
+                        return true;
+                    case 3:
+                        if (Ride == KarierRide.None)
+                        {
+                            point = layout.SewaSepeda;
+                            label = "SEWA SEPEDA";
+                            return true;
+                        }
+                        break;
+                }
             }
             point = new KarierPoint(0f, 0f);
             label = string.Empty;
@@ -772,11 +1082,13 @@ namespace Konoha.Campaign
         {
             return string.Join(";", new[]
             {
-                "K1", Duit.ToString(CultureInfo.InvariantCulture), Energi.ToString(CultureInfo.InvariantCulture),
+                "K2", Duit.ToString(CultureInfo.InvariantCulture), Energi.ToString(CultureInfo.InvariantCulture),
                 Restu.ToString(CultureInfo.InvariantCulture), CatatanHitam.ToString(CultureInfo.InvariantCulture),
                 SapaMask.ToString(CultureInfo.InvariantCulture), Registered ? "1" : "0",
                 TripsOjol.ToString(CultureInfo.InvariantCulture), SetKuli.ToString(CultureInfo.InvariantCulture),
-                PostBuzzer.ToString(CultureInfo.InvariantCulture), PremanBeaten.ToString(CultureInfo.InvariantCulture)
+                PostBuzzer.ToString(CultureInfo.InvariantCulture), PremanBeaten.ToString(CultureInfo.InvariantCulture),
+                Mission.ToString(CultureInfo.InvariantCulture), FoodBought.ToString(CultureInfo.InvariantCulture),
+                RideCount.ToString(CultureInfo.InvariantCulture)
             });
         }
 
@@ -785,9 +1097,12 @@ namespace Konoha.Campaign
             if (string.IsNullOrEmpty(text))
                 return false;
             string[] parts = text.Split(';');
-            if (parts.Length != 11 || parts[0] != "K1")
+            // K1 = 0.6.0 save (no missions), K2 = 0.6.1.
+            bool v1 = parts.Length == 11 && parts[0] == "K1";
+            bool v2 = parts.Length == 14 && parts[0] == "K2";
+            if (!v1 && !v2)
                 return false;
-            var values = new int[10];
+            var values = new int[parts.Length - 1];
             for (int i = 0; i < values.Length; i++)
                 if (!KarierAvatar.Int(parts[i + 1], out values[i]))
                     return false;
@@ -802,6 +1117,12 @@ namespace Konoha.Campaign
             SetKuli = Math.Max(0, values[7]);
             PostBuzzer = Math.Max(0, values[8]);
             PremanBeaten = Math.Max(0, values[9]);
+            if (v2)
+            {
+                Mission = Clamp(values[10], 0, MissionTitles.Length);
+                FoodBought = Math.Max(0, values[11]);
+                RideCount = Math.Max(0, values[12]);
+            }
             return true;
         }
     }

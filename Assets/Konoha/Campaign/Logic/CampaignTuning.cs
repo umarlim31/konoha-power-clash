@@ -278,6 +278,34 @@ namespace Konoha.Campaign
             public const int PolsekCatatan = -5;
             public const int PolsekEnergi = -20;
             public const int ArrestPolsekCatatan = 0;   // Hoaks: the record stays.
+
+            // 0.6.1: the police always come after warga shouted (late, as usual).
+            public const float PolisiDatangSeconds = 14f;
+            public const int SaksiRestu = 40;           // Warga testify for a hero they like.
+            public const int SaksiRestuGain = 3;
+            public const float JailSeconds = 25f;       // In the POLSEK cell after the arrest.
+            public const int TebusBase = 100000;        // "Uang jaminan" to leave early.
+            public const int TebusPerCatatan = 1000;
+
+            // 0.6.1 jajan (price, energy) and rentals.
+            public const int SiomayPrice = 12000;
+            public const int SiomayEnergi = 25;
+            public const int SalomePrice = 8000;
+            public const int SalomeEnergi = 15;
+            public const int BaksoPrice = 15000;
+            public const int BaksoEnergi = 35;
+            public const float EatSeconds = 3f;
+            public const int SewaSepedaPrice = 5000;
+            public const int SewaMotorPrice = 15000;
+            public const float SepedaSpeed = 1.3f;
+            public const float MotorSpeed = 1.7f;
+
+            // 0.6.1 missions.
+            public const int MisiKerjaReward = 20000;
+            public const int MisiTabungan = 500000;
+            public const int TawaranPay = 250000;
+            public const int TawaranCatatan = 15;
+            public const int TolakRestu = 6;
         }
 
         // 0.0.9.2.1 RESTU RAKYAT: reward for clearing the Gerbang Rakyat, lasts for the run
