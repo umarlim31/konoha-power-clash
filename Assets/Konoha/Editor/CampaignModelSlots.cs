@@ -84,6 +84,7 @@ namespace Konoha.Editor
             // one renderer per placed model instead of one per part of the file.
             public Mesh mesh;
             public Material[] materials;
+            public int merged;
             public readonly Dictionary<string, Color> mtlColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
         }
 
@@ -166,7 +167,8 @@ namespace Konoha.Editor
 
         // Replaces the visible parts of root's children [firstChild..] with the slot model.
         // Returns false (and changes nothing) when the slot has no usable model.
-        public static bool Apply(string slotName, Transform root, int firstChild, Vector3 anchor, float yaw, Vector3? boxOverride = null)
+        public static bool Apply(string slotName, Transform root, int firstChild, Vector3 anchor, float yaw, Vector3? boxOverride = null,
+            bool? castShadows = null)
         {
             var slot = Find(slotName);
             if (slot == null || root == null) return false;
@@ -189,7 +191,7 @@ namespace Konoha.Editor
                 model.GetComponent<MeshFilter>().sharedMesh = entry.mesh;
                 var renderer = model.GetComponent<MeshRenderer>();
                 renderer.sharedMaterials = entry.materials;
-                renderer.shadowCastingMode = slot.castShadows ? ShadowCastingMode.On : ShadowCastingMode.Off;
+                renderer.shadowCastingMode = (castShadows ?? slot.castShadows) ? ShadowCastingMode.On : ShadowCastingMode.Off;
 
                 Quaternion turn = Quaternion.Euler(0f, slot.frontYaw + entry.settings.yaw, 0f);
                 Bounds bounds = TurnedBounds(entry.mesh.bounds, turn);
@@ -234,16 +236,26 @@ namespace Konoha.Editor
         {
             var installed = new List<string>();
             var problems = new List<string>();
+            int placedTotal = 0;
+            long trianglesTotal = 0;
             foreach (var slot in Slots)
             {
                 if (!Entries.TryGetValue(slot.name, out var entry) || entry == null) continue;
                 if (entry.problem != null) problems.Add(slot.name + " " + entry.problem);
-                else if (entry.placed > 0) installed.Add(slot.name + " x" + entry.placed);
+                else if (entry.placed > 0)
+                {
+                    installed.Add(slot.name + " x" + entry.placed);
+                    placedTotal += entry.placed;
+                    trianglesTotal += (long)entry.placed * entry.merged;
+                }
             }
             if (installed.Count == 0 && problems.Count == 0) return "";
-            string text = "MODEL 3D: " + (installed.Count > 0 ? string.Join(", ", installed) : "-");
-            if (problems.Count > 0) text += "  •  TIDAK DIPAKAI: " + string.Join(", ", problems);
-            return text;
+            // 0.3.2: short when everything is in (the full list ran off the tablet screen);
+            // only problems are spelled out.
+            if (problems.Count == 0)
+                return "MODEL 3D: " + installed.Count + "/" + Slots.Length + " slot terpasang (" + placedTotal + " objek, " +
+                    (trianglesTotal / 1000) + "rb segitiga)";
+            return "MODEL 3D: " + installed.Count + "/" + Slots.Length + " terpasang  •  TIDAK DIPAKAI: " + string.Join(", ", problems);
         }
 
         private static Entry Load(Slot slot)
@@ -360,33 +372,85 @@ namespace Konoha.Editor
             }
             if (groups.Count == 0) throw new InvalidOperationException("tidak ada mesh");
 
-            var parts = new CombineInstance[groups.Count];
+            // 0.3.3: the merged mesh is written by hand. 0.3.1/0.3.2 switched the index format of
+            // a CombineMeshes result to 16 bit afterwards, which left the mesh without triangles:
+            // the models were counted ("16/16 terpasang") but drew nothing, and the code-built
+            // shapes had already been removed, so the city looked empty.
+            var vertices = new List<Vector3>();
+            var normals = new List<Vector3>();
+            var uvs = new List<Vector2>();
+            var submeshes = new List<List<int>>();
+            bool allNormals = true;
+            foreach (var group in groups)
+            {
+                var indices = new List<int>();
+                foreach (var instance in group.Value)
+                {
+                    Mesh mesh = instance.mesh;
+                    Vector3[] meshVertices = mesh.vertices;
+                    if (meshVertices.Length == 0) continue;
+                    Vector3[] meshNormals = mesh.normals;
+                    Vector2[] meshUvs = mesh.uv;
+                    int[] triangles = mesh.GetTriangles(instance.subMeshIndex);
+                    Matrix4x4 m = instance.transform;
+                    Matrix4x4 normalMatrix = m.inverse.transpose;
+                    bool mirrored = m.determinant < 0f;
+                    int start = vertices.Count;
+                    for (int v = 0; v < meshVertices.Length; v++)
+                    {
+                        vertices.Add(m.MultiplyPoint3x4(meshVertices[v]));
+                        if (meshNormals.Length == meshVertices.Length) normals.Add(normalMatrix.MultiplyVector(meshNormals[v]).normalized);
+                        else { normals.Add(Vector3.up); allNormals = false; }
+                        uvs.Add(meshUvs.Length == meshVertices.Length ? meshUvs[v] : Vector2.zero);
+                    }
+                    for (int t = 0; t + 2 < triangles.Length; t += 3)
+                    {
+                        indices.Add(start + triangles[t]);
+                        indices.Add(start + (mirrored ? triangles[t + 2] : triangles[t + 1]));
+                        indices.Add(start + (mirrored ? triangles[t + 1] : triangles[t + 2]));
+                    }
+                }
+                submeshes.Add(indices);
+            }
+            int triangleCount = 0;
+            foreach (var indices in submeshes) triangleCount += indices.Count / 3;
+            if (vertices.Count == 0 || triangleCount == 0)
+                throw new InvalidOperationException("mesh gabungan kosong (mesh tidak bisa dibaca)");
+
+            var combined = new Mesh { name = slot.name + "Gabungan" };
+            // The index format is chosen before any data is set.
+            combined.indexFormat = vertices.Count > 65000 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16;
+            combined.SetVertices(vertices);
+            combined.SetNormals(normals);
+            combined.SetUVs(0, uvs);
+            combined.subMeshCount = submeshes.Count;
+            for (int i = 0; i < submeshes.Count; i++)
+                combined.SetTriangles(submeshes[i], i, false);
+            if (!allNormals) combined.RecalculateNormals();
+            combined.RecalculateBounds();
+
             entry.materials = new Material[groups.Count];
             for (int i = 0; i < groups.Count; i++)
-            {
-                var part = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
-                part.CombineMeshes(groups[i].Value.ToArray(), true, true);
-                parts[i] = new CombineInstance { mesh = part, transform = Matrix4x4.identity };
                 entry.materials[i] = CreateLit(slot, groups[i].Key, entry.colorFallback, entry.mtlColors, i);
-            }
-            var combined = new Mesh { name = slot.name + "Gabungan", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
-            combined.CombineMeshes(parts, false, false);
-            if (combined.vertexCount < 65000) combined.indexFormat = UnityEngine.Rendering.IndexFormat.UInt16;
-            combined.RecalculateBounds();
-            foreach (var part in parts) Object.DestroyImmediate(part.mesh);
 
             EnsureFolder();
             string path = MaterialFolder + "/" + slot.name + "Gabungan.asset";
+            // A fresh asset every generation (never an in-place copy over an older mesh).
+            if (AssetDatabase.LoadAssetAtPath<Mesh>(path) != null) AssetDatabase.DeleteAsset(path);
+            AssetDatabase.CreateAsset(combined, path);
             var saved = AssetDatabase.LoadAssetAtPath<Mesh>(path);
-            if (saved == null) { AssetDatabase.CreateAsset(combined, path); saved = combined; }
-            else
-            {
-                EditorUtility.CopySerialized(combined, saved);
-                saved.name = slot.name + "Gabungan";
-                Object.DestroyImmediate(combined);
-            }
-            EditorUtility.SetDirty(saved);
+            if (saved == null) saved = combined;
+            if (CountTriangles(saved) != triangleCount)
+                throw new InvalidOperationException("mesh gabungan kehilangan segitiga");
             entry.mesh = saved;
+            entry.merged = triangleCount;
+        }
+
+        private static int CountTriangles(Mesh mesh)
+        {
+            long count = 0;
+            for (int i = 0; i < mesh.subMeshCount; i++) count += mesh.GetIndexCount(i) / 3;
+            return (int)count;
         }
 
         // Axis-aligned bounds of a box after a turn about Y.

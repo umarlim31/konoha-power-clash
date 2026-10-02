@@ -10,7 +10,7 @@ Selama folder masih kosong, game tetap memakai bentuk buatan kode, jadi tidak ad
 - Bahan (material) model diubah otomatis ke shader game, jadi model tidak tampil **pink**. Daun yang memakai gambar transparan dibuat tembus pandang dengan benar.
 - Tekstur di folder model otomatis dibatasi maksimal 1024 piksel supaya ringan di tablet.
 - Model yang **terlalu berat** (segitiganya melebihi batas slot) atau gagal dibaca **tidak dipakai**, dan bentuk kode tetap tampil.
-- Di layar game, di atas label versi, muncul baris kecil **`MODEL 3D: ...`**. Isinya slot mana yang terpasang (dan berapa buah), serta slot mana yang **TIDAK DIPAKAI** beserta alasannya. Baris ini tidak muncul kalau belum ada model sama sekali.
+- Di layar game, di atas label versi, muncul baris kecil **`MODEL 3D: ...`**. Kalau semua aman, isinya ringkas, misalnya `MODEL 3D: 16/16 slot terpasang (230 objek)`. Kalau ada slot yang **TIDAK DIPAKAI**, nama slot dan alasannya ditulis. Baris ini tidak muncul kalau belum ada model sama sekali.
 
 ## Daftar slot
 
@@ -93,7 +93,7 @@ Koma desimal juga boleh (`skala=1,2`).
 
 ## Setelah mengunggah
 Beri tahu aku slot mana yang sudah diunggah. Aku akan menggabungkannya ke branch kerja, lalu kamu build seperti biasa (pre-export tetap `Konoha.Editor.SpikeProject.prepare`). Di dalam game:
-1. Baca baris `MODEL 3D: ...` di atas label versi. Pastikan slotmu tertulis dengan jumlahnya, misalnya `Lentera x22`.
+1. Baca baris `MODEL 3D: ...` di atas label versi. Pastikan jumlah slot terpasang bertambah (misalnya `1/16 slot terpasang (22 objek)` setelah mengunggah lentera) dan tidak ada tulisan TIDAK DIPAKAI.
 2. Kalau tertulis **TIDAK DIPAKAI**, alasannya ikut tertulis:
    - `terlalu berat` → cari model yang lebih ringan.
    - `belum ter-import` → biasanya format file tidak didukung atau file rusak.

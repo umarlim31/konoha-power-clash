@@ -280,6 +280,7 @@ namespace Konoha.Editor
             {
                 float height = 5f + (float)random.NextDouble() * 7f;
                 var p = new Vector3(x + (float)random.NextDouble() * 3f, 0f, 106f + (float)random.NextDouble() * 2f);
+                int first = root.childCount;
                 var body = Block("Megah kota pesisir", p + Vector3.up * (height * .5f), new Vector3(8f, height, 6f), walls[random.Next(walls.Length)]);
                 body.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
                 foreach (int s in new[] { -1, 1 })
@@ -288,7 +289,12 @@ namespace Konoha.Editor
                     slab.transform.rotation = Quaternion.Euler(s * 28f, 0f, 0f);
                     slab.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
                 }
-                if (random.NextDouble() < .25)
+                // 0.3.2: the owner's ruko / rumah kampung models also stand on the bay (tall
+                // blocks become ruko), facing the capital, without shadows at that distance.
+                bool tall = height > 8.5f;
+                bool modelled = CampaignModelSlots.Apply(tall ? "Ruko" : "RumahKampung", root, first, p, 0f,
+                    tall ? new Vector3(8f, height + 1f, 6.5f) : new Vector3(8f, height + 2f, 6f), false);
+                if (random.NextDouble() < .25 && !modelled)
                 {
                     var tower = Block("Megah kota pesisir menara", p + new Vector3(3f, height + 3f, 0f), new Vector3(2f, 6f, 2f), ivory);
                     tower.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
