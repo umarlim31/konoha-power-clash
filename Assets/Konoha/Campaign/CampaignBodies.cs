@@ -17,12 +17,18 @@ namespace Konoha.Campaign
     {
         // Index = PrototypeHero (Mega, Prabowo/GEMOY, Abah, Jokowi/PAK WI). Inactive in the scene.
         public CampaignHumanoid[] heroTemplates = new CampaignHumanoid[4];
+        // 0.6.0 KARIER: the player's own citizen (CampaignAvatarLook) replaces the hero body
+        // of the local hero, also over an owner FBX hero.
+        public CampaignHumanoid avatarTemplate;
         public CampaignCombatFx fx;
+
+        private const int AvatarBody = 100;
 
         private sealed class HeroBody
         {
             public CampaignHumanoid rig;
             public int hero = -1;
+            public int avatarVersion = -1;
             public NetworkPlayerCombat combat;
             public readonly List<Renderer> hidden = new List<Renderer>();
         }
@@ -75,6 +81,8 @@ namespace Konoha.Campaign
                         renderer.enabled = false;
                 if (body.rig != null && body.combat != null)
                     body.rig.SetDown(body.combat.IsKnockedOut);
+                if (body.hero == AvatarBody)
+                    RefreshAvatar(body);
             }
         }
 
@@ -108,7 +116,9 @@ namespace Konoha.Campaign
 
         private void Ensure(NetworkHeroKit kit)
         {
-            int hero = Mathf.Clamp((int)kit.Hero, 0, 3);
+            int heroIndex = Mathf.Clamp((int)kit.Hero, 0, 3);
+            bool avatar = CampaignKarier.Active && avatarTemplate != null && IsLocalHero(kit);
+            int hero = avatar ? AvatarBody : heroIndex;
             if (!heroes.TryGetValue(kit, out HeroBody body))
             {
                 body = new HeroBody { combat = kit.GetComponent<NetworkPlayerCombat>() };
@@ -121,6 +131,7 @@ namespace Konoha.Campaign
                 Destroy(body.rig.gameObject);
             body.rig = null;
             body.hero = hero;
+            body.avatarVersion = -1;
             // Show what the previous hero hid (an owner FBX hero must stay visible).
             foreach (Renderer renderer in body.hidden)
                 if (renderer != null)
@@ -128,17 +139,18 @@ namespace Konoha.Campaign
             body.hidden.Clear();
 
             var presentation = kit.GetComponent<NetworkActorPresentation>();
-            GameObject visual = presentation != null && presentation.heroVisuals != null && hero < presentation.heroVisuals.Length
-                ? presentation.heroVisuals[hero] : null;
-            if (HeroAnimatorDriver.UsesModel(visual))
-                return; // The owner's rigged 3D hero stays in charge.
+            GameObject visual = presentation != null && presentation.heroVisuals != null && heroIndex < presentation.heroVisuals.Length
+                ? presentation.heroVisuals[heroIndex] : null;
+            if (!avatar && HeroAnimatorDriver.UsesModel(visual))
+                return; // The owner's rigged 3D hero stays in charge (outside KARIER).
 
-            CampaignHumanoid template = heroTemplates != null && hero < heroTemplates.Length ? heroTemplates[hero] : null;
+            CampaignHumanoid template = avatar ? avatarTemplate
+                : heroTemplates != null && heroIndex < heroTemplates.Length ? heroTemplates[heroIndex] : null;
             if (template == null)
                 return;
 
             GameObject copy = Instantiate(template.gameObject, kit.transform, false);
-            copy.name = "CampaignBody " + NetworkHeroKit.GetHeroName(kit.Hero);
+            copy.name = avatar ? "CampaignBody WARGA" : "CampaignBody " + NetworkHeroKit.GetHeroName(kit.Hero);
             copy.transform.localPosition = Vector3.zero;
             copy.transform.localRotation = Quaternion.identity;
             copy.SetActive(true);
@@ -157,6 +169,28 @@ namespace Konoha.Campaign
             Transform facing = kit.transform.Find("FacingMarker");
             if (facing != null)
                 AddHidden(body, facing.GetComponent<Renderer>());
+            if (avatar)
+                RefreshAvatar(body);
+        }
+
+        // Re-applies the creator choices once per change (live preview while creating).
+        private static void RefreshAvatar(HeroBody body)
+        {
+            if (body.rig == null || body.avatarVersion == CampaignKarier.AvatarVersion)
+                return;
+            body.avatarVersion = CampaignKarier.AvatarVersion;
+            CampaignAvatarLook look = body.rig.GetComponent<CampaignAvatarLook>();
+            if (look != null)
+                look.Apply(CampaignKarier.Avatar);
+        }
+
+        // 0.6.0 KARIER: the local hero's body (riding the ojol motor, carrying a sack).
+        public CampaignHumanoid LocalBody()
+        {
+            foreach (KeyValuePair<NetworkHeroKit, HeroBody> pair in heroes)
+                if (pair.Key != null && IsLocalHero(pair.Key))
+                    return pair.Value.rig;
+            return null;
         }
 
         private static void AddHidden(HeroBody body, Renderer renderer)

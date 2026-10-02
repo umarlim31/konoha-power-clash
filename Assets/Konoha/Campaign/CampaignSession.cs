@@ -44,6 +44,8 @@ namespace Konoha.Campaign
         public bool IsHosting => manager != null && manager.IsListening;
         public bool LocalHeroBound => localHeroBound;
         private bool prepared;
+        // 0.6.0: KARIER (Level 1 Warga Biasa) instead of the Jalur Takhta route.
+        private bool karier;
 
         private void Start()
         {
@@ -52,11 +54,15 @@ namespace Konoha.Campaign
         }
 
         // JALUR TAKHTA chosen in the mode menu: start the offline local host (no room, no internet).
-        public void BeginSolo()
+        public void BeginSolo() => BeginSolo(false);
+
+        // karierMode: KARIER chosen in the mode menu (same local host, different director rules).
+        public void BeginSolo(bool karierMode)
         {
             if (prepared)
                 return;
             prepared = true;
+            karier = karierMode;
 
             manager = GetComponent<NetworkManager>();
             transport = GetComponent<UnityTransport>();
@@ -129,6 +135,9 @@ namespace Konoha.Campaign
             GameObject instance = Instantiate(directorPrefab, Vector3.zero, Quaternion.identity);
             try
             {
+                CampaignDirector director = instance.GetComponent<CampaignDirector>();
+                if (director != null)
+                    director.ConfigureKarier(karier);
                 instance.GetComponent<NetworkObject>().Spawn(true);
             }
             catch (Exception exception)

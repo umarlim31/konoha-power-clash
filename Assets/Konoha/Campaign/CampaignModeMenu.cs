@@ -6,7 +6,8 @@ using UnityEngine.UI;
 namespace Konoha.Campaign
 {
     // 0.1.0 mode menu, the first screen of the APK: JALUR TAKHTA (solo, offline local host)
-    // or REBUT KURSI (the untouched PvP 4v4 scene). Solo never creates a PvP room; the
+    // or REBUT KURSI (the untouched PvP 4v4 scene). 0.6.0: KARIER first (Level 1 Warga
+    // Biasa, same local host, own character creator); JALUR TAKHTA becomes MODE PRESIDEN. Solo never creates a PvP room; the
     // campaign network object is removed before the PvP scene loads, so exactly one
     // NetworkManager exists at a time.
     public sealed class CampaignModeMenu : MonoBehaviour
@@ -14,6 +15,8 @@ namespace Konoha.Campaign
         public GameObject panel;
         public Button soloButton;
         public Button pvpButton;
+        public Button karierButton;
+        public KarierAvatarPanel avatarPanel;
         public Text versionText;
         public CampaignSession session;
         // Build path of the PvP scene (SpikeProject.ScenePath) and its build index (loaded by index).
@@ -26,6 +29,8 @@ namespace Konoha.Campaign
         {
             if (soloButton != null)
                 soloButton.onClick.AddListener(PlaySolo);
+            if (karierButton != null)
+                karierButton.onClick.AddListener(PlayKarier);
             if (pvpButton != null)
             {
                 pvpButton.onClick.AddListener(PlayPvp);
@@ -41,6 +46,8 @@ namespace Konoha.Campaign
         {
             if (soloButton != null)
                 soloButton.onClick.RemoveListener(PlaySolo);
+            if (karierButton != null)
+                karierButton.onClick.RemoveListener(PlayKarier);
             if (pvpButton != null)
                 pvpButton.onClick.RemoveListener(PlayPvp);
         }
@@ -49,10 +56,26 @@ namespace Konoha.Campaign
         {
             if (leaving)
                 return;
+            leaving = true;
+            CampaignKarier.Active = false;
             if (panel != null)
                 panel.SetActive(false);
             if (session != null)
                 session.BeginSolo();
+        }
+
+        private void PlayKarier()
+        {
+            if (leaving)
+                return;
+            leaving = true;
+            CampaignKarier.Active = true;
+            if (panel != null)
+                panel.SetActive(false);
+            if (session != null)
+                session.BeginSolo(true);
+            if (avatarPanel != null)
+                avatarPanel.Open();
         }
 
         private void PlayPvp()

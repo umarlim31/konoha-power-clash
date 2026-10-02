@@ -20,6 +20,8 @@ namespace Konoha.Campaign
         public Button jumpButton;
         // §9: seated on the Kursi, the joystick and jump do nothing (BERDIRI stands up).
         public bool seatLocked;
+        // 0.6.0 KARIER: ojol motor (faster), cement sack or LEMAS (slower).
+        public float speedBonus = 1f;
         public Vector2 boundaryCenter = new Vector2(0, 4);
         public Vector2 boundaryRadii = new Vector2(26, 29);
         private Vector3 lastSafe = new Vector3(0, .1f, -9);
@@ -45,7 +47,8 @@ namespace Konoha.Campaign
             float dt = Mathf.Min(Time.deltaTime, .05f);
             Vector2 axis = seatLocked ? Vector2.zero : CameraRelative(joystick.Value, movementCamera.forward);
             // Clip intended horizontal movement first, preserving grounding and jump at the boundary.
-            float travel = motor.definition.speed * Mathf.Max(.1f, motor.speedMultiplier) * dt;
+            float bonus = Mathf.Max(.1f, speedBonus);
+            float travel = motor.definition.speed * Mathf.Max(.1f, motor.speedMultiplier) * bonus * dt;
             if (travel > .00001f)
             {
                 Vector3 start = motor.transform.position;
@@ -53,7 +56,12 @@ namespace Konoha.Campaign
                 Vector3 permitted = ClampToCampus(desired, boundaryCenter, boundaryRadii) - start;
                 axis = new Vector2(permitted.x, permitted.z) / travel;
             }
+            // NetworkPlayerMovement rewrites speedMultiplier every frame; the bonus is applied
+            // around this step only, so it never accumulates.
+            float baseMultiplier = motor.speedMultiplier;
+            motor.speedMultiplier = baseMultiplier * bonus;
             motor.Step(new MoveIntent(axis), dt);
+            motor.speedMultiplier = baseMultiplier;
             Vector3 position = motor.transform.position;
             if (position.y < -3f)
             {

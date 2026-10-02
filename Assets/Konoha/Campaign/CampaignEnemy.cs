@@ -75,6 +75,12 @@ namespace Konoha.Campaign
             (int)EnemySpecial.None, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         private NetworkVariable<float> telegraphRadius = new NetworkVariable<float>(
             CampaignTuning.Majelis.KetokPaluRadius, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        // 0.6.0 KARIER: 0 = Sistem member, 1 = preman pasar, 2 = bos preman (own nameplate);
+        // calmed = held back by a warga who melerai (does not attack, cannot be hit).
+        private NetworkVariable<int> karierKind = new NetworkVariable<int>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        private NetworkVariable<bool> calmed = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
         private static CampaignMonument monument;
         private static CampaignStage stage;
@@ -106,6 +112,8 @@ namespace Konoha.Campaign
         private bool appliedSurrender;
         private bool appliedTelegraph;
         private bool appliedSealed;
+        private bool appliedCalmed;
+        private int appliedKarier = -1;
 
         // Server-side special attack (KETOK PALU) configuration and clock.
         private bool hasSpecial;
@@ -147,7 +155,10 @@ namespace Konoha.Campaign
 
         // ICombatActorState: the voting block reduces every hit; surrendered members are left alone.
         public float IncomingDamageMultiplier => MajelisEncounter.IncomingMultiplier(blockShield.Value);
-        public bool IsTargetable => !surrendered.Value && !sealedOff.Value;
+        public bool IsTargetable => !surrendered.Value && !sealedOff.Value && !calmed.Value;
+        public int KarierKind => karierKind.Value;
+        public bool IsKarier => karierKind.Value > 0;
+        public bool Calmed => calmed.Value;
         public bool SealedOff => sealedOff.Value;
 
         private void Awake()
@@ -198,6 +209,8 @@ namespace Konoha.Campaign
             surrendered.Value = false;
             sealedOff.Value = false;
             telegraphing.Value = false;
+            karierKind.Value = 0;
+            calmed.Value = false;
             combat ??= GetComponent<NetworkPlayerCombat>();
             combat.ServerConfigureWibawa(UnitRoleStats.For(unitRole).Wibawa);
             nextAttackTime = Time.time + CampaignTuning.Encounters.EnemyFirstAttackDelaySeconds;
@@ -271,6 +284,19 @@ namespace Konoha.Campaign
         // Wibawa left as a fraction of the maximum (Garda reinforcement threshold).
         public float WibawaFraction =>
             combat != null && combat.MaxWibawaValue > 0 ? combat.Wibawa / (float)combat.MaxWibawaValue : 0f;
+
+        // 0.6.0 KARIER: preman nameplate (1 preman, 2 bos preman); call after ServerInitialize.
+        public void ServerSetKarier(int kind)
+        {
+            if (IsServer && karierKind.Value != kind)
+                karierKind.Value = kind;
+        }
+
+        public void ServerSetCalmed(bool value)
+        {
+            if (IsServer && calmed.Value != value)
+                calmed.Value = value;
+        }
 
         public void ServerSetSealed(bool value)
         {
@@ -371,6 +397,13 @@ namespace Konoha.Campaign
                 return;
 
             UnitRoleStats stats = UnitRoleStats.For(Role);
+
+            // 0.6.0 KARIER: a warga stands in between; the preman holds still.
+            if (calmed.Value)
+            {
+                Step(transform.position, stats, deltaTime);
+                return;
+            }
 
             if (telegraphing.Value)
             {
@@ -686,13 +719,17 @@ namespace Konoha.Campaign
             bool kneeling = surrendered.Value;
             bool hammer = telegraphing.Value && !down;
             bool locked = sealedOff.Value && !down;
+            bool held = calmed.Value && !down;
+            int karier = karierKind.Value;
 
             if (!force && currentRole == appliedRole && currentFaction == appliedFaction && down == appliedDown &&
                 shielded == appliedBlock && kneeling == appliedSurrender && hammer == appliedTelegraph &&
-                locked == appliedSealed)
+                locked == appliedSealed && held == appliedCalmed && karier == appliedKarier)
                 return;
 
             appliedSealed = locked;
+            appliedCalmed = held;
+            appliedKarier = karier;
             appliedRole = currentRole;
             appliedFaction = currentFaction;
             appliedDown = down;
@@ -769,6 +806,12 @@ namespace Konoha.Campaign
                     : locked ? "TERKUNCI"
                     : shielded ? definition.DisplayName + "  •  SOLID"
                     : definition.DisplayName;
+                if (karier > 0)
+                {
+                    // 0.6.0 KARIER: street preman, not a Sistem institution.
+                    title = karier == 2 ? "BOS PREMAN" : "PREMAN PASAR";
+                    state = down ? "TUMBANG" : kneeling ? "DIAMANKAN" : held ? "DITAHAN WARGA" : "MALAK WARGA";
+                }
                 nameplate.text = title + "\n" + state;
                 nameplate.color = down || kneeling
                     ? new Color(0.62f, 0.62f, 0.62f)

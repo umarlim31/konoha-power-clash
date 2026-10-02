@@ -37,7 +37,12 @@ namespace Konoha.Campaign
         Hantam,
         // 0.2.7 street atmosphere: songbird chirps, the bakso seller tapping his bowl.
         Burung,
-        Mangkok
+        Mangkok,
+        // 0.6.0 KARIER: phone notification, police siren, coins, a crowd shouting.
+        Notif,
+        Sirene,
+        Koin,
+        Ribut
     }
 
     // Jalur Takhta sound effects (0.0.9.4). Every clip is synthesised in code at start-up
@@ -495,6 +500,23 @@ namespace Konoha.Campaign
                 if (t > 0.57f) local = t - 0.38f;
                 return (Sin(2350f, local) + Sin(3480f, local) * 0.5f + Sin(5120f, local) * 0.2f) * Decay(local, 22f) * 0.22f;
             });
+            // 0.6.0 KARIER.
+            result[(int)CampaignSound.Notif] = Make("Notif", 0.36f, t =>
+                (t < 0.13f ? Sin(1318.5f, t) * Decay(t, 22f) : Sin(1760f, t - 0.15f) * Decay(t - 0.15f, 16f) * (t > 0.15f ? 1f : 0f)) * 0.32f);
+            // Wailing siren: the pitch rises and falls twice a second.
+            result[(int)CampaignSound.Sirene] = Make("Sirene", 1.2f, t =>
+                Soft(700f * t - 300f / (2f * Mathf.PI * 1.6f) * Mathf.Cos(2f * Mathf.PI * 1.6f * t)) * 0.22f * Bell(t, 1.2f));
+            result[(int)CampaignSound.Koin] = Make("Koin", 0.42f, t =>
+            {
+                float second = t - 0.09f;
+                float a = (Sin(2093f, t) + Sin(3136f, t) * 0.6f) * Decay(t, 18f);
+                float b = second > 0f ? (Sin(2637f, second) + Sin(3951f, second) * 0.5f) * Decay(second, 12f) : 0f;
+                return (a + b) * 0.18f;
+            });
+            // Several voices shouting at once: band-limited noise with a syllable rhythm.
+            result[(int)CampaignSound.Ribut] = MakeNoisy("Ribut", 1.1f, 25, (t, n) =>
+                (n * (0.55f + 0.45f * Mathf.Abs(Sin(5.3f, t))) * 0.5f +
+                 Soft(Sweep(240f, 200f, t, 1.1f) + 0.4f * Sin(7f, t)) * 0.12f * Mathf.Abs(Sin(3.1f, t))) * Bell(t, 1.1f));
             return result;
         }
 

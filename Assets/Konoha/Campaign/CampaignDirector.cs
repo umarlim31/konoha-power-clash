@@ -144,6 +144,13 @@ namespace Konoha.Campaign
         // Enemies are spawned from Update, never from inside another object's OnNetworkSpawn.
         private bool gatePending;
 
+        // 0.6.0 KARIER Level 1 (solo host only): no Jalur Takhta route; preman encounters are
+        // requested by KarierController. Set by CampaignSession before Spawn().
+        private bool karierMode;
+        private readonly List<CampaignEnemy> karierEnemies = new List<CampaignEnemy>();
+        private float karierCalmUntil;
+        private bool karierClearPending;
+
         // Latest player-facing message on this peer (set by NotifyClientRpc).
         public string LastMessage { get; private set; } = string.Empty;
         public float LastMessageUntil { get; private set; }
@@ -249,6 +256,7 @@ namespace Konoha.Campaign
             (Path(CampaignSector.MajelisDaun) == SectorPath.Dirangkul ? 1 : 0) +
             (Path(CampaignSector.BiroProsedur) == SectorPath.Dirangkul ? 1 : 0);
         public CampaignEnding Ending => CampaignRunState.EndingFor(RangkulCount, Jatah);
+        public bool KarierMode => karierMode;
 
         public override void OnNetworkSpawn()
         {
@@ -274,7 +282,7 @@ namespace Konoha.Campaign
             objectives.CounterattackRequested += SpawnCounterattack;
             objectives.Won += OnWon;
             objectives.Kudeta += OnKudeta;
-            gatePending = true;
+            gatePending = !karierMode;
             SyncState();
             Debug.Log("[KONOHA CAMPAIGN] Director ready (host authority).");
         }
@@ -303,6 +311,12 @@ namespace Konoha.Campaign
         {
             if (!IsServer || !IsSpawned || objectives == null)
                 return;
+
+            if (karierMode)
+            {
+                UpdateKarier();
+                return;
+            }
 
             if (gatePending)
             {
@@ -424,6 +438,109 @@ namespace Konoha.Campaign
             for (int i = 0; i < CampaignTuning.Seals.SectorCount; i++)
                 if (run.HasSeal((CampaignSector)i)) mask |= 1 << i;
             sealMask.Value = mask;
+        }
+
+        // --- 0.6.0 KARIER (host only) ------------------------------------------------
+
+        // Before Spawn(): this director runs KARIER instead of the Jalur Takhta route.
+        public void ConfigureKarier(bool value)
+        {
+            if (!IsSpawned)
+                karierMode = value;
+        }
+
+        // MULAI HIDUP on the character creator: the world starts moving.
+        public void ServerKarierStart()
+        {
+            if (!IsServer || !karierMode || heroLocked.Value)
+                return;
+            heroLocked.Value = true;
+            runStartedAt.Value = NetworkManager.ServerTime.Time;
+            runEndedAt.Value = -1d;
+        }
+
+        private void UpdateKarier()
+        {
+            karierEnemies.RemoveAll(enemy => enemy == null || !enemy.IsSpawned);
+            if (karierClearPending)
+            {
+                karierClearPending = false;
+                ServerKarierClear(false);
+            }
+            if (!heroLocked.Value)
+                return;
+            if (karierCalmUntil > 0f && Time.time >= karierCalmUntil)
+            {
+                karierCalmUntil = 0f;
+                foreach (CampaignEnemy enemy in karierEnemies)
+                    if (enemy != null && enemy.IsSpawned)
+                        enemy.ServerSetCalmed(false);
+            }
+            UpdateRecovery(Mathf.Min(Time.deltaTime, CampaignTuning.PreviewSlice.MaxFrameSeconds));
+        }
+
+        // Preman memalak warga: one preman, or a preman and his boss. Returns how many stand.
+        public int ServerKarierSpawnPreman(Vector3 center, Vector3[] points, Vector3 lookAt, bool withBoss)
+        {
+            if (!IsServer || !karierMode || points == null)
+                return 0;
+            int wanted = withBoss ? 2 : 1;
+            int spawned = 0;
+            for (int i = 0; i < points.Length && i < wanted; i++)
+            {
+                bool boss = withBoss && i == 1;
+                CampaignEnemy enemy = SpawnEnemy(boss ? UnitRole.Guard : UnitRole.Kroni, FactionId.GardaTakhta,
+                    points[i], points[i], lookAt, center, CampaignTuning.Karier.PremanLeashRadius);
+                if (enemy == null)
+                    continue;
+                enemy.ServerSetKarier(boss ? 2 : 1);
+                NetworkPlayerCombat combat = enemy.GetComponent<NetworkPlayerCombat>();
+                if (combat != null)
+                    combat.ServerConfigureWibawa(boss ? CampaignTuning.Karier.BosPremanWibawa : CampaignTuning.Karier.PremanWibawa);
+                karierEnemies.Add(enemy);
+                spawned++;
+            }
+            return spawned;
+        }
+
+        // A warga melerai: every standing preman holds still for a moment.
+        public void ServerKarierCalm(float seconds)
+        {
+            if (!IsServer || !karierMode)
+                return;
+            karierCalmUntil = Time.time + Mathf.Max(0.1f, seconds);
+            foreach (CampaignEnemy enemy in karierEnemies)
+                if (enemy != null && enemy.IsSpawned && !enemy.IsOutOfFight)
+                    enemy.ServerSetCalmed(true);
+        }
+
+        // kneel: the police take them (DIAMANKAN); otherwise they simply walk off.
+        public void ServerKarierClear(bool kneel)
+        {
+            if (!IsServer || !karierMode)
+                return;
+            karierCalmUntil = 0f;
+            foreach (CampaignEnemy enemy in karierEnemies)
+            {
+                if (enemy == null || !enemy.IsSpawned || enemy.IsDown)
+                    continue;
+                enemy.ServerSetCalmed(false);
+                if (kneel)
+                    enemy.ServerSurrender();
+                else if (!enemy.Surrendered)
+                    enemy.NetworkObject.Despawn(true);
+            }
+            karierEnemies.RemoveAll(enemy => enemy == null || !enemy.IsSpawned);
+        }
+
+        public void ServerKarierTeleportHero(Vector3 position)
+        {
+            if (!IsServer || !karierMode)
+                return;
+            NetworkObject player = PrimaryPlayer();
+            NetworkHeroKit kit = player != null ? player.GetComponent<NetworkHeroKit>() : null;
+            if (kit != null)
+                kit.ServerTeleport(position);
         }
 
         // --- Encounters -------------------------------------------------------------
@@ -1172,6 +1289,14 @@ namespace Konoha.Campaign
                         ? CampaignTuning.ResourceRules.PengaruhEliteDown
                         : CampaignTuning.ResourceRules.PengaruhKroniDown);
                 return false;
+            }
+
+            if (actor != null && actor.IsPlayerObject && karierMode)
+            {
+                // KARIER: the preman leave with the wallet (next frame, not inside this hit).
+                karierClearPending = true;
+                CampaignKarier.RaiseHeroRuntuh();
+                return true;
             }
 
             if (actor != null && actor.IsPlayerObject && objectives != null)

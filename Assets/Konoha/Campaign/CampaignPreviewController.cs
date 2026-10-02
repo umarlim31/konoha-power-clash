@@ -34,8 +34,8 @@ namespace Konoha.Campaign
         // 0.1.0: Garda LOCKDOWN ring (colliders + posts) and the seat lock on the joystick.
         public GameObject gardaLockdown;
         public CampaignTraversal traversal;
-        // 0.5.0 Jalan Nyaleg: light pillar on the current target, blusukan ground rings + labels.
-        public Transform beacon;
+        // 0.5.0 Jalan Nyaleg: blusukan ground rings + labels. 0.6.0: the light pillar is gone;
+        // CampaignGuideArrow (small ground chevron + dashed ring) shows the current target.
         public Renderer[] blusukanZones = new Renderer[0];
         public TextMesh[] blusukanLabels = new TextMesh[0];
 
@@ -77,7 +77,8 @@ namespace Konoha.Campaign
             CampaignDirector director = CampaignDirector.Instance;
             if (director == null || !director.IsSpawned || stage == null)
             {
-                if (objectiveText != null) objectiveText.text = "MENYIAPKAN JALUR TAKHTA...";
+                // 0.6.0: KarierController owns the HUD texts in KARIER.
+                if (objectiveText != null && !CampaignKarier.Active) objectiveText.text = "MENYIAPKAN JALUR TAKHTA...";
                 if (sitButton != null) sitButton.gameObject.SetActive(false);
                 return;
             }
@@ -101,6 +102,15 @@ namespace Konoha.Campaign
             if (gardaLockdown != null && gardaLockdown.activeSelf != director.GardaLockdown)
                 gardaLockdown.SetActive(director.GardaLockdown);
 
+            // 0.6.0 KARIER: no route, no seat; KarierController drives the HUD and the arrow.
+            if (CampaignKarier.Active)
+            {
+                if (sitButton != null && sitButton.gameObject.activeSelf) sitButton.gameObject.SetActive(false);
+                if (restuAura != null && restuAura.gameObject.activeSelf) restuAura.gameObject.SetActive(false);
+                if (debuffText != null) debuffText.text = string.Empty;
+                return;
+            }
+
             NetworkObject hero = LocalHero();
             if (traversal != null)
                 traversal.seatLocked = hero != null && director.SeatedObjectId == hero.NetworkObjectId;
@@ -113,7 +123,7 @@ namespace Konoha.Campaign
                 if (objectiveProgress != null) objectiveProgress.fillAmount = 0f;
                 if (waypointText != null) waypointText.text = string.Empty;
                 if (sitButton != null) sitButton.gameObject.SetActive(false);
-                if (beacon != null && beacon.gameObject.activeSelf) beacon.gameObject.SetActive(false);
+                CampaignGuideArrow.Hide();
                 RefreshHero(director, hero);
                 if (feedbackText != null)
                     feedbackText.text = Time.time < director.LastMessageUntil ? director.LastMessage : string.Empty;
@@ -394,6 +404,7 @@ namespace Konoha.Campaign
             if (hero == null)
             {
                 waypointText.text = string.Empty;
+                CampaignGuideArrow.Hide();
                 return;
             }
 
@@ -457,16 +468,12 @@ namespace Konoha.Campaign
                     break;
                 default:
                     waypointText.text = string.Empty;
-                    if (beacon != null && beacon.gameObject.activeSelf) beacon.gameObject.SetActive(false);
+                    CampaignGuideArrow.Hide();
                     return;
             }
 
-            // 0.5.0: the light pillar stands on the current target, visible from far away.
-            if (beacon != null)
-            {
-                if (!beacon.gameObject.activeSelf) beacon.gameObject.SetActive(true);
-                beacon.position = new Vector3(destination.x, 0f, destination.z);
-            }
+            // 0.6.0: a small ground chevron next to the hero points here (no light pillar).
+            CampaignGuideArrow.Show(destination, arrival, label);
 
             Vector3 delta = destination - hero.transform.position;
             float distance = new Vector2(delta.x, delta.z).magnitude;

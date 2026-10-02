@@ -19,6 +19,10 @@ namespace Konoha.Campaign
         // Right hand holds something (Ketua's gavel): the arm stays raised.
         public GameObject heldItem;
         public float runSpeedForFullStride = 5f;
+        // 0.6.0 KARIER: seated on the ojol motor (legs forward, hands on the handlebar) and
+        // a cement sack held on the right shoulder. Set by KarierController.
+        public bool riding;
+        public bool carrying;
 
         public enum Travel { None, Dash, Leap }
 
@@ -225,6 +229,18 @@ namespace Konoha.Campaign
             if (heldItem != null && heldItem.activeInHierarchy)
             {
                 armR = -62f; elbowR = -35f; armRZ = -4f;
+            }
+
+            if (riding)
+            {
+                legL = legR = -78f; kneeL = kneeR = 82f;
+                armL = armR = -55f; elbowL = elbowR = -25f; armLZ = 8f; armRZ = -8f;
+                spineX = 6f + Mathf.Sin(now * 2.1f) * .6f; headX = 0f; bob = 0f;
+            }
+            else if (carrying)
+            {
+                armR = -150f; elbowR = -95f; armRZ = -10f;
+                spineX += 4f;
             }
 
             // Punch: wind-up, strike, recover; arms alternate.

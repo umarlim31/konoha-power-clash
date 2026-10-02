@@ -46,7 +46,8 @@ namespace Konoha.Campaign
         private void Update()
         {
             CampaignDirector director = CampaignDirector.Instance;
-            bool open = director != null && director.IsSpawned && !director.HeroLocked;
+            // 0.6.0: KARIER has its own character creator (KarierAvatarPanel).
+            bool open = director != null && director.IsSpawned && !director.HeroLocked && !CampaignKarier.Active;
             if (panel != null && panel.activeSelf != open)
                 panel.SetActive(open);
             if (!open)

@@ -19,7 +19,7 @@ namespace Konoha.Campaign
         private void Update()
         {
             CampaignDirector director = CampaignDirector.Instance;
-            bool show = director != null && director.IsSpawned && director.HeroLocked &&
+            bool show = !CampaignKarier.Active && director != null && director.IsSpawned && director.HeroLocked &&
                 director.Phase != CampaignPhase.Menang && (hideWhenActive == null || !hideWhenActive.activeSelf);
             if (panel != null && panel.activeSelf != show)
                 panel.SetActive(show);
