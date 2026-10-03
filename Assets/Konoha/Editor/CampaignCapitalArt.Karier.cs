@@ -33,6 +33,13 @@ namespace Konoha.Editor
         internal static readonly Vector3 KarierPolsekCenter = new Vector3(21f, 0f, -31f);
         internal static readonly Vector3 KarierPolsekDoor = new Vector3(16.4f, 0f, -31f);
         internal static readonly Vector3 KarierPolsekCell = new Vector3(22.9f, 0f, -31f);
+        // 0.6.3: PARKIR liar in front of the kantor kelurahan (a tested place point) and the
+        // RONDA MALAM round (mulut gang, warkop, taman barat, back to the pos ronda).
+        internal static readonly Vector3 KarierParkir = new Vector3(14f, 0f, -5f);
+        internal static readonly Vector3[] KarierRondaPoints =
+        {
+            KarierPremanCenter, KarierWarkop, new Vector3(-20f, 0f, 1.5f)
+        };
 
         internal static Vector3[] KarierPlacePoints(Vector3 plaza) => new[]
         {
@@ -159,6 +166,8 @@ namespace Konoha.Editor
             Cart(props, "SIOMAY", KarierSiomay + new Vector3(-1.4f, 0f, -.3f), 90f, flagBlue, 21);
             Cart(props, "SALOME", KarierSalome + new Vector3(1.4f, 0f, -.3f), -90f, flagRed, 23);
             KarierSign(props, "BAKSO URAT\nRp 15rb", KarierBakso + new Vector3(1.4f, 0f, 1.2f));
+            // 0.6.3: "PARKIR" board of the parkir liar (job in the HP).
+            KarierSign(props, "PARKIR\nRp 2.000", KarierParkir + new Vector3(1.9f, 0f, 1.3f));
 
             // SEWA SEPEDA: a rack of three bicycles and a board.
             var rack = new GameObject("Karier sewa sepeda").transform;

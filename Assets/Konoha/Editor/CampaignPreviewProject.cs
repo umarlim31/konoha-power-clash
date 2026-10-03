@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Konoha.Campaign;
 using Konoha.Character;
 using Konoha.Data;
@@ -19,7 +20,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.6.2")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.6.3")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +28,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.6.2";
-            PlayerSettings.Android.bundleVersionCode = 48;
+            PlayerSettings.bundleVersion = "0.6.3";
+            PlayerSettings.Android.bundleVersionCode = 49;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -231,7 +232,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.6.2  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.6.3  •  SOLO PREVIEW";
             // 0.3.1: which owner models (Art/Models/<Slot>) are in this build; hidden when none.
             string modelSummary = CampaignModelSlots.Summary();
             if (modelSummary.Length > 0)
@@ -409,11 +410,26 @@ namespace Konoha.Editor
             var interior = new GameObject("CampaignInteriorCamera").AddComponent<CampaignInteriorCamera>();
             interior.follow = follow;
             interior.occluders = occluders;
+            // 0.6.3 KARIER "Padat": houses, carts, trees, poles and fences become solid in KARIER
+            // only (switched on by KarierController; MODE PRESIDEN keeps its tested route).
+            var solidProps = capital.BuildSolidProps(KarierKeepFree(stage));
             // 0.6.2 (owner: "tidak boleh ada karakter yang menembus tembok"): street walkers
-            // whose path crosses something solid walk only the free part of it.
+            // whose path crosses something solid walk only the free part of it (0.6.3: the
+            // KARIER boxes included, so warga never walk through a cart or a house either).
             TrimWalkerPaths(capital.CityLife);
+            solidProps.SetActive(false);
             var karier = CreateKarier(safe, objective, status, waypoint, heroText, feedback, fillImage, traversal, bodies,
                 new[] { s1, s2, ultimate, heroButton }, karierScene, stage);
+            karier.solidRoot = solidProps;
+            // 0.6.3 day and night: the generator's daylight blends into a moonlit night with
+            // lamp glows (KARIER only; MODE PRESIDEN keeps its fixed daylight).
+            var dayNight = new GameObject("KarierSiangMalam").AddComponent<KarierDayNight>();
+            var sunObject = GameObject.Find("Sun");
+            var fillObject = GameObject.Find("ArenaFill");
+            dayNight.sun = sunObject != null ? sunObject.GetComponent<Light>() : null;
+            dayNight.fill = fillObject != null ? fillObject.GetComponent<Light>() : null;
+            dayNight.lampGlows = capital.BuildLampGlows();
+            karier.dayNight = dayNight;
             var avatarPanel = CreateAvatarPanel(safe, karier, follow);
             var result = CreateResultScreen(safe);
             // Draw order on top of the HUD: result screen < hero screen < mode menu.
@@ -433,6 +449,7 @@ namespace Konoha.Editor
                 karier.phoneButton, karier.closePhoneButton, karier.ojolButton, karier.kuliButton, karier.buzzerButton,
                 karier.rebahanButton, karier.actionButton, karier.kaburButton, karier.damaiButton, karier.polsekButton,
                 karier.waCloseButton, karier.saksiButton, karier.waAcceptButton, karier.waRejectButton, karier.tebusButton,
+                karier.parkirButton, karier.rondaButton, karier.tidurButton,
                 avatarPanel.genderButton, avatarPanel.skinButton, avatarPanel.hairButton,
                 avatarPanel.bodyButton, avatarPanel.shirtButton, avatarPanel.startButton, avatarPanel.resetButton };
 
@@ -449,6 +466,27 @@ namespace Konoha.Editor
         }
 
         // --- 0.6.0 KARIER ---------------------------------------------------------------
+
+        // Ground points where KARIER needs the hero (no solid box may stand there).
+        public static List<Vector3> KarierKeepFree(CampaignStage stage)
+        {
+            var points = new List<Vector3>(CampaignCapitalArt.KarierPlacePoints(stage.plaza.position))
+            {
+                CampaignCapitalArt.KarierKuliPickup, CampaignCapitalArt.KarierKuliDrop, CampaignCapitalArt.KarierWarkop,
+                CampaignCapitalArt.KarierPosRt, CampaignCapitalArt.KarierPremanCenter, CampaignCapitalArt.KarierPremanLook,
+                CampaignCapitalArt.KarierSiomay, CampaignCapitalArt.KarierSalome, CampaignCapitalArt.KarierBakso,
+                CampaignCapitalArt.KarierSewaSepeda, CampaignCapitalArt.KarierSewaMotor, CampaignCapitalArt.KarierPolsekDoor,
+                CampaignCapitalArt.KarierPolsekCell, CampaignCapitalArt.KarierPolsekCenter, CampaignCapitalArt.SpawnPoint,
+                CampaignCapitalArt.KarierParkir
+            };
+            points.AddRange(CampaignCapitalArt.KarierPremanPoints);
+            points.AddRange(CampaignCapitalArt.KarierRondaPoints);
+            if (stage.blusukanPoints != null)
+                points.AddRange(stage.blusukanPoints);
+            for (int i = 0; i < points.Count; i++)
+                points[i] = new Vector3(points[i].x, Mathf.Max(0f, points[i].y - 0.1f), points[i].z);
+            return points;
+        }
 
         // Shortens every walker path to the free stretch around the walker (scene colliders,
         // characters ignored); a stretch shorter than 2 m makes the walker stand still.
@@ -480,6 +518,7 @@ namespace Konoha.Editor
                     {
                         walker.root.gameObject.SetActive(false);
                         walker.idle = true;
+                        walker.removed = true; // 0.6.3: CampaignCityLife keeps it hidden.
                         continue;
                     }
                 }
@@ -602,7 +641,7 @@ namespace Konoha.Editor
             karier.actionButton = action;
 
             // KONOHA KERJA phone.
-            var phone = UiBox("KarierHPPanel", root, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(470, 590),
+            var phone = UiBox("KarierHPPanel", root, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(500, 560),
                 new Color(0.05f, 0.07f, 0.08f, 0.97f), true);
             var phoneTitle = Text("KarierHPJudul", phone, new Vector2(0.5f, 1f), new Vector2(0, -14), new Vector2(440, 40), 26);
             phoneTitle.alignment = TextAnchor.MiddleCenter;
@@ -612,11 +651,15 @@ namespace Konoha.Editor
             var phoneInfo = Text("KarierHPInfo", phone, new Vector2(0.5f, 1f), new Vector2(0, -58), new Vector2(440, 60), 15);
             phoneInfo.alignment = TextAnchor.MiddleCenter;
             karier.phoneInfo = phoneInfo;
-            karier.ojolButton = PhoneButton("KarierKerjaOjol", "OJOL", phone, -126, new Color(0.16f, 0.42f, 0.30f, 0.98f));
-            karier.kuliButton = PhoneButton("KarierKerjaKuli", "KULI BANGUNAN", phone, -220, new Color(0.45f, 0.33f, 0.16f, 0.98f));
-            karier.buzzerButton = PhoneButton("KarierKerjaBuzzer", "BUZZER HOAKS", phone, -314, new Color(0.50f, 0.13f, 0.12f, 0.98f));
-            karier.rebahanButton = PhoneButton("KarierRebahanTombol", "REBAHAN", phone, -408, new Color(0.20f, 0.24f, 0.36f, 0.98f));
-            var closePhone = Button("KarierHPTutup", "TUTUP", phone, new Vector2(0.5f, 0f), new Vector2(0, 16), new Vector2(420, 52));
+            // 0.6.3: two columns (PARKIR, RONDA MALAM and TIDUR joined the list).
+            karier.ojolButton = PhoneButton("KarierKerjaOjol", "OJOL", phone, -116, new Color(0.16f, 0.42f, 0.30f, 0.98f), -1);
+            karier.kuliButton = PhoneButton("KarierKerjaKuli", "KULI BANGUNAN", phone, -116, new Color(0.45f, 0.33f, 0.16f, 0.98f), 1);
+            karier.parkirButton = PhoneButton("KarierKerjaParkir", "PARKIR", phone, -206, new Color(0.62f, 0.38f, 0.10f, 0.98f), -1);
+            karier.rondaButton = PhoneButton("KarierKerjaRonda", "RONDA MALAM", phone, -206, new Color(0.14f, 0.22f, 0.40f, 0.98f), 1);
+            karier.buzzerButton = PhoneButton("KarierKerjaBuzzer", "BUZZER HOAKS", phone, -296, new Color(0.50f, 0.13f, 0.12f, 0.98f), -1);
+            karier.rebahanButton = PhoneButton("KarierRebahanTombol", "REBAHAN", phone, -296, new Color(0.20f, 0.24f, 0.36f, 0.98f), 1);
+            karier.tidurButton = PhoneButton("KarierTidurTombol", "TIDUR", phone, -386, new Color(0.10f, 0.12f, 0.24f, 0.98f), 0);
+            var closePhone = Button("KarierHPTutup", "TUTUP", phone, new Vector2(0.5f, 0f), new Vector2(0, 16), new Vector2(460, 52));
             closePhone.GetComponentInChildren<Text>().fontSize = 18;
             karier.closePhoneButton = closePhone;
             phone.gameObject.SetActive(false);
@@ -630,6 +673,7 @@ namespace Konoha.Editor
             policeTitle.fontStyle = FontStyle.Bold;
             policeTitle.color = new Color(0.75f, 0.85f, 1f);
             policeTitle.text = "POLISI DATANG";
+            karier.policeTitle = policeTitle;
             var policeText = Text("KarierPolisiIsi", police, new Vector2(0.5f, 1f), new Vector2(0, -62), new Vector2(660, 150), 17);
             policeText.alignment = TextAnchor.UpperCenter;
             karier.policeText = policeText;
@@ -735,14 +779,21 @@ namespace Konoha.Editor
             karier.cellBars = scene.cellBars;
             karier.city = scene.city;
             karier.chatterBubble = scene.chatterBubble;
+            // 0.6.3: PARKIR liar and the RONDA MALAM round.
+            karier.parkirPoint = CampaignCapitalArt.KarierParkir;
+            karier.rondaPoints = (Vector3[])CampaignCapitalArt.KarierRondaPoints.Clone();
+            karier.rondaNames = new[] { "MULUT GANG", "WARKOP", "TAMAN BARAT" };
             rootObject.SetActive(false);
             return karier;
         }
 
-        private static Button PhoneButton(string name, string caption, RectTransform phone, float y, Color color)
+        // column -1 / +1: left / right half; 0: full width.
+        private static Button PhoneButton(string name, string caption, RectTransform phone, float y, Color color, int column)
         {
-            var button = Button(name, caption, phone, new Vector2(0.5f, 1f), new Vector2(0, y), new Vector2(420, 86));
-            button.GetComponentInChildren<Text>().fontSize = 18;
+            bool full = column == 0;
+            var button = Button(name, caption, phone, new Vector2(0.5f, 1f), new Vector2(full ? 0f : column * 118f, y),
+                new Vector2(full ? 460f : 226f, 82f));
+            button.GetComponentInChildren<Text>().fontSize = 15;
             button.GetComponent<Image>().color = color;
             return button;
         }

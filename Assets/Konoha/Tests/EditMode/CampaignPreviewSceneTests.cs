@@ -37,9 +37,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.6.2  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.6.2"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(48));
+                    Is.EqualTo("JALUR TAKHTA 0.6.3  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.6.3"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(49));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -171,6 +171,28 @@ namespace Konoha.Tests
                 Assert.That(karier.cellBars, Is.Not.Null);
                 Assert.That(karier.cellBars.activeSelf, Is.False, "Cell door stays open until an arrest");
                 Assert.That(karier.cellBars.GetComponentsInChildren<BoxCollider>(true), Has.Length.GreaterThan(0));
+                // 0.6.3: solid props for KARIER only, day and night, PARKIR / RONDA / TIDUR, tabrak panel title.
+                Assert.That(karier.solidRoot, Is.Not.Null);
+                Assert.That(karier.solidRoot.activeSelf, Is.False, "Solid props are switched on by KARIER only");
+                var solids = karier.solidRoot.GetComponentsInChildren<BoxCollider>(true);
+                Assert.That(solids.Length, Is.GreaterThan(20), "Houses, carts, trees and poles are solid in KARIER");
+                foreach (var solid in solids)
+                {
+                    Assert.That(solid.gameObject.layer, Is.EqualTo(2), "Orbit camera looks past solid props");
+                    Assert.That(solid.GetComponent<Renderer>(), Is.Null);
+                }
+                Assert.That(karier.dayNight, Is.Not.Null);
+                Assert.That(karier.dayNight.sun, Is.Not.Null);
+                Assert.That(karier.dayNight.lampGlows, Is.Not.Null);
+                Assert.That(karier.dayNight.lampGlows.activeSelf, Is.False, "Lamps glow only at night");
+                Assert.That(karier.dayNight.lampGlows.transform.childCount, Is.GreaterThan(0));
+                foreach (var glow in karier.dayNight.lampGlows.GetComponentsInChildren<Transform>(true))
+                    Assert.That(glow.GetComponent<Collider>(), Is.Null);
+                foreach (var button in new[] { karier.parkirButton, karier.rondaButton, karier.tidurButton })
+                    Assert.That(button, Is.Not.Null);
+                Assert.That(karier.policeTitle, Is.Not.Null);
+                Assert.That(karier.rondaPoints, Has.Length.EqualTo(3));
+                Assert.That(karier.rondaNames, Has.Length.EqualTo(karier.rondaPoints.Length));
                 var interiorCamera = Object.FindFirstObjectByType<CampaignInteriorCamera>();
                 Assert.That(interiorCamera, Is.Not.Null);
                 Assert.That(interiorCamera.occluders, Is.SameAs(session.occluders));
@@ -545,6 +567,19 @@ namespace Konoha.Tests
                 foreach (var point in new[] { stage.biroLeaderPoint, stage.biroSpecialistPoint, stage.biroGuardPoint,
                     stage.officeDoorOutside })
                     AssertFree(Flat(point), probe.transform, "Biro point blocked at ");
+                // 0.6.3: PARKIR and the RONDA round stand on clear ground, and no KARIER solid box
+                // stands on any place KARIER sends the hero to.
+                AssertFree(Flat(karierPlaces.parkirPoint), probe.transform, "PARKIR blocked at ");
+                foreach (var point in karierPlaces.rondaPoints) AssertFree(Flat(point), probe.transform, "RONDA point blocked at ");
+                karierPlaces.solidRoot.SetActive(true);
+                Physics.SyncTransforms();
+                foreach (var point in CampaignPreviewProject.KarierKeepFree(stage))
+                    foreach (var hit in Physics.OverlapCapsule(point + Vector3.up * .5f, point + Vector3.up * 1.5f, .42f, ~0,
+                        QueryTriggerInteraction.Ignore))
+                        Assert.That(hit.transform.IsChildOf(karierPlaces.solidRoot.transform), Is.False,
+                            "KARIER solid box on a KARIER place at " + point + ": " + hit.name);
+                karierPlaces.solidRoot.SetActive(false);
+                Physics.SyncTransforms();
                 Assert.That(stage.InOffice(stage.biroLeaderPoint), Is.True, "Kepala Biro starts in his office");
                 Assert.That(stage.InOffice(stage.officeDoorOutside), Is.False);
                 foreach (var point in stage.loketPoints)

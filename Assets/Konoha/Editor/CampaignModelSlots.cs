@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using Konoha.Campaign;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -201,10 +202,16 @@ namespace Konoha.Editor
                 if (entry.mesh != null)
                     Part(holder.transform, split || slot.occluder == null ? slot.name : slot.occluder + " " + slot.name,
                         entry.mesh, entry.materials, turn, scale, position, shadows);
+                GameObject upper = null;
                 if (entry.upperMesh != null)
-                    Part(holder.transform, slot.occluder != null ? slot.occluder + " " + slot.name + " atas" : slot.name + " atas",
+                    upper = Part(holder.transform, slot.occluder != null ? slot.occluder + " " + slot.name + " atas" : slot.name + " atas",
                         entry.upperMesh, entry.materials, turn, scale, position, shadows);
                 holder.transform.SetPositionAndRotation(anchor, Quaternion.Euler(0f, yaw, 0f));
+                // 0.6.3: the room under the upper part ends at the cut, not at its bounds (the
+                // pillar tops in the upper mesh reach down to the floor).
+                if (upper != null)
+                    upper.AddComponent<CampaignRoofUnderside>().worldY =
+                        anchor.y + entry.settings.lift + bounds.size.y * scale * slot.occluderAbove;
 
                 // Keep the Indonesian name signs (TOKO KELONTONG, GANG MERDEKA, WARKOP RAKYAT) on
                 // the front of the model at the slot's sign height.
@@ -232,7 +239,7 @@ namespace Konoha.Editor
             }
         }
 
-        private static void Part(Transform holder, string name, Mesh mesh, Material[] materials, Quaternion turn, float scale,
+        private static GameObject Part(Transform holder, string name, Mesh mesh, Material[] materials, Quaternion turn, float scale,
             Vector3 position, bool shadows)
         {
             var model = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
@@ -245,6 +252,7 @@ namespace Konoha.Editor
             renderer.sharedMaterials = materials;
             renderer.shadowCastingMode = shadows ? ShadowCastingMode.On : ShadowCastingMode.Off;
             GameObjectUtility.SetStaticEditorFlags(model, StaticEditorFlags.BatchingStatic);
+            return model;
         }
 
         // One line for the HUD: empty when the owner has not uploaded any model.
