@@ -753,7 +753,8 @@ namespace Konoha.Campaign
 
         private Vector3 Clamp(Vector3 point)
         {
-            Vector3 clamped = CampaignTraversal.ClampToCampus(point, boundaryCenter, boundaryRadii);
+            Vector3 clamped = CampaignTraversal.KarierWide ? CampaignTraversal.ClampToKarier(point)
+                : CampaignTraversal.ClampToCampus(point, boundaryCenter, boundaryRadii);
             return new Vector3(clamped.x, 0f, clamped.z);
         }
 

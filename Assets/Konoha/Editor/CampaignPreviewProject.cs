@@ -20,7 +20,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.6.4")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.6.5")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -28,8 +28,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.6.4";
-            PlayerSettings.Android.bundleVersionCode = 50;
+            PlayerSettings.bundleVersion = "0.6.5";
+            PlayerSettings.Android.bundleVersionCode = 51;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -232,7 +232,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.6.4  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.6.5  •  SOLO PREVIEW";
             // 0.3.1: which owner models (Art/Models/<Slot>) are in this build; hidden when none.
             string modelSummary = CampaignModelSlots.Summary();
             if (modelSummary.Length > 0)
@@ -414,6 +414,11 @@ namespace Konoha.Editor
             var roomRenderers = new List<Renderer>(occluders.candidates);
             roomRenderers.AddRange(capital.RoofRenderers());
             interior.Bake(roomRenderers);
+            // 0.6.5 KARIER: the camera rises over a house or cart behind the hero instead of
+            // being pushed into the hero's face.
+            var assist = new GameObject("CampaignCameraAssist").AddComponent<CampaignCameraAssist>();
+            assist.follow = follow;
+            assist.occluders = occluders;
             // 0.6.3 KARIER "Padat": houses, carts, trees, poles and fences become solid in KARIER
             // only (switched on by KarierController; MODE PRESIDEN keeps its tested route).
             var solidProps = capital.BuildSolidProps(KarierKeepFree(stage));

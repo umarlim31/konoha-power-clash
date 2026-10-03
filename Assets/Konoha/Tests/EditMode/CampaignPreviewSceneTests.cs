@@ -37,9 +37,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.6.4  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.6.4"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(50));
+                    Is.EqualTo("JALUR TAKHTA 0.6.5  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.6.5"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(51));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -197,6 +197,16 @@ namespace Konoha.Tests
                 Assert.That(karier.countLabels, Has.Length.EqualTo(3));
                 Assert.That(karier.countBars, Has.Length.EqualTo(3));
                 Assert.That(karier.occluders, Is.SameAs(session.occluders));
+                // 0.6.5: camera assist, wider KARIER bounds out to the ring road with a floor under them.
+                var assist = Object.FindFirstObjectByType<CampaignCameraAssist>();
+                Assert.That(assist, Is.Not.Null);
+                Assert.That(assist.occluders, Is.SameAs(session.occluders));
+                Assert.That(CampaignTraversal.ClampToKarier(new Vector3(43f, 0f, 10f)), Is.EqualTo(new Vector3(43f, 0f, 10f)), "Side road is walkable");
+                Assert.That(CampaignTraversal.ClampToKarier(new Vector3(0f, 0f, -62f)).z, Is.EqualTo(-62f).Within(.01f), "Jalan raya is walkable");
+                Assert.That(CampaignTraversal.ClampToKarier(new Vector3(90f, 0f, 200f)).x, Is.LessThanOrEqualTo(CampaignTraversal.KarierMax.x + .01f));
+                Physics.SyncTransforms();
+                foreach (var road in new[] { new Vector3(43f, 1f, 10f), new Vector3(0f, 1f, -62f), new Vector3(-43f, 1f, 70f), new Vector3(40f, 1f, -60f) })
+                    Assert.That(Physics.Raycast(road, Vector3.down, 3f, ~0, QueryTriggerInteraction.Ignore), Is.True, "Floor under the road at " + road);
                 Assert.That(karier.rondaPoints, Has.Length.EqualTo(3));
                 Assert.That(karier.rondaNames, Has.Length.EqualTo(karier.rondaPoints.Length));
                 var interiorCamera = Object.FindFirstObjectByType<CampaignInteriorCamera>();

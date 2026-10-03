@@ -289,6 +289,11 @@ namespace Konoha.Editor
 
         private static bool Reachable(Bounds b)
         {
+            // 0.6.5: KARIER walks out to the ring road (rounded rectangle, CampaignTraversal).
+            Vector2 min = CampaignTraversal.KarierMin - Vector2.one * ReachMargin;
+            Vector2 max = CampaignTraversal.KarierMax + Vector2.one * ReachMargin;
+            if (b.max.x >= min.x && b.min.x <= max.x && b.max.z >= min.y && b.min.z <= max.y)
+                return true;
             // Nearest point of the box to the oval centre, tested against the oval plus a margin.
             float x = Mathf.Clamp(BoundaryCenter.x, b.min.x, b.max.x) - BoundaryCenter.x;
             float z = Mathf.Clamp(BoundaryCenter.y, b.min.z, b.max.z) - BoundaryCenter.y;

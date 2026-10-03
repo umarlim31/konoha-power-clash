@@ -191,6 +191,7 @@ namespace Konoha.Campaign
         private void OnDestroy()
         {
             CampaignKarier.HeroRuntuh -= OnHeroRuntuh;
+            CampaignTraversal.KarierWide = false;
             foreach (Button button in new[] { phoneButton, closePhoneButton, ojolButton, kuliButton, buzzerButton,
                 rebahanButton, actionButton, kaburButton, damaiButton, polsekButton, waCloseButton, saksiButton,
                 waAcceptButton, waRejectButton, tebusButton, parkirButton, rondaButton, tidurButton, fajarButton, countSkipButton })
@@ -268,6 +269,8 @@ namespace Konoha.Campaign
             }
             if (occluders != null)
                 occluders.keepScenery = true;
+            // 0.6.5: walk out to the ring road and the jalan raya.
+            CampaignTraversal.KarierWide = true;
             if (dayNight != null)
                 dayNight.SetClock(life.Clock);
             Say("HARI KE-" + life.Day + ", jam " + life.ClockText + ". Satu hari Konoha = 10 menit. Malam hari: TIDUR lewat HP.");

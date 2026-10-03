@@ -586,6 +586,9 @@ namespace Konoha.Editor
             // Covers the whole route oval (radii 34 x 58 around z 4) with margin.
             var floor=Block("Floor", new Vector3(0,-.35f,4), new Vector3(96,.7f,136), paving, true);
             floor.GetComponent<Renderer>().enabled=false;
+            // 0.6.5 KARIER: the walkable floor reaches the ring road and the jalan raya.
+            var outer=Block("Floor jalan raya", new Vector3(0,-.354f,5), new Vector3(108,.7f,154), paving, true);
+            outer.GetComponent<Renderer>().enabled=false;
             MeshObject("Oval capital promenade",CampaignCapitalMeshes.CampusGround(30,34),
                 new Vector3(0,.001f,4),Vector3.one,paving);
             paving.SetTextureScale("_BaseMap", new Vector2(44,44));

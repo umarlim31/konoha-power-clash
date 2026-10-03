@@ -31,6 +31,7 @@ namespace Konoha.Campaign
             public float highwayZ;
             public bool motor;
             [NonSerialized] public Vector3[] laneRing;
+            [NonSerialized] public float nextHorn;
         }
 
         [Serializable]
@@ -110,7 +111,7 @@ namespace Konoha.Campaign
 
             Vector3? hero = LocalHeroPosition();
             CollectThreats();
-            DriveTraffic(dt);
+            DriveTraffic(dt, hero);
             MoveWalkers(dt, hero);
             SprayFountains();
             StreetSounds();
@@ -124,14 +125,45 @@ namespace Konoha.Campaign
 
         // --- Traffic --------------------------------------------------------------------
 
-        private void DriveTraffic(float dt)
+        private void DriveTraffic(float dt, Vector3? hero)
         {
             float perimeter = RingLength(ringCorners);
+            bool honked = false;
+            // Cars queue behind a stopped car (stopped positions of the previous frame).
+            stoppedNow.Clear();
             for (int i = 0; i < vehicles.Length; i++)
             {
                 Vehicle vehicle = vehicles[i];
                 if (vehicle == null || vehicle.body == null)
                     continue;
+
+                // 0.6.5: KARIER walks onto the ring road; cars brake for someone in front of
+                // them (and honk) instead of driving through.
+                if (hero.HasValue)
+                {
+                    Vector3 toHero = hero.Value - vehicle.body.position;
+                    toHero.y = 0f;
+                    Vector3 ahead = vehicle.body.forward;
+                    ahead.y = 0f;
+                    float along = Vector3.Dot(toHero, ahead.normalized);
+                    float side = Mathf.Abs(Vector3.Dot(toHero, new Vector3(ahead.z, 0f, -ahead.x).normalized));
+                    if (along > -0.5f && along < (vehicle.motor ? 3.5f : 5f) && side < (vehicle.motor ? 1.1f : 1.6f))
+                    {
+                        if (!honked && Time.time >= vehicle.nextHorn && CampaignAudio.Instance != null)
+                        {
+                            vehicle.nextHorn = Time.time + 3f;
+                            honked = true;
+                            CampaignAudio.Instance.PlayAt(CampaignSound.Klakson, vehicle.body.position, 0.6f, vehicle.motor ? 1.35f : 1f);
+                        }
+                        stoppedNow.Add(vehicle.body.position);
+                        continue;
+                    }
+                }
+                if (BehindStopped(vehicle))
+                {
+                    stoppedNow.Add(vehicle.body.position);
+                    continue;
+                }
 
                 Vector3 heading;
                 Vector3 point;
@@ -160,6 +192,9 @@ namespace Konoha.Campaign
                     Quaternion.LookRotation(heading, Vector3.up), 150f * dt);
             }
 
+            stoppedBefore.Clear();
+            stoppedBefore.AddRange(stoppedNow);
+
             if (Time.time >= nextHorn)
             {
                 nextHorn = Time.time + NextHornDelay();
@@ -167,6 +202,29 @@ namespace Konoha.Campaign
                 if (loud != null && CampaignAudio.Instance != null)
                     CampaignAudio.Instance.PlayAt(CampaignSound.Klakson, loud.body.position, 0.45f, loud.motor ? 1.35f : 1f);
             }
+        }
+
+        private readonly List<Vector3> stoppedNow = new List<Vector3>();
+        private readonly List<Vector3> stoppedBefore = new List<Vector3>();
+
+        private bool BehindStopped(Vehicle vehicle)
+        {
+            if (stoppedBefore.Count == 0)
+                return false;
+            Vector3 ahead = vehicle.body.forward;
+            ahead.y = 0f;
+            ahead.Normalize();
+            var right = new Vector3(ahead.z, 0f, -ahead.x);
+            float gap = vehicle.motor ? 3f : 5.5f;
+            foreach (Vector3 stopped in stoppedBefore)
+            {
+                Vector3 d = stopped - vehicle.body.position;
+                d.y = 0f;
+                float along = Vector3.Dot(d, ahead);
+                if (along > 0.3f && along < gap && Mathf.Abs(Vector3.Dot(d, right)) < 1.4f)
+                    return true;
+            }
+            return false;
         }
 
         public static float RingLength(Vector3[] corners)

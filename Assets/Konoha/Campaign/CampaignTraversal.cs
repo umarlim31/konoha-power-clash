@@ -29,6 +29,12 @@ namespace Konoha.Campaign
         public bool frozen;
         public Vector2 boundaryCenter = new Vector2(0, 4);
         public Vector2 boundaryRadii = new Vector2(26, 29);
+        // 0.6.5 KARIER (owner: "boleh berjalan sampai jalan raya"): a rounded rectangle out to
+        // the ring road and the jalan raya replaces the oval. MODE PRESIDEN keeps the oval.
+        public static bool KarierWide;
+        public static readonly Vector2 KarierMin = new Vector2(-46.5f, -66f);
+        public static readonly Vector2 KarierMax = new Vector2(46.5f, 76f);
+        public const float KarierCorner = 7f;
         private Vector3 lastSafe = new Vector3(0, .1f, -9);
         private bool focused = true;
         private bool paused;
@@ -59,7 +65,7 @@ namespace Konoha.Campaign
             {
                 Vector3 start = motor.transform.position;
                 Vector3 desired = start + new Vector3(axis.x, 0, axis.y) * travel;
-                Vector3 permitted = ClampToCampus(desired, boundaryCenter, boundaryRadii) - start;
+                Vector3 permitted = Clamp(desired) - start;
                 axis = new Vector2(permitted.x, permitted.z) / travel;
             }
             // NetworkPlayerMovement rewrites speedMultiplier every frame; the bonus is applied
@@ -75,7 +81,7 @@ namespace Konoha.Campaign
                 joystick.ResetInput();
                 return;
             }
-            Vector3 clamped = ClampToCampus(position, boundaryCenter, boundaryRadii);
+            Vector3 clamped = Clamp(position);
             if ((clamped - position).sqrMagnitude > .000001f)
                 motor.Teleport(clamped, false);
             // Save only stable dry locations; falling under geometry never overwrites the recovery point.
@@ -96,6 +102,26 @@ namespace Konoha.Campaign
             Vector3 right = new Vector3(forward.z, 0, -forward.x);
             Vector3 world = right * axis.x + forward * axis.y;
             return Vector2.ClampMagnitude(new Vector2(world.x, world.z), 1f);
+        }
+
+        private Vector3 Clamp(Vector3 position) =>
+            KarierWide ? ClampToKarier(position) : ClampToCampus(position, boundaryCenter, boundaryRadii);
+
+        // Rounded rectangle KarierMin..KarierMax with KarierCorner rounded corners.
+        public static Vector3 ClampToKarier(Vector3 position)
+        {
+            float x = Mathf.Clamp(position.x, KarierMin.x, KarierMax.x);
+            float z = Mathf.Clamp(position.z, KarierMin.y, KarierMax.y);
+            float cx = Mathf.Clamp(x, KarierMin.x + KarierCorner, KarierMax.x - KarierCorner);
+            float cz = Mathf.Clamp(z, KarierMin.y + KarierCorner, KarierMax.y - KarierCorner);
+            var offset = new Vector2(x - cx, z - cz);
+            if (offset.sqrMagnitude > KarierCorner * KarierCorner)
+            {
+                offset = offset.normalized * KarierCorner;
+                x = cx + offset.x;
+                z = cz + offset.y;
+            }
+            return new Vector3(x, position.y, z);
         }
 
         public static Vector3 ClampToCampus(Vector3 position, Vector2 center, Vector2 radii)
