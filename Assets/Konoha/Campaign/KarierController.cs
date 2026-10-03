@@ -36,9 +36,13 @@ namespace Konoha.Campaign
         public GameObject phonePanel;
         public Text phoneInfo;
         public Button ojolButton, kuliButton, buzzerButton, rebahanButton, closePhoneButton;
+        // 0.6.3: PARKIR, RONDA MALAM and TIDUR in the HP.
+        public Button parkirButton, rondaButton, tidurButton;
         public Button actionButton;
         public GameObject policePanel;
         public Text policeText;
+        // 0.6.3: the same panel also asks after a TABRAK (title changes).
+        public Text policeTitle;
         public Button kaburButton, damaiButton, polsekButton;
         // 0.6.1: "SAKSI WARGA" (shown when warga defend a hero they trust).
         public Button saksiButton;
@@ -79,6 +83,12 @@ namespace Konoha.Campaign
         public GameObject cellBars;
         public CampaignCityLife city;
         public TextMesh chatterBubble;
+        // 0.6.3: solid props (KARIER only), day and night, PARKIR and RONDA places.
+        public GameObject solidRoot;
+        public KarierDayNight dayNight;
+        public Vector3 parkirPoint = new Vector3(14f, 0f, -5f);
+        public Vector3[] rondaPoints = new Vector3[0];
+        public string[] rondaNames = new string[0];
 
         private KarierLife life;
         private bool started;
@@ -110,6 +120,13 @@ namespace Konoha.Campaign
         private System.Random random;
         private Text actionLabel;
         private bool runtuhPending;
+        // 0.6.3 TABRAK and the chase.
+        private enum PolicePanelMode { Police, Tabrak }
+        private PolicePanelMode panelMode = PolicePanelMode.Police;
+        private bool chaseRunning;
+        private float chaseReference;
+        private bool celebrationShown;
+        private float tidurFade;
 
         // 0.6.1 street chatter of the warga near the hero (owner: "lingkungannya betul-betul hidup").
         private static readonly string[] Chatter =
@@ -141,6 +158,9 @@ namespace Konoha.Campaign
             Listen(ojolButton, () => Work(KarierJob.Ojol));
             Listen(kuliButton, () => Work(KarierJob.Kuli));
             Listen(buzzerButton, () => Work(KarierJob.Buzzer));
+            Listen(parkirButton, () => Work(KarierJob.Parkir));
+            Listen(rondaButton, () => Work(KarierJob.Ronda));
+            Listen(tidurButton, Tidur);
             Listen(rebahanButton, Rebahan);
             Listen(actionButton, DoAction);
             Listen(kaburButton, () => Police(KarierPoliceChoice.Kabur));
@@ -161,7 +181,7 @@ namespace Konoha.Campaign
             CampaignKarier.HeroRuntuh -= OnHeroRuntuh;
             foreach (Button button in new[] { phoneButton, closePhoneButton, ojolButton, kuliButton, buzzerButton,
                 rebahanButton, actionButton, kaburButton, damaiButton, polsekButton, waCloseButton, saksiButton,
-                waAcceptButton, waRejectButton, tebusButton })
+                waAcceptButton, waRejectButton, tebusButton, parkirButton, rondaButton, tidurButton })
                 if (button != null) button.onClick.RemoveAllListeners();
             if (life != null)
             {
@@ -227,6 +247,15 @@ namespace Konoha.Campaign
                 Say("MISI: " + life.MissionTitle + ". " + life.MissionIntroText);
             if (cellBars != null)
                 cellBars.SetActive(false);
+            // 0.6.3: houses, carts, trees and poles are solid in KARIER (owner: "nggak bisa menembus apapun").
+            if (solidRoot != null)
+            {
+                solidRoot.SetActive(true);
+                Physics.SyncTransforms();
+            }
+            if (dayNight != null)
+                dayNight.SetClock(life.Clock);
+            Say("HARI KE-" + life.Day + ", jam " + life.ClockText + ". Satu hari Konoha = 10 menit. Malam hari: TIDUR lewat HP.");
             SaveNow();
         }
 
@@ -248,8 +277,13 @@ namespace Konoha.Campaign
                 SewaSepeda = Point(sepedaPoint),
                 SewaMotor = Point(motorRentPoint),
                 PremanSpot = Point(premanCenter),
-                Plaza = Point(PlazaPoint())
+                Plaza = Point(PlazaPoint()),
+                Parkir = Point(parkirPoint),
+                RondaPoints = new KarierPoint[rondaPoints.Length],
+                RondaNames = (string[])rondaNames.Clone()
             };
+            for (int i = 0; i < rondaPoints.Length; i++)
+                layout.RondaPoints[i] = Point(rondaPoints[i]);
             for (int i = 0; i < placePoints.Length; i++)
                 layout.Places[i] = Point(placePoints[i]);
             for (int i = 0; i < sapaPoints.Length; i++)
@@ -304,7 +338,11 @@ namespace Konoha.Campaign
             life.Tick(Point(position), dt, fighting, heroDown);
             CountBeaten();
             UpdatePreman(director, dt, fighting);
+            UpdateTabrak(hero, position);
             UpdateKeributan(director, position, premanAt);
+            UpdateChase(position);
+            UpdateWorldTime();
+            UpdateCelebration();
             UpdateArrest(hero, dt);
             UpdateOffer();
             UpdateChatter(position);
@@ -317,7 +355,7 @@ namespace Konoha.Campaign
             UpdateRebahanFeed();
 
             if (traversal != null)
-                traversal.seatLocked = life.Rebahan || life.PoliceArrived ||
+                traversal.seatLocked = life.Rebahan || life.PoliceArrived || life.Tidur || life.TabrakPending ||
                     arrest == Arrest.Approach || (waPanel != null && waPanel.activeSelf && offerShown);
 
             if (Time.unscaledTime >= nextSave)
@@ -397,7 +435,8 @@ namespace Konoha.Campaign
                 return;
             }
             premanSince = -1f;
-            if (life.PoliceCalled || life.PoliceEta >= 0f || life.Rebahan || life.InJail || arrest != Arrest.None || !director.IsServer)
+            if (life.PoliceCalled || life.PoliceEta >= 0f || life.Rebahan || life.InJail || arrest != Arrest.None || !director.IsServer ||
+                life.Tidur || life.TabrakPending)
                 return;
             // 0.6.2: preman belong to the story. None before mission PAHLAWAN GANG, right away
             // during it, and only now and then afterwards.
@@ -408,7 +447,8 @@ namespace Konoha.Campaign
             if (missionPreman ? premanClock < 3f : premanClock < nextPremanAt)
                 return;
             premanClock = 0f;
-            nextPremanAt = CampaignTuning.Karier.PremanEverySeconds * (0.8f + 0.4f * (float)random.NextDouble());
+            nextPremanAt = CampaignTuning.Karier.PremanEverySeconds * (0.8f + 0.4f * (float)random.NextDouble()) *
+                (life.Night ? CampaignTuning.Karier.PremanNightFactor : 1f); // 0.6.3: the gang is bolder at night.
             bool boss = !missionPreman && premanEvents >= 1 && random.NextDouble() < 0.5;
             if (director.ServerKarierSpawnPreman(premanCenter, premanPoints, premanLook, boss) > 0)
             {
@@ -430,7 +470,7 @@ namespace Konoha.Campaign
             if (crowd != null)
             {
                 if (shouted && !lastShouted)
-                    crowd.Gather((heroPosition + premanAt) * 0.5f);
+                    crowd.Gather((heroPosition + premanAt) * 0.5f, "WOI! ADA YANG BERANTEM!");
                 if (melerai && !lastMelerai)
                 {
                     if (director.IsServer)
@@ -440,9 +480,22 @@ namespace Konoha.Campaign
                         other = heroPosition + Vector3.forward * 2f;
                     crowd.Melerai(heroPosition, other, CampaignTuning.Karier.MeleraiSeconds);
                 }
+                bool tabrakLari = life.PoliceReason == KarierPoliceReason.TabrakLari;
                 if (police && !lastPolice)
-                    crowd.DispatchPolice(heroPosition);
-                if (police && !life.PoliceArrived && (crowd.PoliceArrived || crowd.policeMotor == null))
+                {
+                    if (tabrakLari)
+                    {
+                        // 0.6.3: a patrol nearby turns around and chases the fleeing hero.
+                        crowd.StartChase(heroPosition);
+                        chaseRunning = true;
+                        chaseReference = 0f;
+                    }
+                    else
+                    {
+                        crowd.DispatchPolice(heroPosition);
+                    }
+                }
+                if (police && !tabrakLari && !life.PoliceArrived && (crowd.PoliceArrived || crowd.policeMotor == null))
                 {
                     // PAHLAWAN GANG: a preman the police take away after your fight counts as driven off.
                     int standing = StandingPreman();
@@ -454,7 +507,8 @@ namespace Konoha.Campaign
                     OpenPolicePanel();
                 }
                 // The show is over: the crowd goes home a few seconds after things calm down.
-                if (crowd.Gathered && !police && life.PoliceEta < 0f && arrest == Arrest.None && life.Keributan <= 0f && StandingPreman() == 0)
+                if (crowd.Gathered && !police && life.PoliceEta < 0f && arrest == Arrest.None && life.Keributan <= 0f &&
+                    !life.TabrakPending && StandingPreman() == 0)
                 {
                     if (calmSince < 0f) calmSince = Time.time;
                     else if (Time.time - calmSince > 3f)
@@ -482,8 +536,16 @@ namespace Konoha.Campaign
         {
             ClosePhone();
             SetActive(policePanel, true);
+            panelMode = PolicePanelMode.Police;
             bool hoaks = life.PoliceReason == KarierPoliceReason.Hoaks;
-            if (policeText != null)
+            bool tabrak = life.PoliceReason == KarierPoliceReason.TabrakLari;
+            if (policeTitle != null)
+                policeTitle.text = tabrak ? "TERTANGKAP!" : "POLISI DATANG";
+            SetActive(kaburButton != null ? kaburButton.gameObject : null, life.CanKabur);
+            SetActive(polsekButton != null ? polsekButton.gameObject : null, true);
+            if (policeText != null && tabrak)
+                policeText.text = "\"Saudara " + CampaignKarier.Avatar.Name + ", Saudara menabrak warga lalu kabur.\nTABRAK LARI itu pidana. Mau damai, atau ikut ke POLSEK?\"\n\nCATATAN HITAM: " + life.CatatanHitam;
+            else if (policeText != null)
                 policeText.text = hoaks
                     ? "\"Saudara " + CampaignKarier.Avatar.Name + ", postingan Saudara dilaporkan.\nPasal karet: penyebaran berita bohong.\"\n\nCATATAN HITAM: " + life.CatatanHitam
                     : "\"Ada keributan di sini! Siapa yang mulai?\"\nWarga menunjuk ke arahmu sambil merekam.\n\nCATATAN HITAM: " + life.CatatanHitam;
@@ -498,7 +560,7 @@ namespace Konoha.Campaign
                 saksiButton.gameObject.SetActive(saksi);
                 Caption(saksiButton, "SAKSI WARGA\n\"dia yang nolong!\"");
             }
-            if (policeText != null && life.BeatenThisFight && !hoaks)
+            if (policeText != null && life.BeatenThisFight && !hoaks && !tabrak)
                 policeText.text = "\"Siapa yang menghajar preman ini?\"\nWarga menunjuk ke arahmu sambil merekam.\n" +
                     (life.CanSaksi ? "Warga siap jadi SAKSI untukmu (RESTU tinggi)." : "RESTU kurang: warga diam saja.") +
                     "\n\nCATATAN HITAM: " + life.CatatanHitam;
@@ -506,9 +568,24 @@ namespace Konoha.Campaign
 
         private void Police(KarierPoliceChoice choice)
         {
-            if (life == null || !life.ResolvePolice(choice))
+            if (life == null)
+                return;
+            if (panelMode == PolicePanelMode.Tabrak)
+            {
+                // KABUR = drive away (the chase starts), DAMAI = tanggung jawab.
+                bool done = choice == KarierPoliceChoice.Kabur ? life.KaburTabrak()
+                    : choice == KarierPoliceChoice.Damai && life.TanggungJawab();
+                if (done)
+                {
+                    CloseTabrakPanel();
+                    SaveNow();
+                }
+                return;
+            }
+            if (!life.ResolvePolice(choice))
                 return;
             SetActive(policePanel, false);
+            chaseRunning = false;
             if (choice == KarierPoliceChoice.Polsek)
             {
                 // 0.6.1 (owner): really cuffed and taken away, not "the next day...".
@@ -672,7 +749,7 @@ namespace Konoha.Campaign
         // TAWARAN GELAP: a WA from an unknown number with TERIMA / TOLAK.
         private void UpdateOffer()
         {
-            bool busy = life.PoliceCalled || arrest != Arrest.None || life.Rebahan ||
+            bool busy = life.PoliceCalled || arrest != Arrest.None || life.Rebahan || life.Tidur || life.TabrakPending ||
                 (policePanel != null && policePanel.activeSelf) || (phonePanel != null && phonePanel.activeSelf);
             if (!life.OfferPending || busy)
             {
@@ -765,6 +842,172 @@ namespace Konoha.Campaign
 
         private void OnHeroRuntuh() => runtuhPending = true;
 
+        // --- 0.6.3 TABRAK, chase, day and night, congratulations ---------------------------
+
+        // Riding fast into a warga knocks them down: the kampung shouts, the hero chooses.
+        private void UpdateTabrak(NetworkObject hero, Vector3 position)
+        {
+            if (city != null)
+            {
+                // Warga jump aside earlier and further from a motor or bicycle.
+                bool riding = life.Riding;
+                city.personalSpace = riding ? 4.6f : 2.4f;
+                city.dodgeWidth = riding ? 2.3f : 1.6f;
+                city.dodgeRate = riding ? 6f : 3f;
+            }
+            if (life.TabrakPending)
+            {
+                if (panelMode != PolicePanelMode.Tabrak && arrest == Arrest.None && (policePanel == null || !policePanel.activeSelf))
+                    OpenTabrakPanel();
+                return;
+            }
+            if (panelMode == PolicePanelMode.Tabrak)
+                CloseTabrakPanel();
+            if (city == null || !life.CanTabrak || arrest != Arrest.None)
+                return;
+            var controller = hero.GetComponent<CharacterController>();
+            Vector3 velocity = controller != null ? controller.velocity : Vector3.zero;
+            velocity.y = 0f;
+            if (velocity.magnitude < CampaignTuning.Karier.TabrakSpeed)
+                return;
+            // A little ahead of the hero: the front wheel hits first.
+            Vector3 front = position + velocity.normalized * 0.45f;
+            CampaignCityLife.Walker victim = city.StandingNear(front, CampaignTuning.Karier.TabrakRadius);
+            if (victim == null)
+                return;
+            city.KnockDown(victim, 9f);
+            Vector3 at = victim.root.position;
+            life.OnTabrak(Point(at));
+            if (crowd != null)
+                crowd.Gather(at, "TABRAK! TABRAK!\nJANGAN KABUR!");
+            CampaignCameraShake.Shake(0.35f, 0.25f);
+        }
+
+        private void OpenTabrakPanel()
+        {
+            ClosePhone();
+            panelMode = PolicePanelMode.Tabrak;
+            SetActive(policePanel, true);
+            if (policeTitle != null)
+                policeTitle.text = "KAMU MENABRAK WARGA!";
+            if (policeText != null)
+                policeText.text = "Korban terkapar memegangi kaki. Warga berdatangan sambil merekam.\n\n" +
+                    "TANGGUNG JAWAB: antar ke puskesmas, ganti rugi " + KarierLife.Rupiah(life.GantiRugiPrice) + ".\n" +
+                    "KABUR: gas pol! Polisi mengejar, CATATAN HITAM +" + CampaignTuning.Karier.TabrakKaburCatatan + ".";
+            SetActive(kaburButton != null ? kaburButton.gameObject : null, true);
+            Caption(kaburButton, "KABUR\ndikejar polisi");
+            Caption(damaiButton, "TANGGUNG JAWAB\n" + KarierLife.Rupiah(life.GantiRugiPrice));
+            if (damaiButton != null)
+                damaiButton.interactable = true;
+            SetActive(polsekButton != null ? polsekButton.gameObject : null, false);
+            SetActive(saksiButton != null ? saksiButton.gameObject : null, false);
+        }
+
+        private void CloseTabrakPanel()
+        {
+            panelMode = PolicePanelMode.Police;
+            SetActive(policePanel, false);
+            SetActive(polsekButton != null ? polsekButton.gameObject : null, true);
+            if (policeTitle != null)
+                policeTitle.text = "POLISI DATANG";
+        }
+
+        // The patrol motor follows the hero; close enough = caught, time up = escaped.
+        private void UpdateChase(Vector3 position)
+        {
+            if (!chaseRunning)
+                return;
+            if (crowd == null)
+            {
+                chaseRunning = false;
+                return;
+            }
+            if (life.Chasing && !life.PoliceArrived)
+            {
+                // A patrol motor just a little slower than the hero's ride: keep riding to get
+                // away, stop or get stuck and you are caught.
+                NetworkObject hero = LocalHero();
+                var controller = hero != null ? hero.GetComponent<CharacterController>() : null;
+                float speed = controller != null ? new Vector2(controller.velocity.x, controller.velocity.z).magnitude : 0f;
+                chaseReference = Mathf.Max(chaseReference * 0.995f, speed);
+                crowd.chaseSpeed = Mathf.Max(7.4f, chaseReference * 0.92f);
+                crowd.ChaseTarget(position);
+                if (crowd.ChaseDistance <= CampaignTuning.Karier.ChaseCatchDistance)
+                {
+                    crowd.ChaseCaught();
+                    life.CaughtInChase();
+                    chaseRunning = false;
+                    OpenPolicePanel();
+                }
+                return;
+            }
+            if (!life.PoliceCalled)
+            {
+                // Escaped (or the hero collapsed): the patrol gives up.
+                chaseRunning = false;
+                crowd.PoliceLeave();
+                crowd.Disperse();
+            }
+        }
+
+        private void UpdateWorldTime()
+        {
+            if (dayNight != null)
+                dayNight.SetClock(life.Clock);
+            if (city != null)
+                city.night = life.Night;
+            // TIDUR: the screen goes dark, then light again in the morning.
+            float target = life.Tidur ? 1f : 0f;
+            tidurFade = Mathf.MoveTowards(tidurFade, target, Time.deltaTime * (life.Tidur ? 0.9f : 0.6f));
+            if (arrest == Arrest.None)
+                SetFade(tidurFade * 0.92f);
+        }
+
+        // After the last mission: a WA from Pak RT says what comes next (shown once).
+        private void UpdateCelebration()
+        {
+            if (!life.CelebrationPending || celebrationShown)
+                return;
+            bool busy = arrest != Arrest.None || life.PoliceCalled || life.TabrakPending || life.Rebahan || life.Tidur ||
+                offerShown || (waPanel != null && waPanel.activeSelf) || (policePanel != null && policePanel.activeSelf);
+            if (busy)
+                return;
+            celebrationShown = true;
+            ClosePhone();
+            SetActive(waPanel, true);
+            if (waText != null)
+            {
+                string name = CampaignKarier.Avatar.Name;
+                waText.text =
+                    "<b>Pak RT 03:</b> SELAMAT, " + name + "! Semua misi LEVEL 1 sudah selesai. Kamu resmi CALON KETUA RT.\n\n" +
+                    "<b>Yang bisa kamu lakukan sekarang:</b>\n" +
+                    "• <b>TUGAS HARIAN</b>: tiap hari ada 3 tugas kecil (lihat panel kiri), ada upah + bonus.\n" +
+                    "• <b>Kerja lagi</b> kumpulkan tabungan: OJOL, KULI, PARKIR, RONDA MALAM.\n" +
+                    "• <b>Istirahat</b>: REBAHAN kapan saja, TIDUR mulai jam 19.00 (lewat HP).\n\n" +
+                    "<b>Bu Tejo:</b> Pemilihan Ketua RT sebentar lagi. Jaga RESTU, jangan sampai viral yang jelek-jelek.\n\n" +
+                    "<b>Admin:</b> <i>Pemilihan Ketua RT hadir di versi berikutnya. Progresmu tersimpan.</i>";
+            }
+            life.AckCelebration();
+            Play(CampaignSound.Victory, 0.8f);
+            SaveNow();
+        }
+
+        private void Tidur()
+        {
+            if (life == null)
+                return;
+            if (life.StartTidur(out string reason))
+            {
+                ClosePhone();
+                SaveNow();
+            }
+            else
+            {
+                Say(reason);
+                RefreshPhone();
+            }
+        }
+
         // --- Jobs, phone, actions -------------------------------------------------------------
 
         private void TogglePhone()
@@ -772,7 +1015,7 @@ namespace Konoha.Campaign
             if (life == null || phonePanel == null)
                 return;
             bool open = !phonePanel.activeSelf;
-            if (open && (life.PoliceArrived || arrest != Arrest.None || offerShown))
+            if (open && (life.PoliceArrived || arrest != Arrest.None || offerShown || life.Tidur || life.TabrakPending || life.Chasing))
                 return;
             phonePanel.SetActive(open);
             if (open)
@@ -826,19 +1069,29 @@ namespace Konoha.Campaign
             if (life == null)
                 return;
             bool busy = life.Busy;
-            JobButton(ojolButton, KarierJob.Ojol, "OJOL", "Rp 25-60rb per antar  •  capek dikit");
-            JobButton(kuliButton, KarierJob.Kuli, "KULI BANGUNAN",
-                KarierLife.Rupiah(CampaignTuning.Karier.KuliWage - CampaignTuning.Karier.KuliMandorCut) + " per 5 sak  •  capek banget");
+            // 0.6.3: short captions (two columns) and opening hours.
+            JobButton(ojolButton, KarierJob.Ojol, "OJOL", life.Night ? "Rp 25-75rb • tarif malam" : "Rp 25-60rb per antar");
+            JobButton(kuliButton, KarierJob.Kuli, "KULI BANGUNAN", life.JobOpen(KarierJob.Kuli)
+                ? KarierLife.Rupiah(CampaignTuning.Karier.KuliWage - CampaignTuning.Karier.KuliMandorCut) + " • capek banget"
+                : "tutup • buka 07.00-17.00");
+            JobButton(parkirButton, KarierJob.Parkir, "PARKIR", life.JobOpen(KarierJob.Parkir)
+                ? "Rp 2rb per motor • liar" : "tutup • buka 08.00-21.00");
+            JobButton(rondaButton, KarierJob.Ronda, "RONDA MALAM", life.JobOpen(KarierJob.Ronda)
+                ? KarierLife.Rupiah(CampaignTuning.Karier.RondaPay) + " • RESTU +" + CampaignTuning.Karier.RondaRestu
+                : "mulai jam 21.00-03.00");
             string buzzer = life.BuzzerCooldown > 0f
                 ? "tunggu order " + Mathf.CeilToInt(life.BuzzerCooldown) + " dtk"
-                : KarierLife.Rupiah(CampaignTuning.Karier.BuzzerPay) + " cepat  •  CATATAN HITAM +" + CampaignTuning.Karier.BuzzerCatatan;
+                : KarierLife.Rupiah(CampaignTuning.Karier.BuzzerPay) + " • HITAM +" + CampaignTuning.Karier.BuzzerCatatan;
             JobButton(buzzerButton, KarierJob.Buzzer, "BUZZER HOAKS", buzzer);
-            Caption(rebahanButton, "REBAHAN\nscroll sosmed, ENERGI +" + CampaignTuning.Karier.RebahanEnergi);
+            Caption(rebahanButton, "REBAHAN\nENERGI +" + CampaignTuning.Karier.RebahanEnergi + " • 2 jam");
             if (rebahanButton != null)
                 rebahanButton.interactable = !busy && !life.Rebahan;
+            Caption(tidurButton, life.CanTidurNow ? "TIDUR SAMPAI PAGI\nENERGI penuh • hari baru" : "TIDUR\nbisa jam 19.00-04.00");
+            if (tidurButton != null)
+                tidurButton.interactable = !busy && life.CanTidurNow;
             if (phoneInfo != null)
-                phoneInfo.text = KarierLife.Rupiah(life.Duit) + "   ENERGI " + life.Energi +
-                    (life.Lemas ? " (LEMAS)" : string.Empty) + "\n" +
+                phoneInfo.text = "HARI " + life.Day + " • " + life.ClockText + " " + life.DayPart + "   " + KarierLife.Rupiah(life.Duit) +
+                    "   ENERGI " + life.Energi + (life.Lemas ? " (LEMAS)" : string.Empty) + "\n" +
                     (busy ? "Sedang kerja: " + JobName(life.Job) + ". Tekan lagi untuk berhenti." : "Pilih kerja. Duit bersih lambat, duit kotor cepat.");
         }
 
@@ -847,8 +1100,8 @@ namespace Konoha.Campaign
             if (button == null)
                 return;
             bool current = life.Job == job;
-            Caption(button, current ? "BERHENTI " + title + "\n(kerja sedang jalan)" : title + "\n" + detail);
-            button.interactable = current || !life.Busy;
+            Caption(button, current ? "BERHENTI " + title + "\n(sedang jalan)" : title + "\n" + detail);
+            button.interactable = current || (!life.Busy && life.JobOpen(job));
         }
 
         private static string JobName(KarierJob job)
@@ -858,6 +1111,8 @@ namespace Konoha.Campaign
                 case KarierJob.Ojol: return "OJOL";
                 case KarierJob.Kuli: return "KULI";
                 case KarierJob.Buzzer: return "BUZZER";
+                case KarierJob.Parkir: return "PARKIR";
+                case KarierJob.Ronda: return "RONDA";
                 default: return "-";
             }
         }
@@ -1066,7 +1321,7 @@ namespace Konoha.Campaign
                 string state = combat == null ? string.Empty
                     : combat.IsKnockedOut ? "PINGSAN - dibawa warga..."
                     : "WIBAWA " + combat.Wibawa + "/" + combat.MaxWibawaValue;
-                heroText.text = CampaignKarier.Avatar.Name + "  •  WARGA BIASA  •  " + state;
+                heroText.text = CampaignKarier.Avatar.Name + "  •  HARI " + life.Day + ", " + life.ClockText + " " + life.DayPart + "  •  " + state;
             }
             if (feedbackText != null && feedbackText.text.Length > 0)
                 feedbackText.text = string.Empty;
@@ -1090,8 +1345,16 @@ namespace Konoha.Campaign
                 case Arrest.Cell:
                     return "DI SEL • Tunggu " + Mathf.CeilToInt(life.JailLeft) + " dtk atau TEBUS";
             }
+            if (life.TabrakPending)
+                return "MENABRAK WARGA • Tanggung jawab, atau kabur?";
+            if (life.Chasing)
+                return "DIKEJAR POLISI! • Lolos " + Mathf.CeilToInt(life.ChaseLeft) + " dtk lagi";
+            if (life.Tidur)
+                return "TIDUR • Zzz... sampai jam 06.00";
             if (life.PoliceArrived)
-                return "POLISI • Pilih: kabur, damai, atau ikut ke polsek";
+                return life.PoliceReason == KarierPoliceReason.TabrakLari
+                    ? "TERTANGKAP • Pilih: damai atau ikut ke polsek"
+                    : "POLISI • Pilih: kabur, damai, atau ikut ke polsek";
             if (life.PoliceCalled)
                 return "SIRENE! • Polisi menuju ke sini";
             if (life.PoliceEta > 0f)
@@ -1113,6 +1376,12 @@ namespace Konoha.Campaign
                     return "KULI • Bawa sak ke PROYEK (" + life.KuliDelivered + "/" + CampaignTuning.Karier.KuliSacks + ")";
                 case KarierStep.BuzzerKetik:
                     return "BUZZER • Duduk di WARKOP, sebar pesan";
+                case KarierStep.ParkirJaga:
+                    return "PARKIR • Jaga depan KANTOR KELURAHAN (" + life.ParkirMotorsDone + "/" + CampaignTuning.Karier.ParkirMotors + " motor)";
+                case KarierStep.RondaKeliling:
+                    return "RONDA • Keliling titik " + (life.RondaIndex + 1) + "/" + rondaPoints.Length;
+                case KarierStep.RondaPulang:
+                    return "RONDA • Kembali lapor ke POS RONDA";
             }
             if (life.CanDaftar)
                 return "SYARAT LENGKAP • Daftar CALON RT di POS RONDA";
@@ -1120,13 +1389,16 @@ namespace Konoha.Campaign
                 return (life.Ride == KarierRide.Motor ? "NAIK MOTOR" : "NAIK SEPEDA") + " • tekan TURUN untuk mengembalikan";
             if (!life.AllMissionsDone)
                 return "MISI " + (life.Mission + 1) + " • " + life.MissionProgress;
-            if (life.Registered)
-                return "CALON KETUA RT • Pemilihan menyusul, tetap cari duit";
-            return "WARGA BIASA • Tekan HP > KONOHA KERJA";
+            // 0.6.3: after the missions, the daily tasks say what to do next.
+            return "TUGAS HARI " + life.Day + " • " + life.MissionProgress;
         }
 
         private float Progress()
         {
+            if (life.Chasing)
+                return Mathf.Clamp01(life.ChaseLeft / CampaignTuning.Karier.ChaseSeconds);
+            if (life.Tidur)
+                return 1f - life.TidurLeft / CampaignTuning.Karier.TidurSeconds;
             if (life.Rebahan)
                 return 1f - life.RebahanLeft / CampaignTuning.Karier.RebahanSeconds;
             if (life.PoliceCalled || life.MeleraiActive || life.Keributan > 0f)
@@ -1142,7 +1414,13 @@ namespace Konoha.Campaign
                 case KarierStep.KuliAntar:
                     return (life.KuliDelivered + life.StepProgress) / CampaignTuning.Karier.KuliSacks;
                 case KarierStep.BuzzerKetik:
-                    return life.StepProgress;
+                case KarierStep.ParkirJaga:
+                    return life.Step == KarierStep.ParkirJaga
+                        ? (life.ParkirMotorsDone + life.StepProgress) / CampaignTuning.Karier.ParkirMotors
+                        : life.StepProgress;
+                case KarierStep.RondaKeliling:
+                case KarierStep.RondaPulang:
+                    return rondaPoints.Length == 0 ? 0f : (life.RondaIndex + life.StepProgress) / (rondaPoints.Length + 1f);
             }
             return Mathf.Min(life.Duit / (float)CampaignTuning.Karier.SyukuranRT, life.Restu / (float)CampaignTuning.Karier.RestuSyaratRT);
         }
@@ -1152,6 +1430,18 @@ namespace Konoha.Campaign
             bool duit = life.Registered || life.Duit >= CampaignTuning.Karier.SyukuranRT;
             bool restu = life.Restu >= CampaignTuning.Karier.RestuSyaratRT;
             string done = "<color=#F2C35A>■ ", todo = "<color=#FFFFFF>□ ", end = "</color>\n";
+            if (life.AllMissionsDone)
+            {
+                // 0.6.3: the daily tasks take over the panel after the last mission.
+                string tugas = "<b>TUGAS HARIAN • HARI " + life.Day + "</b>\n<color=#BFE8C8>" + life.MissionProgress + "</color>\n";
+                for (int i = 0; i < KarierLife.TugasCount; i++)
+                    tugas += (life.TugasDone(i) ? done : todo) + life.TugasName(i) + " " + life.TugasProgress(i) + "/" + life.TugasNeed(i) + end;
+                tugas += "<color=#BBBBBB>" + (CampaignTuning.Karier.TugasReward / 1000) + "rb per tugas • bonus " +
+                    (CampaignTuning.Karier.TugasBonus / 1000) + "rb semua beres • CALON KETUA RT 03</color>";
+                if (life.CatatanHitam >= CampaignTuning.Karier.PasalKaretFrom)
+                    tugas += "\n<color=#FF7A6A>Catatan hitam tinggi: awas pasal karet</color>";
+                return tugas;
+            }
             string text = "<b>MISI " + Mathf.Min(life.Mission + 1, KarierLife.MissionTitles.Length) + "/" + KarierLife.MissionTitles.Length +
                 ": " + life.MissionTitle + "</b>\n<color=#BFE8C8>" + life.MissionProgress + "</color>\n" +
                 "<b>LEVEL 1 • target KETUA RT 03</b>\n" +
@@ -1179,7 +1469,7 @@ namespace Konoha.Campaign
                 phoneBaseKnown = true;
             }
             bool hint = (phonePanel == null || !phonePanel.activeSelf) && arrest == Arrest.None && !life.InJail &&
-                !life.Rebahan && !life.PoliceCalled && life.MissionNeedsPhone;
+                !life.Rebahan && !life.PoliceCalled && !life.Tidur && !life.TabrakPending && life.MissionNeedsPhone;
             phoneButton.targetGraphic.color = hint
                 ? Color.Lerp(phoneBase, new Color(1f, 0.82f, 0.30f, 1f), 0.5f + 0.5f * Mathf.Sin(Time.time * 6f))
                 : phoneBase;
@@ -1278,6 +1568,11 @@ namespace Konoha.Campaign
                 case KarierCue.Restu: Play(CampaignSound.Restu, 0.8f); break;
                 case KarierCue.Daftar: Play(CampaignSound.Victory, 0.9f); break;
                 case KarierCue.Misi: Play(CampaignSound.Seal, 0.8f); break;
+                case KarierCue.Tabrak:
+                    Play(CampaignSound.Runtuh, 0.9f, 0.8f);
+                    Play(CampaignSound.Ribut, 0.9f);
+                    break;
+                case KarierCue.Peluit: Play(CampaignSound.Notif, 0.8f, 1.9f); break;
             }
         }
 

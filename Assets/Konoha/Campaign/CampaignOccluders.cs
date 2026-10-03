@@ -15,8 +15,9 @@ namespace Konoha.Campaign
         public Renderer[] candidates = new Renderer[0];
         // Keep a renderer hidden briefly after it stops blocking, so it does not flicker.
         public float holdSeconds = 0.35f;
-        // 0.6.2: roofs the hero stands under (CampaignInteriorCamera); never hidden.
-        public readonly System.Collections.Generic.HashSet<Renderer> kept = new System.Collections.Generic.HashSet<Renderer>();
+        // 0.6.2: roofs the hero stands under (CampaignInteriorCamera); never hidden while the
+        // camera is below them. 0.6.3: with the real underside of each roof.
+        public readonly System.Collections.Generic.Dictionary<Renderer, float> kept = new System.Collections.Generic.Dictionary<Renderer, float>();
 
         private float[] hiddenUntil = new float[0];
         private bool[] hidden = new bool[0];
@@ -63,7 +64,7 @@ namespace Konoha.Campaign
                     (bounds.IntersectRay(toBody, out float bodyHit) && bodyHit < bodyLength) ||
                     (bounds.IntersectRay(toHead, out float headHit) && headHit < headLength);
 
-                if (kept.Count > 0 && eye.y < bounds.min.y && kept.Contains(candidate))
+                if (kept.Count > 0 && kept.TryGetValue(candidate, out float underside) && eye.y < underside + 0.05f)
                 {
                     blocking = false;
                     hiddenUntil[i] = 0f;

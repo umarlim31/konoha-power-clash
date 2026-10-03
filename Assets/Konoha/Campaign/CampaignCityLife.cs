@@ -48,7 +48,12 @@ namespace Konoha.Campaign
             // (onlookers of an accident) keep it up all the time.
             public GameObject phone;
             public bool filming;
+            // 0.6.3: taken out by the generator (no free ground left after the KARIER boxes).
+            public bool removed;
             [NonSerialized] public float phase, dodge, panicUntil;
+            // 0.6.3: knocked down by a motor (TABRAK), short stops to check the phone, easing.
+            [NonSerialized] public float downUntil, pauseUntil, nextPause, pace = 1f;
+            [NonSerialized] public bool down, pausePhone;
         }
 
         public Vehicle[] vehicles = new Vehicle[0];
@@ -65,11 +70,15 @@ namespace Konoha.Campaign
         public float cullDistance = 60f;
         // Warga step aside when the hero comes this close, and run from fights nearby.
         public float personalSpace = 2.4f;
+        // 0.6.3: KarierController widens both while the hero rides (warga jump aside early).
+        [NonSerialized] public float dodgeWidth = 1.6f, dodgeRate = 3f;
         public float fleeDistance = 6f;
         // 0.5.0 kepo: warga stop and record a fight from this far, and only back off when it
         // comes closer than fleeDistance (they no longer run away from every fight).
         public float kepoDistance = 13f;
         public float hornMinSeconds = 7f, hornMaxSeconds = 16f;
+        // 0.6.3 night (KarierController): two of three strollers stay home after dark.
+        [NonSerialized] public bool night;
         // 0.2.7 atmosphere: songbirds around the listener and the bakso seller's bowl.
         public Vector3[] bowlSpots = new Vector3[0];
         private float nextBird, nextBowl;
@@ -284,8 +293,13 @@ namespace Konoha.Campaign
             for (int i = 0; i < walkers.Length; i++)
             {
                 Walker walker = walkers[i];
-                if (walker == null || walker.root == null)
+                if (walker == null || walker.root == null || walker.removed || !walker.root.gameObject.activeSelf)
                     continue;
+                if (walker.down || now < walker.downUntil)
+                {
+                    LieDown(walker, now);
+                    continue;
+                }
                 if (walker.idle)
                     Gesture(walker, dt, hero);
                 else
@@ -325,6 +339,35 @@ namespace Konoha.Campaign
             }
             float pace = now < walker.panicUntil ? 2.3f : 1f;
 
+            // 0.6.3 (owner: "lebih natural"): now and then a warga stops for a few seconds,
+            // checks the phone or looks around, then walks on; they ease in and out of walking
+            // instead of starting and stopping at full speed.
+            bool heroClose = hero.HasValue && (basePoint - hero.Value).sqrMagnitude < personalSpace * personalSpace * 2f;
+            if (walker.nextPause <= 0f)
+                walker.nextPause = now + 6f + (float)random.NextDouble() * 14f;
+            if (now >= walker.nextPause && pace <= 1f && !heroClose)
+            {
+                walker.pauseUntil = now + 2f + (float)random.NextDouble() * 3.5f;
+                walker.nextPause = walker.pauseUntil + 8f + (float)random.NextDouble() * 16f;
+                walker.pausePhone = walker.phone != null && random.NextDouble() < 0.5;
+            }
+            bool pausing = now < walker.pauseUntil && pace <= 1f && !heroClose;
+            walker.pace = Mathf.MoveTowards(walker.pace, pausing ? 0f : pace, (pausing ? 2.5f : 1.6f) * dt);
+            if (walker.pace < 0.05f && pausing)
+            {
+                ShowPhone(walker, walker.pausePhone);
+                float look = Mathf.Sin(now * 0.9f + walker.phase) * 25f;
+                Vector3 ahead = along * walker.direction;
+                walker.root.rotation = Quaternion.Slerp(walker.root.rotation,
+                    Quaternion.LookRotation(Quaternion.Euler(0f, walker.pausePhone ? 0f : look, 0f) * ahead, Vector3.up), 3f * dt);
+                SetSwing(walker.legLeft, 0f);
+                SetSwing(walker.legRight, 0f);
+                SetSwing(walker.armLeft, Mathf.Sin(now * 1.3f) * 3f);
+                SetSwing(walker.armRight, walker.pausePhone ? -78f : Mathf.Sin(now * 1.1f) * 4f);
+                return;
+            }
+            pace = Mathf.Max(0.05f, walker.pace);
+
             walker.progress += walker.direction * walker.speed * pace * dt / length;
             if (walker.progress > 1f) { walker.progress = 1f; walker.direction = -1f; }
             else if (walker.progress < 0f) { walker.progress = 0f; walker.direction = 1f; }
@@ -336,12 +379,12 @@ namespace Konoha.Campaign
                 Vector3 offset = basePoint - hero.Value;
                 offset.y = 0f;
                 if (offset.sqrMagnitude < personalSpace * personalSpace)
-                    wantedDodge = Vector3.Dot(offset, side) >= 0f ? 1.6f : -1.6f;
+                    wantedDodge = Vector3.Dot(offset, side) >= 0f ? dodgeWidth : -dodgeWidth;
                 // 0.6.2: never step aside into a wall; try the other side, else stay on the path.
                 if (wantedDodge != 0f && KarierCrowd.Blocked(basePoint, basePoint + side * wantedDodge, .28f))
                     wantedDodge = 0f; // The other side is the hero: just keep walking on the path.
             }
-            walker.dodge = Mathf.MoveTowards(walker.dodge, wantedDodge, 3f * dt);
+            walker.dodge = Mathf.MoveTowards(walker.dodge, wantedDodge, dodgeRate * dt);
 
             walker.phase += dt * walker.speed * pace * 5.2f;
             float bob = Mathf.Abs(Mathf.Sin(walker.phase)) * .035f;
@@ -350,7 +393,7 @@ namespace Konoha.Campaign
             Vector3 facing = along * walker.direction;
             walker.root.rotation = Quaternion.Slerp(walker.root.rotation, Quaternion.LookRotation(facing, Vector3.up), 8f * dt);
 
-            float swing = Mathf.Sin(walker.phase) * (pace > 1f ? 40f : 28f);
+            float swing = Mathf.Sin(walker.phase) * (pace > 1f ? 40f : 28f * Mathf.Clamp01(pace));
             SetSwing(walker.legLeft, swing);
             SetSwing(walker.legRight, -swing);
             SetSwing(walker.armLeft, -swing * .8f);
@@ -387,6 +430,72 @@ namespace Konoha.Campaign
             }
             SetSwing(walker.armRight, -25f + Mathf.Sin(walker.phase * 1.4f) * 18f);
             SetSwing(walker.armLeft, Mathf.Sin(walker.phase * .7f) * 6f);
+            // 0.6.3: shifting weight from one leg to the other.
+            float shift = Mathf.Sin(walker.phase * .45f) * 4f;
+            SetSwing(walker.legLeft, shift);
+            SetSwing(walker.legRight, -shift);
+        }
+
+        // 0.6.3 TABRAK: hit by the hero's motor, the warga lies on the ground, then stands up.
+        public void KnockDown(Walker walker, float seconds)
+        {
+            if (walker == null || walker.root == null)
+                return;
+            walker.downUntil = Time.time + seconds;
+            walker.panicUntil = 0f;
+            walker.pauseUntil = 0f;
+        }
+
+        // The nearest standing warga within radius of a point (null when none).
+        public Walker StandingNear(Vector3 point, float radius)
+        {
+            Walker best = null;
+            float bestDistance = radius * radius;
+            float now = Time.time;
+            foreach (Walker walker in walkers)
+            {
+                if (walker == null || walker.root == null || walker.removed || !walker.root.gameObject.activeInHierarchy ||
+                    walker.down || now < walker.downUntil)
+                    continue;
+                Vector3 d = walker.root.position - point;
+                d.y = 0f;
+                if (d.sqrMagnitude < bestDistance)
+                {
+                    bestDistance = d.sqrMagnitude;
+                    best = walker;
+                }
+            }
+            return best;
+        }
+
+        private void LieDown(Walker walker, float now)
+        {
+            Transform root = walker.root;
+            Vector3 flat = root.forward;
+            flat.y = 0f;
+            Quaternion upright = Quaternion.LookRotation(flat.sqrMagnitude > .001f ? flat.normalized : Vector3.forward);
+            if (now < walker.downUntil)
+            {
+                if (!walker.down)
+                {
+                    walker.down = true;
+                    root.position += Vector3.up * .18f;
+                    root.rotation = upright * Quaternion.Euler(-88f, 0f, 0f);
+                    ShowPhone(walker, false);
+                }
+                // Holding the leg, rocking a little: "Aduh... aduh..."
+                SetSwing(walker.armLeft, -40f + Mathf.Sin(now * 4f) * 10f);
+                SetSwing(walker.armRight, -40f - Mathf.Sin(now * 4f) * 10f);
+                SetSwing(walker.legLeft, 20f + Mathf.Sin(now * 3f) * 8f);
+                return;
+            }
+            walker.down = false;
+            root.position -= Vector3.up * .18f;
+            // Forward of a body lying on its back points up: take the yaw from its up vector.
+            Vector3 facing = -root.up;
+            facing.y = 0f;
+            root.rotation = Quaternion.LookRotation(facing.sqrMagnitude > .001f ? facing.normalized : Vector3.forward);
+            SetSwing(walker.legLeft, 0f);
         }
 
         private static void ShowPhone(Walker walker, bool show)
@@ -467,9 +576,14 @@ namespace Konoha.Campaign
             foreach (Vehicle vehicle in vehicles)
                 if (vehicle != null && vehicle.body != null)
                     Show(vehicle.body.gameObject, (vehicle.body.position - eye).sqrMagnitude < limit);
-            foreach (Walker walker in walkers)
-                if (walker != null && walker.root != null)
-                    Show(walker.root.gameObject, (walker.root.position - eye).sqrMagnitude < limit);
+            for (int i = 0; i < walkers.Length; i++)
+            {
+                Walker walker = walkers[i];
+                if (walker == null || walker.root == null)
+                    continue;
+                bool home = walker.removed || (night && !walker.idle && i % 3 != 0 && !walker.down);
+                Show(walker.root.gameObject, !home && (walker.root.position - eye).sqrMagnitude < limit);
+            }
         }
 
         private static void Show(GameObject go, bool visible)

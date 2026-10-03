@@ -7,14 +7,17 @@ namespace Konoha.Campaign
     // roof; now the roof stays and the camera comes inside instead: close, low and under
     // the roof, like standing in the room. Leaving restores the camera the player had.
     // A "roof" is any occluder candidate (CampaignOccluders) that covers the hero from
-    // 1.9 to 7 m above him and is room-sized (not a pole, not the whole plaza). Bounds are
+    // 1.2 to 9 m above him and is room-sized (not a pole, not the whole plaza). Bounds are
     // cached once: roofs do not move. Works in KARIER and MODE PRESIDEN.
+    // 0.6.3: the underside comes from CampaignRoofUnderside (the model pendopo was never
+    // detected before), and while inside the orbit is held under the roof: pitch, zoom and
+    // look-at height are clamped every frame before the camera moves, so the roof never
+    // has to be hidden. Runs before MobileCombatCamera (execution order).
+    [DefaultExecutionOrder(-100)]
     public sealed class CampaignInteriorCamera : MonoBehaviour
     {
         public MobileCombatCamera follow;
         public CampaignOccluders occluders;
-        // 0.6.2: lower and closer (the pendopo roof starts only ~1.7 m above its floor), and the
-        // roof over the hero is kept visible by CampaignOccluders while inside.
         public float distance = 2.8f;
         public float pitch = 6f;
         public float focusHeight = 1.3f;
@@ -23,14 +26,18 @@ namespace Konoha.Campaign
         public float minSize = 1.8f;
         public float maxArea = 170f;
         public float leaveDelay = 0.4f;
+        // Room kept between the camera and the underside of the roof.
+        public float headroom = 0.35f;
 
         private Bounds[] roofs = new Bounds[0];
+        private float[] undersides = new float[0];
         private Renderer[] roofRenderers = new Renderer[0];
         private bool inside;
         private float outsideSince = -1f;
         private float nextCheck;
-        private float savedPitch, savedDistance, savedFocus, savedMinDistance, savedMinPitch;
-        private float appliedMinDistance, appliedMinPitch;
+        private float lowestUnderside;
+        private float savedPitch, savedDistance, savedFocus, savedMinDistance, savedMinPitch, savedMaxDistance;
+        private float appliedMinDistance, appliedMinPitch, appliedMaxDistance, appliedFocus;
 
         public static bool Inside { get; private set; }
 
@@ -39,6 +46,7 @@ namespace Konoha.Campaign
             if (occluders == null || occluders.candidates == null)
                 return;
             var list = new System.Collections.Generic.List<Bounds>();
+            var under = new System.Collections.Generic.List<float>();
             var owners = new System.Collections.Generic.List<Renderer>();
             foreach (Renderer candidate in occluders.candidates)
             {
@@ -48,9 +56,11 @@ namespace Konoha.Campaign
                 if (b.size.x < minSize || b.size.z < minSize || b.size.x * b.size.z > maxArea)
                     continue;
                 list.Add(b);
+                under.Add(CampaignRoofUnderside.Of(candidate));
                 owners.Add(candidate);
             }
             roofs = list.ToArray();
+            undersides = under.ToArray();
             roofRenderers = owners.ToArray();
         }
 
@@ -66,15 +76,21 @@ namespace Konoha.Campaign
                 if (inside) Leave();
                 return;
             }
-            bool under = UnderRoof(hero.position);
             // Every roof over the hero stays drawn (owner: "atapnya jangan hilang").
             occluders.kept.Clear();
-            if (under)
-                for (int i = 0; i < roofs.Length; i++)
-                    if (Covers(roofs[i], hero.position))
-                        occluders.kept.Add(roofRenderers[i]);
+            bool under = false;
+            float lowest = float.MaxValue;
+            for (int i = 0; i < roofs.Length; i++)
+            {
+                if (!Covers(i, hero.position))
+                    continue;
+                under = true;
+                occluders.kept[roofRenderers[i]] = undersides[i];
+                lowest = Mathf.Min(lowest, undersides[i]);
+            }
             if (under)
             {
+                lowestUnderside = lowest;
                 outsideSince = -1f;
                 if (!inside) Enter();
             }
@@ -85,25 +101,50 @@ namespace Konoha.Campaign
             }
         }
 
+        // Before the camera moves: keep the eye under the lowest roof over the hero.
+        private void LateUpdate()
+        {
+            if (!inside || follow == null || occluders == null || occluders.target == null)
+                return;
+            float heroY = occluders.target.position.y;
+            float clear = lowestUnderside - heroY;
+            float focus = Mathf.Clamp(clear - 0.6f, 0.9f, focusHeight);
+            if (Mathf.Approximately(follow.orbitFocusHeight, appliedFocus) || follow.orbitFocusHeight > focus)
+            {
+                follow.orbitFocusHeight = focus;
+                appliedFocus = focus;
+            }
+            if (follow.orbitDistance > appliedMaxDistance)
+                follow.orbitDistance = appliedMaxDistance;
+            float room = clear - follow.orbitFocusHeight - headroom;
+            float maxPitch = Mathf.Asin(Mathf.Clamp(room / Mathf.Max(0.5f, follow.orbitDistance), 0f, 1f)) * Mathf.Rad2Deg;
+            if (follow.orbitPitch > maxPitch)
+                follow.orbitPitch = maxPitch;
+            if (follow.minPitch > follow.orbitPitch)
+                follow.minPitch = follow.orbitPitch;
+        }
+
         // Trees, palms and gate lintels are not rooms.
         private static bool LooksLikeRoof(string name)
         {
             string lower = name.ToLowerInvariant();
             return !(lower.StartsWith("palm") || lower.Contains("tajuk") || lower.Contains("pohon") ||
-                lower.Contains("lintel") || lower.Contains("gerbang") || lower.Contains("banner") || lower.StartsWith("sign"));
+                lower.Contains("lintel") || lower.Contains("gerbang") || lower.Contains("banner") || lower.StartsWith("sign") ||
+                lower.Contains("gerobak") || lower.Contains("payung") || lower.Contains("becak"));
         }
 
         public bool UnderRoof(Vector3 p)
         {
-            foreach (Bounds b in roofs)
-                if (Covers(b, p))
+            for (int i = 0; i < roofs.Length; i++)
+                if (Covers(i, p))
                     return true;
             return false;
         }
 
-        private bool Covers(Bounds b, Vector3 p)
+        private bool Covers(int index, Vector3 p)
         {
-            float above = b.min.y - p.y;
+            Bounds b = roofs[index];
+            float above = undersides[index] - p.y;
             if (above < minRoofHeight || above > maxRoofHeight)
                 return false;
             return p.x > b.min.x + 0.25f && p.x < b.max.x - 0.25f && p.z > b.min.z + 0.25f && p.z < b.max.z - 0.25f;
@@ -118,9 +159,13 @@ namespace Konoha.Campaign
             savedFocus = follow.orbitFocusHeight;
             savedMinDistance = follow.minOrbitDistance;
             savedMinPitch = follow.minPitch;
+            savedMaxDistance = follow.maxOrbitDistance;
             appliedMinDistance = Mathf.Min(savedMinDistance, distance * 0.8f);
             appliedMinPitch = Mathf.Min(savedMinPitch, pitch * 0.5f);
+            appliedMaxDistance = Mathf.Min(savedMaxDistance, distance * 1.3f);
+            appliedFocus = focusHeight;
             follow.minOrbitDistance = appliedMinDistance;
+            follow.maxOrbitDistance = appliedMaxDistance;
             follow.minPitch = appliedMinPitch;
             follow.orbitPitch = pitch;
             follow.orbitDistance = distance;
@@ -134,12 +179,23 @@ namespace Konoha.Campaign
             outsideSince = -1f;
             if (follow == null)
                 return;
-            // Restore only what is still ours: a camera preset chosen while inside wins.
-            if (Mathf.Approximately(follow.minOrbitDistance, appliedMinDistance)) follow.minOrbitDistance = savedMinDistance;
-            if (Mathf.Approximately(follow.minPitch, appliedMinPitch)) follow.minPitch = savedMinPitch;
-            if (Mathf.Approximately(follow.orbitFocusHeight, focusHeight)) follow.orbitFocusHeight = savedFocus;
-            if (Mathf.Approximately(follow.orbitDistance, distance)) follow.orbitDistance = savedDistance;
-            if (Mathf.Approximately(follow.orbitPitch, pitch)) follow.orbitPitch = savedPitch;
+            // Restore the camera the player had, unless a camera preset (KAMERA JAUH/DEKAT) was
+            // chosen while inside: then that preset wins and only the pitch is kept in range.
+            bool ours = Mathf.Approximately(follow.minOrbitDistance, appliedMinDistance) &&
+                Mathf.Approximately(follow.maxOrbitDistance, appliedMaxDistance);
+            if (ours)
+            {
+                follow.maxOrbitDistance = savedMaxDistance;
+                follow.minOrbitDistance = savedMinDistance;
+                follow.minPitch = savedMinPitch;
+                follow.orbitFocusHeight = savedFocus;
+                follow.orbitDistance = savedDistance;
+                follow.orbitPitch = savedPitch;
+            }
+            else
+            {
+                follow.orbitPitch = Mathf.Max(follow.orbitPitch, follow.minPitch);
+            }
         }
 
         private void OnDisable()

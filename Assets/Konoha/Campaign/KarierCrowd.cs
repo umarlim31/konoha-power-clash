@@ -34,9 +34,12 @@ namespace Konoha.Campaign
         public float walkSpeed = 1.6f;
         public float policeSpeed = 10f;
         public float comeFrom = 15f;
+        // 0.6.3 TABRAK LARI: the patrol motor chases the hero (steering around obstacles).
+        public float chaseSpeed = 7.4f;
+        public float chaseStart = 17f;
 
         private enum State { Hidden, Coming, Watching, Leaving, Melerai }
-        private enum Police { Hidden, Arriving, Here, Ride, RideDone, Leaving }
+        private enum Police { Hidden, Arriving, Here, Ride, RideDone, Leaving, Chase }
 
         private static readonly string[] Comments =
         {
@@ -74,6 +77,9 @@ namespace Konoha.Campaign
         public bool PoliceArrived => police == Police.Here;
         public bool PoliceBusy => police != Police.Hidden;
         public bool RideDone => police == Police.RideDone;
+        public bool PoliceChasing => police == Police.Chase;
+        private Vector3 chaseTarget;
+        private float chaseStuck;
         public bool OfficerArrived { get; private set; }
         // Where a passenger sits on the patrol motor (behind the officer) and how it faces.
         public Vector3 PassengerSeat => policeMotor != null ? policeMotor.position - policeMotor.forward * 0.72f : Vector3.zero;
@@ -103,6 +109,14 @@ namespace Konoha.Campaign
         }
 
         // --- Beats --------------------------------------------------------------------------
+
+        // 0.6.3: the shout changes with what happened ("TABRAK! TABRAK!" after a crash).
+        public void Gather(Vector3 fight, string shout)
+        {
+            if (shoutBubble != null && !string.IsNullOrEmpty(shout))
+                shoutBubble.text = shout;
+            Gather(fight);
+        }
 
         public void Gather(Vector3 fight)
         {
@@ -238,6 +252,8 @@ namespace Konoha.Campaign
             OfficerArrived = false;
             police = Police.Arriving;
             nextSiren = 0f;
+            if (policeBubble != null)
+                policeBubble.text = "SEMUA DIAM!\nADA APA INI?!";
         }
 
         // The officer walks over to this point (arrest) and stops next to it.
@@ -268,11 +284,88 @@ namespace Konoha.Campaign
             police = Police.Ride;
         }
 
+        // 0.6.3: a patrol that happened to be nearby turns around and chases the hero.
+        public void StartChase(Vector3 hero)
+        {
+            // Also takes over a patrol that is still riding home (a second crash soon after).
+            if (policeMotor == null || police == Police.Here || police == Police.Ride || police == Police.Chase)
+                return;
+            hero.y = 0f;
+            policeLeg = 0;
+            policePath = new Vector3[0];
+            Vector3 start = policeGarage;
+            for (int i = 0; i < 12; i++)
+            {
+                float a = (i * 30f + 15f) * Mathf.Deg2Rad;
+                Vector3 candidate = Clamp(hero + new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)) * chaseStart);
+                if (Free(candidate) && !Blocked(candidate, hero, .45f))
+                {
+                    start = candidate;
+                    break;
+                }
+            }
+            policeMotor.position = start;
+            policeMotor.rotation = Quaternion.LookRotation(Flat(hero - start, Vector3.forward));
+            policeMotor.gameObject.SetActive(true);
+            if (policeRider != null) policeRider.SetActive(true);
+            Show(policeOfficer, false);
+            officerWalking = false;
+            OfficerArrived = false;
+            chaseTarget = hero;
+            chaseStuck = 0f;
+            police = Police.Chase;
+            nextSiren = 0f;
+        }
+
+        public void ChaseTarget(Vector3 hero)
+        {
+            chaseTarget = new Vector3(hero.x, 0f, hero.z);
+        }
+
+        public float ChaseDistance
+        {
+            get
+            {
+                if (policeMotor == null || police != Police.Chase)
+                    return float.MaxValue;
+                Vector3 d = chaseTarget - policeMotor.position;
+                d.y = 0f;
+                return d.magnitude;
+            }
+        }
+
+        // Caught: the officer gets off next to the hero (then the usual police choices).
+        public void ChaseCaught()
+        {
+            if (police != Police.Chase)
+                return;
+            police = Police.Here;
+            policeLookAt = chaseTarget;
+            if (policeRider != null) policeRider.SetActive(false);
+            if (policeOfficer != null && policeOfficer.root != null)
+            {
+                Vector3 side = policeMotor.right;
+                Vector3 spot = policeMotor.position + new Vector3(side.x, 0f, side.z) * 0.9f;
+                if (!Free(spot))
+                    spot = policeMotor.position - new Vector3(side.x, 0f, side.z) * 0.9f;
+                policeOfficer.root.position = spot;
+                Show(policeOfficer, true);
+                officerTarget = chaseTarget;
+                officerWalking = true;
+            }
+            arrivalPath = new[] { policeGarage, new Vector3(0f, 0f, policeMotor.position.z), policeMotor.position };
+            policeTalkUntil = Time.time + 3.5f;
+            if (policeBubble != null)
+                policeBubble.text = "BERHENTI!\nTUNJUKKAN SIM!";
+        }
+
         public void PoliceLeave()
         {
             if (policeMotor == null || police == Police.Hidden || police == Police.Leaving)
                 return;
-            if (police == Police.RideDone)
+            if (police == Police.Chase)
+                policePath = new[] { policeMotor.position, new Vector3(0f, 0f, policeMotor.position.z), policeGarage };
+            else if (police == Police.RideDone)
                 policePath = new[] { policeMotor.position, new Vector3(0f, 0f, policeMotor.position.z), policeGarage };
             else if (police == Police.Here || policeLeg >= policePath.Length)
                 policePath = new[] { policeMotor.position, arrivalPath.Length > 1 ? arrivalPath[1] : policeGarage, policeGarage };
@@ -392,7 +485,9 @@ namespace Konoha.Campaign
         }
 
         // One step towards the target, around obstacles. False when every way is blocked.
-        private static bool Move(Transform root, Vector3 target, float speed, float dt)
+        private static bool Move(Transform root, Vector3 target, float speed, float dt) => Move(root, target, speed, dt, .28f);
+
+        private static bool Move(Transform root, Vector3 target, float speed, float dt, float radius)
         {
             Vector3 position = root.position;
             Vector3 to = target - position;
@@ -405,7 +500,7 @@ namespace Konoha.Campaign
             foreach (float angle in SteerAngles)
             {
                 Vector3 candidate = Quaternion.Euler(0f, angle, 0f) * direction;
-                if (Blocked(position, position + candidate * (step + 0.35f), .28f))
+                if (Blocked(position, position + candidate * (step + 0.35f), radius))
                     continue;
                 root.position = position + candidate * step;
                 Face(root, candidate, dt, 10f);
@@ -454,7 +549,7 @@ namespace Konoha.Campaign
             if (policeMotor == null || police == Police.Hidden)
                 return;
 
-            bool lightsOn = police == Police.Arriving || police == Police.Here || police == Police.Ride;
+            bool lightsOn = police == Police.Arriving || police == Police.Here || police == Police.Ride || police == Police.Chase;
             bool redPhase = Mathf.Repeat(now * 4f, 1f) < 0.5f;
             foreach (Renderer light in sirenRed)
                 if (light != null) light.enabled = lightsOn && redPhase;
@@ -464,11 +559,36 @@ namespace Konoha.Campaign
             if (police == Police.Here || police == Police.RideDone)
                 return;
 
-            if (now >= nextSiren && (police == Police.Arriving || police == Police.Ride))
+            if (now >= nextSiren && (police == Police.Arriving || police == Police.Ride || police == Police.Chase))
             {
                 nextSiren = now + (police == Police.Ride ? 2.4f : 1.15f);
                 if (CampaignAudio.Instance != null)
                     CampaignAudio.Instance.PlayAt(CampaignSound.Sirene, policeMotor.position, police == Police.Ride ? 0.5f : 0.9f);
+            }
+
+            if (police == Police.Chase)
+            {
+                // Straight at the hero, around walls, carts and houses like everyone else.
+                Vector3 to = chaseTarget - policeMotor.position;
+                to.y = 0f;
+                if (to.magnitude < 0.6f)
+                    return;
+                Vector3 before = policeMotor.position;
+                if (Move(policeMotor, chaseTarget, chaseSpeed, dt, .45f))
+                    chaseStuck = 0f;
+                else
+                    chaseStuck += dt;
+                // Hopelessly stuck behind something: the patrol takes another street (reappears behind).
+                if (chaseStuck > 3f)
+                {
+                    chaseStuck = 0f;
+                    Vector3 back = chaseTarget - Flat(to, Vector3.forward) * 9f;
+                    if (Free(back) && !Blocked(back, chaseTarget, .45f))
+                        policeMotor.position = back;
+                }
+                if ((policeMotor.position - before).sqrMagnitude > 0.0001f)
+                    policeMotor.rotation = Quaternion.LookRotation(Flat(policeMotor.position - before, policeMotor.forward));
+                return;
             }
 
             if (policeLeg >= policePath.Length)
