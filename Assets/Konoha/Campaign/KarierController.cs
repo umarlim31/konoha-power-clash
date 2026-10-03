@@ -38,6 +38,14 @@ namespace Konoha.Campaign
         public Button ojolButton, kuliButton, buzzerButton, rebahanButton, closePhoneButton;
         // 0.6.3: PARKIR, RONDA MALAM and TIDUR in the HP.
         public Button parkirButton, rondaButton, tidurButton;
+        // 0.6.4 PEMILIHAN KETUA RT: SERANGAN FAJAR in the HP and the tally at the pos ronda.
+        public Button fajarButton;
+        public GameObject countPanel;
+        public Text countTitle;
+        public Text[] countLabels = new Text[0];
+        public RectTransform[] countBars = new RectTransform[0];
+        public float countBarWidth = 380f;
+        public Button countSkipButton;
         public Button actionButton;
         public GameObject policePanel;
         public Text policeText;
@@ -86,6 +94,8 @@ namespace Konoha.Campaign
         // 0.6.3: solid props (KARIER only), day and night, PARKIR and RONDA places.
         public GameObject solidRoot;
         public KarierDayNight dayNight;
+        // 0.6.4: roofs, trees and models are never hidden in KARIER.
+        public CampaignOccluders occluders;
         public Vector3 parkirPoint = new Vector3(14f, 0f, -5f);
         public Vector3[] rondaPoints = new Vector3[0];
         public string[] rondaNames = new string[0];
@@ -161,6 +171,8 @@ namespace Konoha.Campaign
             Listen(parkirButton, () => Work(KarierJob.Parkir));
             Listen(rondaButton, () => Work(KarierJob.Ronda));
             Listen(tidurButton, Tidur);
+            Listen(fajarButton, Fajar);
+            Listen(countSkipButton, FinishCount);
             Listen(rebahanButton, Rebahan);
             Listen(actionButton, DoAction);
             Listen(kaburButton, () => Police(KarierPoliceChoice.Kabur));
@@ -181,7 +193,7 @@ namespace Konoha.Campaign
             CampaignKarier.HeroRuntuh -= OnHeroRuntuh;
             foreach (Button button in new[] { phoneButton, closePhoneButton, ojolButton, kuliButton, buzzerButton,
                 rebahanButton, actionButton, kaburButton, damaiButton, polsekButton, waCloseButton, saksiButton,
-                waAcceptButton, waRejectButton, tebusButton, parkirButton, rondaButton, tidurButton })
+                waAcceptButton, waRejectButton, tebusButton, parkirButton, rondaButton, tidurButton, fajarButton, countSkipButton })
                 if (button != null) button.onClick.RemoveAllListeners();
             if (life != null)
             {
@@ -230,6 +242,7 @@ namespace Konoha.Campaign
             life.Notified += Say;
             life.Cued += OnCue;
             started = true;
+            countTimer = -1f;
             nextPremanAt = CampaignTuning.Karier.PremanFirstSeconds;
             ShowHud(true);
             HideHeroControls();
@@ -253,6 +266,8 @@ namespace Konoha.Campaign
                 solidRoot.SetActive(true);
                 Physics.SyncTransforms();
             }
+            if (occluders != null)
+                occluders.keepScenery = true;
             if (dayNight != null)
                 dayNight.SetClock(life.Clock);
             Say("HARI KE-" + life.Day + ", jam " + life.ClockText + ". Satu hari Konoha = 10 menit. Malam hari: TIDUR lewat HP.");
@@ -343,6 +358,7 @@ namespace Konoha.Campaign
             UpdateChase(position);
             UpdateWorldTime();
             UpdateCelebration();
+            UpdateElection();
             UpdateArrest(hero, dt);
             UpdateOffer();
             UpdateChatter(position);
@@ -355,7 +371,7 @@ namespace Konoha.Campaign
             UpdateRebahanFeed();
 
             if (traversal != null)
-                traversal.seatLocked = life.Rebahan || life.PoliceArrived || life.Tidur || life.TabrakPending ||
+                traversal.seatLocked = life.Rebahan || life.PoliceArrived || life.Tidur || life.TabrakPending || countTimer >= 0f ||
                     arrest == Arrest.Approach || (waPanel != null && waPanel.activeSelf && offerShown);
 
             if (Time.unscaledTime >= nextSave)
@@ -455,6 +471,9 @@ namespace Konoha.Campaign
                 premanEvents++;
                 premanSince = Time.time;
                 string[] victims = { "tukang sayur", "bapak-bapak pos ronda", "driver ojol", "anak sekolah" };
+                if (life.Campaigning)
+                    Say("TIM SUKSES JURAGAN KOS (preman bayaran) intimidasi warga di mulut gang. Usir mereka: suaramu naik!");
+                else
                 Say((boss ? "BOS PREMAN dan anak buahnya" : "PREMAN") + " malak " + victims[random.Next(victims.Length)] +
                     " di mulut gang!  Usir dia, atau cuek saja.");
                 Play(CampaignSound.Warning, 0.8f);
@@ -984,12 +1003,113 @@ namespace Konoha.Campaign
                     "• <b>TUGAS HARIAN</b>: tiap hari ada 3 tugas kecil (lihat panel kiri), ada upah + bonus.\n" +
                     "• <b>Kerja lagi</b> kumpulkan tabungan: OJOL, KULI, PARKIR, RONDA MALAM.\n" +
                     "• <b>Istirahat</b>: REBAHAN kapan saja, TIDUR mulai jam 19.00 (lewat HP).\n\n" +
-                    "<b>Bu Tejo:</b> Pemilihan Ketua RT sebentar lagi. Jaga RESTU, jangan sampai viral yang jelek-jelek.\n\n" +
-                    "<b>Admin:</b> <i>Pemilihan Ketua RT hadir di versi berikutnya. Progresmu tersimpan.</i>";
+                    "<b>Pak RT 03:</b> PEMILIHAN KETUA RT: HARI KE-" + life.ElectionDay + ", jam 09.00-17.00 di POS RONDA. " +
+                    "Lawanmu JURAGAN KOS dan PAK HAJI. Kampanye di titik warga (panah KAMPANYE).\n\n" +
+                    "<b>Bu Tejo:</b> Jaga RESTU, jangan sampai viral yang jelek-jelek.";
             }
             life.AckCelebration();
             Play(CampaignSound.Victory, 0.8f);
             SaveNow();
+        }
+
+        // --- 0.6.4 PEMILIHAN KETUA RT: tally panel and the Grup WA ending ---------------------
+
+        private float countTimer = -1f;
+        private float nextCountTick;
+        private bool countWa;
+
+        private void UpdateElection()
+        {
+            if (countTimer < 0f)
+            {
+                // Wait until nothing else is on screen (the WA of a previous step, the police...).
+                bool busy = arrest != Arrest.None || life.PoliceCalled || life.TabrakPending || offerShown ||
+                    (waPanel != null && waPanel.activeSelf) || (policePanel != null && policePanel.activeSelf);
+                if (!life.ResultPending || busy || countWa)
+                    return;
+                countTimer = 0f;
+                ClosePhone();
+                SetActive(countPanel, true);
+                if (countTitle != null)
+                    countTitle.text = "HITUNG SUARA • TPS POS RONDA RT 03";
+                Play(CampaignSound.Seal, 0.8f);
+                return;
+            }
+            countTimer += Time.deltaTime;
+            float t = Mathf.Clamp01(countTimer / 6f);
+            string[] names = { CampaignKarier.Avatar.Name + " (KAMU)", "JURAGAN KOS", "PAK HAJI" };
+            int[] votes = { life.VotesKamu, life.VotesJuragan, life.VotesHaji };
+            for (int i = 0; i < 3; i++)
+            {
+                int shown = Mathf.RoundToInt(votes[i] * t);
+                if (i < countLabels.Length && countLabels[i] != null)
+                    countLabels[i].text = names[i] + "   " + shown + " suara";
+                if (i < countBars.Length && countBars[i] != null)
+                    countBars[i].sizeDelta = new Vector2(countBarWidth * shown / Mathf.Max(1f, CampaignTuning.Karier.PemilihKK), countBars[i].sizeDelta.y);
+            }
+            if (t < 1f && Time.time >= nextCountTick)
+            {
+                nextCountTick = Time.time + 0.22f;
+                Play(CampaignSound.UiClick, 0.5f, 1.3f);
+            }
+            if (countTimer >= 6f && countTitle != null)
+                countTitle.text = life.Winner == "KAMU" ? "MENANG! " + CampaignKarier.Avatar.Name + " KETUA RT 03" : "PEMENANG: " + life.Winner;
+            if (countTimer >= 8.5f)
+                FinishCount();
+        }
+
+        private void FinishCount()
+        {
+            if (countTimer < 0f || life == null)
+                return;
+            countTimer = -1f;
+            SetActive(countPanel, false);
+            OpenElectionWa();
+            life.AckResult();
+            SaveNow();
+        }
+
+        private void OpenElectionWa()
+        {
+            SetActive(waPanel, true);
+            Play(life.KetuaRT ? CampaignSound.Victory : CampaignSound.Runtuh, 0.8f);
+            if (waText == null)
+                return;
+            string name = CampaignKarier.Avatar.Name;
+            string tally = name + " " + life.VotesKamu + ", Juragan Kos " + life.VotesJuragan + ", Pak Haji " + life.VotesHaji +
+                " (dari " + CampaignTuning.Karier.PemilihKK + " KK).";
+            string fajar = life.FajarKetahuan
+                ? "<b>Panwas RT:</b> Video amplop subuh tadi sudah kami terima. \"Akan dikaji.\" (tidak pernah dikaji)\n\n"
+                : life.Fajar ? "<b>Bu Tejo:</b> Ada yang dapat amplop dua kali pagi ini, katanya. Siapa ya?\n\n" : string.Empty;
+            if (life.KetuaRT)
+                waText.text =
+                    "<b>Pak RT 03 (lama):</b> Hasil hitung: " + tally + " Selamat kepada Bpk/Ibu " + name + ", KETUA RT 03 yang baru.\n\n" +
+                    "<b>Pak Haji:</b> Selamat, semoga amanah. Iuran sampah tetap Rp 20.000 ya.\n\n" +
+                    "<b>Juragan Kos:</b> Selamat... sembako sisa 150 paket, ada yang mau beli?\n\n" + fajar +
+                    "<b>Admin:</b> <i>LEVEL 1 TAMAT. Level 2 (Kepala Desa) hadir di versi berikutnya. Kamu tetap bisa kerja dan tugas harian. Progresmu tersimpan.</i>";
+            else
+                waText.text =
+                    "<b>Pak RT 03:</b> Hasil hitung: " + tally + " Selamat kepada " + life.Winner + ".\n\n" +
+                    "<b>Warga:</b> Sembakonya enak sih...\n\n" + fajar +
+                    "<b>Pak RT 03:</b> Ada protes kotak suara tertukar dengan kotak nasi. PEMILIHAN ULANG " +
+                    CampaignTuning.Karier.PemiluUlangHari + " hari lagi. Kampanye lagi, jaga RESTU, kurangi CATATAN HITAM.";
+            countWa = false;
+        }
+
+        private void Fajar()
+        {
+            if (life == null)
+                return;
+            if (life.SeranganFajar(out string reason))
+            {
+                ClosePhone();
+                SaveNow();
+            }
+            else
+            {
+                Say(reason);
+                RefreshPhone();
+            }
         }
 
         private void Tidur()
@@ -1089,6 +1209,12 @@ namespace Konoha.Campaign
             Caption(tidurButton, life.CanTidurNow ? "TIDUR SAMPAI PAGI\nENERGI penuh • hari baru" : "TIDUR\nbisa jam 19.00-04.00");
             if (tidurButton != null)
                 tidurButton.interactable = !busy && life.CanTidurNow;
+            // 0.6.4: envelopes before dawn on election day (dirty, optional).
+            Caption(fajarButton, life.CanFajarNow
+                ? "SERANGAN FAJAR\n" + (CampaignTuning.Karier.FajarBiaya / 1000) + "rb • HITAM +" + CampaignTuning.Karier.FajarCatatan
+                : "SERANGAN FAJAR\nhari H 04.00-09.00");
+            if (fajarButton != null)
+                fajarButton.interactable = !busy && life.CanFajarNow && life.Duit >= CampaignTuning.Karier.FajarBiaya;
             if (phoneInfo != null)
                 phoneInfo.text = "HARI " + life.Day + " • " + life.ClockText + " " + life.DayPart + "   " + KarierLife.Rupiah(life.Duit) +
                     "   ENERGI " + life.Energi + (life.Lemas ? " (LEMAS)" : string.Empty) + "\n" +
@@ -1140,7 +1266,7 @@ namespace Konoha.Campaign
                 "<b>Bu Tejo:</b> Ayamnya kecil ya. Tapi gpp, yang penting niatnya.\n\n" +
                 "<b>Juragan Kos:</b> Saya juga daftar. Sembako sudah saya siapkan 200 paket.\n\n" +
                 "<b>Pak Haji:</b> Semoga amanah. Jangan lupa iuran sampah tetap Rp 20.000.\n\n" +
-                "<b>Admin:</b> <i>Pemilihan Ketua RT hadir di versi berikutnya. Progresmu tersimpan.</i>";
+                "<b>Pak RT 03:</b> Pemilihan Ketua RT dua hari lagi di POS RONDA. Silakan kampanye, asal jangan bagi amplop.";
         }
 
         // --- Visuals -------------------------------------------------------------------------
@@ -1302,6 +1428,12 @@ namespace Konoha.Campaign
                 case KarierAction.DaftarRT:
                     actionLabel.text = "DAFTAR\nCALON RT";
                     break;
+                case KarierAction.Kampanye:
+                    actionLabel.text = "KAMPANYE\n" + (CampaignTuning.Karier.KampanyeBiaya / 1000) + "rb";
+                    break;
+                case KarierAction.Coblos:
+                    actionLabel.text = "COBLOS";
+                    break;
             }
         }
 
@@ -1321,7 +1453,8 @@ namespace Konoha.Campaign
                 string state = combat == null ? string.Empty
                     : combat.IsKnockedOut ? "PINGSAN - dibawa warga..."
                     : "WIBAWA " + combat.Wibawa + "/" + combat.MaxWibawaValue;
-                heroText.text = CampaignKarier.Avatar.Name + "  •  HARI " + life.Day + ", " + life.ClockText + " " + life.DayPart + "  •  " + state;
+                heroText.text = CampaignKarier.Avatar.Name + (life.KetuaRT ? "  •  KETUA RT 03" : string.Empty) + "  •  HARI " + life.Day + ", " +
+                    life.ClockText + " " + life.DayPart + "  •  " + state;
             }
             if (feedbackText != null && feedbackText.text.Length > 0)
                 feedbackText.text = string.Empty;
@@ -1433,11 +1566,20 @@ namespace Konoha.Campaign
             if (life.AllMissionsDone)
             {
                 // 0.6.3: the daily tasks take over the panel after the last mission.
-                string tugas = "<b>TUGAS HARIAN • HARI " + life.Day + "</b>\n<color=#BFE8C8>" + life.MissionProgress + "</color>\n";
+                string tugas = "<b>" + (life.KetuaRT ? "KETUA RT 03 • HARI " : life.Campaigning ? "PEMILIHAN RT • HARI " : "TUGAS HARIAN • HARI ") +
+                    life.Day + "</b>\n<color=#BFE8C8>" + life.MissionProgress + "</color>\n";
+                if (life.Campaigning)
+                {
+                    // 0.6.4: the survey of the Grup WA (an estimate, not the result).
+                    life.Survey(out int kamu, out int juragan, out int haji);
+                    tugas += "<color=#F2C35A>Survei WA: KAMU " + kamu + "% • JURAGAN " + juragan + "% • HAJI " + haji + "%</color>\n" +
+                        "<color=#FFFFFF>Pemilihan HARI " + life.ElectionDay + " 09.00 • kampanye hari ini " + life.KampanyeToday + "/" +
+                        life.Layout.SapaPoints.Length + "</color>\n";
+                }
                 for (int i = 0; i < KarierLife.TugasCount; i++)
                     tugas += (life.TugasDone(i) ? done : todo) + life.TugasName(i) + " " + life.TugasProgress(i) + "/" + life.TugasNeed(i) + end;
                 tugas += "<color=#BBBBBB>" + (CampaignTuning.Karier.TugasReward / 1000) + "rb per tugas • bonus " +
-                    (CampaignTuning.Karier.TugasBonus / 1000) + "rb semua beres • CALON KETUA RT 03</color>";
+                    (CampaignTuning.Karier.TugasBonus / 1000) + "rb semua beres" + (life.KetuaRT ? " • LEVEL 1 TAMAT" : string.Empty) + "</color>";
                 if (life.CatatanHitam >= CampaignTuning.Karier.PasalKaretFrom)
                     tugas += "\n<color=#FF7A6A>Catatan hitam tinggi: awas pasal karet</color>";
                 return tugas;

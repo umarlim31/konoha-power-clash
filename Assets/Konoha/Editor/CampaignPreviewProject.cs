@@ -20,7 +20,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.6.3")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.6.4")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -28,8 +28,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.6.3";
-            PlayerSettings.Android.bundleVersionCode = 49;
+            PlayerSettings.bundleVersion = "0.6.4";
+            PlayerSettings.Android.bundleVersionCode = 50;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -232,7 +232,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.6.3  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.6.4  •  SOLO PREVIEW";
             // 0.3.1: which owner models (Art/Models/<Slot>) are in this build; hidden when none.
             string modelSummary = CampaignModelSlots.Summary();
             if (modelSummary.Length > 0)
@@ -410,6 +410,10 @@ namespace Konoha.Editor
             var interior = new GameObject("CampaignInteriorCamera").AddComponent<CampaignInteriorCamera>();
             interior.follow = follow;
             interior.occluders = occluders;
+            // 0.6.4: rooms measured now (editor), saved with the scene.
+            var roomRenderers = new List<Renderer>(occluders.candidates);
+            roomRenderers.AddRange(capital.RoofRenderers());
+            interior.Bake(roomRenderers);
             // 0.6.3 KARIER "Padat": houses, carts, trees, poles and fences become solid in KARIER
             // only (switched on by KarierController; MODE PRESIDEN keeps its tested route).
             var solidProps = capital.BuildSolidProps(KarierKeepFree(stage));
@@ -421,6 +425,7 @@ namespace Konoha.Editor
             var karier = CreateKarier(safe, objective, status, waypoint, heroText, feedback, fillImage, traversal, bodies,
                 new[] { s1, s2, ultimate, heroButton }, karierScene, stage);
             karier.solidRoot = solidProps;
+            karier.occluders = occluders;
             // 0.6.3 day and night: the generator's daylight blends into a moonlit night with
             // lamp glows (KARIER only; MODE PRESIDEN keeps its fixed daylight).
             var dayNight = new GameObject("KarierSiangMalam").AddComponent<KarierDayNight>();
@@ -449,7 +454,7 @@ namespace Konoha.Editor
                 karier.phoneButton, karier.closePhoneButton, karier.ojolButton, karier.kuliButton, karier.buzzerButton,
                 karier.rebahanButton, karier.actionButton, karier.kaburButton, karier.damaiButton, karier.polsekButton,
                 karier.waCloseButton, karier.saksiButton, karier.waAcceptButton, karier.waRejectButton, karier.tebusButton,
-                karier.parkirButton, karier.rondaButton, karier.tidurButton,
+                karier.parkirButton, karier.rondaButton, karier.tidurButton, karier.fajarButton, karier.countSkipButton,
                 avatarPanel.genderButton, avatarPanel.skinButton, avatarPanel.hairButton,
                 avatarPanel.bodyButton, avatarPanel.shirtButton, avatarPanel.startButton, avatarPanel.resetButton };
 
@@ -658,7 +663,9 @@ namespace Konoha.Editor
             karier.rondaButton = PhoneButton("KarierKerjaRonda", "RONDA MALAM", phone, -206, new Color(0.14f, 0.22f, 0.40f, 0.98f), 1);
             karier.buzzerButton = PhoneButton("KarierKerjaBuzzer", "BUZZER HOAKS", phone, -296, new Color(0.50f, 0.13f, 0.12f, 0.98f), -1);
             karier.rebahanButton = PhoneButton("KarierRebahanTombol", "REBAHAN", phone, -296, new Color(0.20f, 0.24f, 0.36f, 0.98f), 1);
-            karier.tidurButton = PhoneButton("KarierTidurTombol", "TIDUR", phone, -386, new Color(0.10f, 0.12f, 0.24f, 0.98f), 0);
+            karier.tidurButton = PhoneButton("KarierTidurTombol", "TIDUR", phone, -386, new Color(0.10f, 0.12f, 0.24f, 0.98f), -1);
+            // 0.6.4: envelopes on the morning of the Ketua RT election.
+            karier.fajarButton = PhoneButton("KarierFajarTombol", "SERANGAN FAJAR", phone, -386, new Color(0.42f, 0.10f, 0.22f, 0.98f), 1);
             var closePhone = Button("KarierHPTutup", "TUTUP", phone, new Vector2(0.5f, 0f), new Vector2(0, 16), new Vector2(460, 52));
             closePhone.GetComponentInChildren<Text>().fontSize = 18;
             karier.closePhoneButton = closePhone;
@@ -727,6 +734,35 @@ namespace Konoha.Editor
             jail.gameObject.SetActive(false);
             karier.jailPanel = jail.gameObject;
             karier.waPanel = wa.gameObject;
+
+            // 0.6.4 tally of the Ketua RT election (three bars filling up), tap to skip.
+            var count = UiBox("KarierHitungSuara", root, new Vector2(0.5f, 0.5f), new Vector2(0, 20), new Vector2(640, 330),
+                new Color(0.05f, 0.06f, 0.08f, 0.96f), true);
+            var countTitle = Text("KarierHitungJudul", count, new Vector2(0.5f, 1f), new Vector2(0, -14), new Vector2(600, 44), 24);
+            countTitle.alignment = TextAnchor.MiddleCenter;
+            countTitle.fontStyle = FontStyle.Bold;
+            countTitle.color = new Color(1f, 0.86f, 0.42f);
+            karier.countTitle = countTitle;
+            Color[] barColors = { new Color(0.20f, 0.62f, 0.38f), new Color(0.75f, 0.45f, 0.16f), new Color(0.30f, 0.45f, 0.75f) };
+            karier.countLabels = new Text[3];
+            karier.countBars = new RectTransform[3];
+            for (int i = 0; i < 3; i++)
+            {
+                float y = -78f - i * 70f;
+                var label = Text("KarierHitungNama" + i, count, new Vector2(0f, 1f), new Vector2(30, y), new Vector2(580, 28), 18);
+                label.alignment = TextAnchor.MiddleLeft;
+                karier.countLabels[i] = label;
+                UiBox("KarierHitungLatar" + i, count, new Vector2(0f, 1f), new Vector2(30, y - 30), new Vector2(380, 18),
+                    new Color(1f, 1f, 1f, 0.12f), false);
+                karier.countBars[i] = UiBox("KarierHitungBatang" + i, count, new Vector2(0f, 1f), new Vector2(30, y - 30), new Vector2(0, 18),
+                    barColors[i], false);
+            }
+            karier.countBarWidth = 380f;
+            var countSkip = Button("KarierHitungLewati", "LANJUT", count, new Vector2(0.5f, 0f), new Vector2(0, 14), new Vector2(240, 46));
+            countSkip.GetComponentInChildren<Text>().fontSize = 17;
+            karier.countSkipButton = countSkip;
+            count.gameObject.SetActive(false);
+            karier.countPanel = count.gameObject;
 
             // Rebahan feed.
             var rebahan = UiBox("KarierRebahan", root, new Vector2(0.5f, 0.5f), new Vector2(0, -60), new Vector2(560, 170),

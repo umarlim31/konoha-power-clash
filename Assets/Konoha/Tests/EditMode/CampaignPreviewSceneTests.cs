@@ -37,9 +37,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.6.3  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.6.3"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(49));
+                    Is.EqualTo("JALUR TAKHTA 0.6.4  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.6.4"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(50));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -178,7 +178,7 @@ namespace Konoha.Tests
                 Assert.That(solids.Length, Is.GreaterThan(20), "Houses, carts, trees and poles are solid in KARIER");
                 foreach (var solid in solids)
                 {
-                    Assert.That(solid.gameObject.layer, Is.EqualTo(2), "Orbit camera looks past solid props");
+                    Assert.That(solid.gameObject.layer, Is.EqualTo(0), "0.6.4: the orbit camera stops in front of solid props");
                     Assert.That(solid.GetComponent<Renderer>(), Is.Null);
                 }
                 Assert.That(karier.dayNight, Is.Not.Null);
@@ -188,9 +188,15 @@ namespace Konoha.Tests
                 Assert.That(karier.dayNight.lampGlows.transform.childCount, Is.GreaterThan(0));
                 foreach (var glow in karier.dayNight.lampGlows.GetComponentsInChildren<Transform>(true))
                     Assert.That(glow.GetComponent<Collider>(), Is.Null);
-                foreach (var button in new[] { karier.parkirButton, karier.rondaButton, karier.tidurButton })
+                foreach (var button in new[] { karier.parkirButton, karier.rondaButton, karier.tidurButton, karier.fajarButton, karier.countSkipButton })
                     Assert.That(button, Is.Not.Null);
                 Assert.That(karier.policeTitle, Is.Not.Null);
+                // 0.6.4: the Ketua RT tally panel (hidden until the count).
+                Assert.That(karier.countPanel, Is.Not.Null);
+                Assert.That(karier.countPanel.activeSelf, Is.False);
+                Assert.That(karier.countLabels, Has.Length.EqualTo(3));
+                Assert.That(karier.countBars, Has.Length.EqualTo(3));
+                Assert.That(karier.occluders, Is.SameAs(session.occluders));
                 Assert.That(karier.rondaPoints, Has.Length.EqualTo(3));
                 Assert.That(karier.rondaNames, Has.Length.EqualTo(karier.rondaPoints.Length));
                 var interiorCamera = Object.FindFirstObjectByType<CampaignInteriorCamera>();
@@ -200,6 +206,17 @@ namespace Konoha.Tests
                 foreach (var occluder in session.occluders.candidates)
                     if (occluder.name == "KotaTall polsek atap") polsekRoof = true;
                 Assert.That(polsekRoof, Is.True, "The POLSEK roof brings the camera inside");
+                // 0.6.4: rooms are baked into the scene; the pendopo in both taman and the POLSEK count.
+                Assert.That(interiorCamera.RoomCount, Is.GreaterThan(2));
+                foreach (int side in new[] { -1, 1 })
+                    Assert.That(interiorCamera.UnderRoof(new Vector3(side * 19.5f, .15f, -16f)), Is.True,
+                        "Standing in the pendopo brings the camera inside (side " + side + ")");
+                Assert.That(interiorCamera.UnderRoof(new Vector3(20f, 0f, -30f)), Is.True,
+                    "Standing in the POLSEK brings the camera inside");
+                Assert.That(interiorCamera.UnderRoof(new Vector3(0f, .1f, -44f)), Is.False, "The open street is not a room");
+                Assert.That(CampaignOccluders.IsScenery("NusantaraTall model Pendopo atas"), Is.True);
+                Assert.That(CampaignOccluders.IsScenery("Palm crown model PohonPalem"), Is.True);
+                Assert.That(CampaignOccluders.IsScenery("Gerbang Rakyat lintel"), Is.False);
                 foreach (var root in new[] { karier.crowd.transform, karier.ojolMotor, karier.sack, karier.rentMotor, karier.bike, karier.plate })
                     foreach (var piece in root.GetComponentsInChildren<Transform>(true))
                         Assert.That(piece.GetComponent<Collider>(), Is.Null, "KARIER decor never collides: " + piece.name);
