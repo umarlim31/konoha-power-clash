@@ -27,6 +27,9 @@ namespace Konoha.Tests
                 SewaMotor = new KarierPoint(15f, -24f),
                 PremanSpot = new KarierPoint(1f, -29.5f),
                 Plaza = new KarierPoint(0f, -6.5f),
+                Parkir = new KarierPoint(14f, -5f),
+                RondaPoints = new[] { new KarierPoint(1f, -29.5f), new KarierPoint(-20f, 0f), new KarierPoint(-20f, 1.5f) },
+                RondaNames = new[] { "MULUT GANG", "WARKOP", "TAMAN BARAT" },
                 SapaNames = new[] { "POS RONDA", "IBU-IBU", "OJOL" },
                 SapaPoints = new[] { new KarierPoint(-8.6f, -26f), new KarierPoint(8.6f, -26f), new KarierPoint(13f, -21f) }
             };
@@ -334,6 +337,162 @@ namespace Konoha.Tests
             Assert.That(parsed.Female, Is.True);
             Assert.That(parsed.Shirt, Is.EqualTo(9 % KarierAvatar.ShirtNames.Length));
             Assert.That(KarierAvatar.CleanName("   "), Is.EqualTo("WARGA"));
+        }
+
+        // Runs the clock (and nothing else) until the given minute of the day.
+        private static void WaitUntil(KarierLife life, int minute)
+        {
+            for (int guard = 0; guard < 200000 && (int)life.Clock != minute; guard++)
+                life.Tick(Away, Frame, false, false);
+        }
+
+        [Test]
+        public void DayClockRunsAndTidurWakesUpNextMorning()
+        {
+            var life = new KarierLife(Layout());
+            Assert.That(life.Day, Is.EqualTo(1));
+            Assert.That(life.Clock, Is.EqualTo(CampaignTuning.Karier.StartClock).Within(0.01f));
+            Assert.That(life.Night, Is.False);
+            Stand(life, Away, 10f);
+            Assert.That(life.Clock, Is.EqualTo(CampaignTuning.Karier.StartClock + 10f * 1440f / CampaignTuning.Karier.DaySeconds).Within(0.5f));
+            Assert.That(life.StartTidur(out string reason), Is.False, "No sleeping in the morning");
+            Assert.That(reason, Does.Contain("19.00"));
+            WaitUntil(life, 19 * 60 + 30);
+            Assert.That(life.Night, Is.True);
+            life.AddEnergi(-70);
+            Assert.That(life.StartTidur(out _), Is.True);
+            Assert.That(life.ActionAt(Layout().Siomay, out _), Is.EqualTo(KarierAction.None), "Asleep: no actions");
+            Stand(life, Away, CampaignTuning.Karier.TidurSeconds + 0.1f);
+            Assert.That(life.Tidur, Is.False);
+            Assert.That(life.Day, Is.EqualTo(2));
+            Assert.That(life.Clock, Is.EqualTo(CampaignTuning.Karier.MorningClock).Within(1f));
+            Assert.That(life.Energi, Is.EqualTo(CampaignTuning.Karier.EnergiMax));
+        }
+
+        [Test]
+        public void JobsKeepOpeningHoursAndRondaPaysAtThePosRonda()
+        {
+            KarierLayout layout = Layout();
+            var life = new KarierLife(layout);
+            Assert.That(life.TakeJob(KarierJob.Ronda, out string reason), Is.False, "Ronda is a night job");
+            Assert.That(reason, Does.Contain("21.00"));
+            Assert.That(life.TakeJob(KarierJob.Parkir, out _), Is.False, "Parkir opens at 08.00");
+            WaitUntil(life, 21 * 60 + 10);
+            Assert.That(life.TakeJob(KarierJob.Kuli, out reason), Is.False, "The project closed at 17.00");
+            Assert.That(life.TakeJob(KarierJob.Ronda, out _), Is.True);
+            int duit = life.Duit, restu = life.Restu;
+            foreach (KarierPoint point in layout.RondaPoints)
+            {
+                Assert.That(life.Target(out KarierPoint target, out _), Is.True);
+                Assert.That(KarierPoint.Distance(target, point), Is.LessThan(0.01f), "The arrow walks the round");
+                Stand(life, point, CampaignTuning.Karier.RondaCheckSeconds + 0.1f);
+            }
+            Assert.That(life.Step, Is.EqualTo(KarierStep.RondaPulang));
+            Stand(life, layout.PosRt, CampaignTuning.Karier.RondaCheckSeconds + 0.1f);
+            Assert.That(life.Job, Is.EqualTo(KarierJob.None));
+            Assert.That(life.RondaCount, Is.EqualTo(1));
+            Assert.That(life.Duit - duit, Is.EqualTo(CampaignTuning.Karier.RondaPay));
+            Assert.That(life.Restu - restu, Is.EqualTo(CampaignTuning.Karier.RondaRestu));
+        }
+
+        [Test]
+        public void ParkirPaysPerMotorMinusTheSetoran()
+        {
+            KarierLayout layout = Layout();
+            var life = new KarierLife(layout);
+            WaitUntil(life, 8 * 60 + 5);
+            Assert.That(life.TakeJob(KarierJob.Parkir, out _), Is.True);
+            int duit = life.Duit;
+            Stand(life, layout.Parkir, CampaignTuning.Karier.ParkirSecondsPerMotor * 2.5f);
+            Assert.That(life.ParkirMotorsDone, Is.EqualTo(2));
+            Stand(life, Away, 1f);
+            Assert.That(life.ParkirMotorsDone, Is.EqualTo(2), "Walking off only pauses the parkir");
+            Stand(life, layout.Parkir, CampaignTuning.Karier.ParkirSecondsPerMotor * CampaignTuning.Karier.ParkirMotors);
+            int gross = CampaignTuning.Karier.ParkirMotors * CampaignTuning.Karier.ParkirFee;
+            Assert.That(life.Duit - duit, Is.EqualTo(gross - KarierLife.Round500(gross * CampaignTuning.Karier.ParkirSetoran)));
+            Assert.That(life.ParkirCount, Is.EqualTo(1));
+            Assert.That(life.Job, Is.EqualTo(KarierJob.None));
+        }
+
+        [Test]
+        public void TabrakMeansTanggungJawabOrAChase()
+        {
+            KarierLayout layout = Layout();
+            var life = new KarierLife(layout);
+            life.AddDuit(1000000);
+            Assert.That(life.CanTabrak, Is.False, "Only while riding");
+            Assert.That(life.DoAction(KarierAction.SewaMotor, -1), Is.True);
+            Assert.That(life.CanTabrak, Is.True);
+            life.OnTabrak(layout.Plaza);
+            Assert.That(life.TabrakPending, Is.True);
+            Assert.That(life.Target(out KarierPoint target, out _), Is.True);
+            Assert.That(KarierPoint.Distance(target, layout.Plaza), Is.LessThan(0.01f));
+            int duit = life.Duit;
+            Assert.That(life.TanggungJawab(), Is.True);
+            Assert.That(duit - life.Duit, Is.EqualTo(life.GantiRugiPrice));
+            Assert.That(life.CanTabrak, Is.False, "A short pause after a crash");
+            Stand(life, Away, CampaignTuning.Karier.TabrakCooldown + 0.1f);
+
+            // Riding away from the victim is KABUR: the police chase, catching means no second kabur.
+            life.OnTabrak(layout.Plaza);
+            int catatan = life.CatatanHitam;
+            life.Tick(Away, Frame, false, false);
+            Assert.That(life.TabrakPending, Is.False);
+            Assert.That(life.Chasing, Is.True);
+            Assert.That(life.PoliceReason, Is.EqualTo(KarierPoliceReason.TabrakLari));
+            Assert.That(life.CatatanHitam - catatan, Is.EqualTo(CampaignTuning.Karier.TabrakKaburCatatan));
+            Assert.That(life.TakeJob(KarierJob.Ojol, out _), Is.False);
+            life.CaughtInChase();
+            Assert.That(life.PoliceArrived, Is.True);
+            Assert.That(life.CanKabur, Is.False);
+            Assert.That(life.ResolvePolice(KarierPoliceChoice.Kabur), Is.False);
+            int price = life.DamaiPrice;
+            Assert.That(price, Is.EqualTo(CampaignTuning.Karier.DamaiTabrak + life.CatatanHitam * CampaignTuning.Karier.DamaiTabrakPerCatatan));
+            Assert.That(life.ResolvePolice(KarierPoliceChoice.Damai), Is.True);
+            Assert.That(life.PoliceCalled, Is.False);
+
+            // Escaping: the chase runs out, the record stays.
+            Stand(life, Away, CampaignTuning.Karier.TabrakCooldown + 0.1f);
+            life.OnTabrak(layout.Plaza);
+            Assert.That(life.KaburTabrak(), Is.True);
+            Stand(life, Away, CampaignTuning.Karier.ChaseSeconds + 0.2f);
+            Assert.That(life.Chasing, Is.False);
+            Assert.That(life.PoliceCalled, Is.False, "Lolos");
+            Assert.That(life.TabrakCount, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void AfterTheMissionsDailyTasksAndCongratulations()
+        {
+            var life = new KarierLife(Layout(), 7);
+            // A 0.6.2 save that finished all twelve missions.
+            Assert.That(life.TryLoad("K3;300000;100;80;0;7;1;5;2;0;3;12;4;2;1;1"), Is.True);
+            Assert.That(life.AllMissionsDone, Is.True);
+            Assert.That(life.CelebrationPending, Is.True, "The congratulations come once");
+            Stand(life, Away, 0.1f);
+            Assert.That(life.MissionTitle, Is.EqualTo("TUGAS HARIAN"));
+            Assert.That(life.TugasKind(0), Is.EqualTo(KarierTugas.Ojol));
+            Assert.That(life.MissionNeedsPhone, Is.True, "First task: OJOL in the HP");
+            life.AckCelebration();
+            Assert.That(life.CelebrationPending, Is.False);
+
+            int duit = life.Duit;
+            Assert.That(life.TakeJob(KarierJob.Ojol, out _), Is.True);
+            for (int trip = 0; trip < 2; trip++)
+            {
+                Stand(life, life.Place(life.OjolFrom), CampaignTuning.Karier.OjolPickupSeconds + 0.1f);
+                Stand(life, life.Place(life.OjolTo), CampaignTuning.Karier.OjolPickupSeconds + 0.1f);
+            }
+            Stand(life, Away, 0.1f);
+            Assert.That(life.TugasDone(0), Is.True);
+            Assert.That(life.Duit - duit, Is.GreaterThan(CampaignTuning.Karier.TugasReward), "Fares plus the task reward");
+
+            var copy = new KarierLife(Layout());
+            Assert.That(copy.TryLoad(life.Serialize()), Is.True);
+            Assert.That(copy.CelebrationPending, Is.False, "Seen stays seen");
+            Assert.That(copy.TugasDone(0), Is.True);
+            Assert.That(copy.Day, Is.EqualTo(life.Day));
+            Assert.That((int)copy.Clock, Is.EqualTo((int)life.Clock));
         }
 
         [Test]

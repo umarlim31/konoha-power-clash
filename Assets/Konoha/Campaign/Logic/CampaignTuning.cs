@@ -306,6 +306,55 @@ namespace Konoha.Campaign
             public const int TawaranPay = 250000;
             public const int TawaranCatatan = 15;
             public const int TolakRestu = 6;
+
+            // 0.6.3 day and night: one Konoha day lasts 10 real minutes (clock in minutes).
+            public const float DaySeconds = 600f;
+            public const int StartClock = 7 * 60;       // A new life starts at 07:00.
+            public const int MorningClock = 6 * 60;     // TIDUR wakes up at 06:00.
+            public const int NightFrom = 18 * 60 + 30;
+            public const int NightUntil = 5 * 60 + 30;
+            public const int TidurFrom = 19 * 60;       // TIDUR from 19:00 to 04:00.
+            public const int TidurUntil = 4 * 60;
+            public const float TidurSeconds = 4f;
+            public const int RebahanMinutes = 120;      // "Dua jam hilang".
+            public const int KuliFrom = 7 * 60, KuliUntil = 17 * 60;
+            public const int ParkirFrom = 8 * 60, ParkirUntil = 21 * 60;
+            public const int RondaFrom = 21 * 60, RondaUntil = 3 * 60;
+            public const float OjolNightBonus = 0.25f;  // "Tarif malam".
+            public const float PremanNightFactor = 0.6f;
+
+            // 0.6.3 PARKIR liar in front of the kantor kelurahan.
+            public const int ParkirMotors = 6;
+            public const float ParkirSecondsPerMotor = 4f;
+            public const int ParkirFee = 2000;
+            public const float ParkirSetoran = 0.4f;    // For the "bos parkir".
+            public const int ParkirRestu = -1;          // "Tadi pas datang nggak ada tukang parkir..."
+            public const int ParkirEnergi = 4;
+
+            // 0.6.3 RONDA MALAM: walk the round, back to the pos ronda.
+            public const float RondaCheckSeconds = 2f;
+            public const int RondaPay = 30000;          // Iuran ronda.
+            public const int RondaRestu = 3;
+            public const int RondaEnergi = 8;
+
+            // 0.6.3 TABRAK: riding into a warga.
+            public const float TabrakSpeed = 3.2f;      // m/s; slower is a bump, not a crash.
+            public const float TabrakRadius = 0.75f;
+            public const float TabrakCooldown = 6f;
+            public const float TabrakKaburDistance = 14f;   // Riding this far away counts as KABUR.
+            public const int TabrakGantiRugi = 150000;
+            public const int TabrakTanggungRestu = -1;
+            public const int TabrakKaburCatatan = 15;
+            public const int TabrakKaburRestu = -6;
+            public const float ChaseSeconds = 35f;
+            public const float ChaseCatchDistance = 2.4f;
+            public const int DamaiTabrak = 300000;
+            public const int DamaiTabrakPerCatatan = 2000;
+
+            // 0.6.3 TUGAS HARIAN (after all missions): three small tasks a day.
+            public const int TugasReward = 15000;
+            public const int TugasBonus = 30000;
+            public const int TugasRestu = 1;
         }
 
         // 0.0.9.2.1 RESTU RAKYAT: reward for clearing the Gerbang Rakyat, lasts for the run
