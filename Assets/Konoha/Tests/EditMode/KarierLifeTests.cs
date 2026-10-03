@@ -470,9 +470,12 @@ namespace Konoha.Tests
             Assert.That(life.AllMissionsDone, Is.True);
             Assert.That(life.CelebrationPending, Is.True, "The congratulations come once");
             Stand(life, Away, 0.1f);
-            Assert.That(life.MissionTitle, Is.EqualTo("TUGAS HARIAN"));
+            // 0.6.4: a registered candidate campaigns first (the election is two days away).
+            Assert.That(life.MissionTitle, Is.EqualTo("PEMILIHAN KETUA RT"));
+            Assert.That(life.ElectionDay, Is.EqualTo(life.Day + CampaignTuning.Karier.PemiluJedaHari));
+            Assert.That(life.MissionTarget(out _, out string kampanye), Is.True);
+            Assert.That(kampanye, Is.EqualTo("KAMPANYE"));
             Assert.That(life.TugasKind(0), Is.EqualTo(KarierTugas.Ojol));
-            Assert.That(life.MissionNeedsPhone, Is.True, "First task: OJOL in the HP");
             life.AckCelebration();
             Assert.That(life.CelebrationPending, Is.False);
 
@@ -493,6 +496,111 @@ namespace Konoha.Tests
             Assert.That(copy.TugasDone(0), Is.True);
             Assert.That(copy.Day, Is.EqualTo(life.Day));
             Assert.That((int)copy.Clock, Is.EqualTo((int)life.Clock));
+        }
+
+        private static void WaitUntilDay(KarierLife life, int day, int minute)
+        {
+            for (int guard = 0; guard < 400000 && !(life.Day == day && (int)life.Clock == minute); guard++)
+                life.Tick(Away, Frame, false, false);
+        }
+
+        // A finished 0.6.2 life: registered, all three warga greeted, 3 preman beaten, Restu 80.
+        private const string Registered = "K3;300000;100;80;0;7;1;5;2;0;3;12;4;2;1;1";
+
+        private static void KampanyeAll(KarierLife life)
+        {
+            for (int i = 0; i < 3; i++)
+                Assert.That(life.DoAction(KarierAction.Kampanye, i), Is.True, "Kampanye at spot " + i);
+        }
+
+        [Test]
+        public void KetuaRtElectionIsWonByCampaigning()
+        {
+            KarierLayout layout = Layout();
+            var life = new KarierLife(layout, 7);
+            Assert.That(life.TryLoad(Registered), Is.True);
+            Stand(life, Away, 0.1f);
+            Assert.That(life.Campaigning, Is.True);
+            Assert.That(life.ElectionDay, Is.EqualTo(3));
+            life.AddRestu(100);
+            Assert.That(life.ActionAt(layout.SapaPoints[0], out int spot), Is.EqualTo(KarierAction.Kampanye));
+            Assert.That(spot, Is.EqualTo(0));
+            KampanyeAll(life);
+            Assert.That(life.DoAction(KarierAction.Kampanye, 0), Is.False, "Once per spot per day");
+            Assert.That(life.KampanyeToday, Is.EqualTo(3));
+            life.Survey(out int kamu, out int juragan, out int haji);
+            Assert.That(kamu + juragan + haji, Is.EqualTo(100));
+            WaitUntilDay(life, 2, 8 * 60);
+            KampanyeAll(life);
+            WaitUntilDay(life, 3, 7 * 60);
+            Assert.That(life.CanFajarNow, Is.True, "Dawn of election day");
+            KampanyeAll(life);
+            Assert.That(life.Duit, Is.EqualTo(300000 - 9 * CampaignTuning.Karier.KampanyeBiaya));
+            Assert.That(life.ActionAt(layout.PosRt, out _), Is.Not.EqualTo(KarierAction.Coblos), "TPS opens at 09.00");
+            WaitUntilDay(life, 3, 9 * 60 + 5);
+            Assert.That(life.PollsOpen, Is.True);
+            Assert.That(life.MissionTarget(out KarierPoint target, out string label), Is.True);
+            Assert.That(label, Is.EqualTo("COBLOS"));
+            Assert.That(KarierPoint.Distance(target, layout.PosRt), Is.LessThan(0.01f));
+            Assert.That(life.ActionAt(layout.PosRt, out _), Is.EqualTo(KarierAction.Coblos));
+            Assert.That(life.DoAction(KarierAction.Coblos, -1), Is.True);
+            Assert.That(life.ResultPending, Is.True);
+            Assert.That(life.VotesKamu + life.VotesJuragan + life.VotesHaji, Is.EqualTo(CampaignTuning.Karier.PemilihKK));
+            Assert.That(life.KetuaRT, Is.True, "100 restu + 9 kampanye beats the sembako");
+            Assert.That(life.Winner, Is.EqualTo("KAMU"));
+            var copy = new KarierLife(layout);
+            Assert.That(copy.TryLoad(life.Serialize()), Is.True);
+            Assert.That(copy.ResultPending, Is.True, "The tally is shown again after a restart");
+            Assert.That(copy.VotesKamu, Is.EqualTo(life.VotesKamu));
+            life.AckResult();
+            Assert.That(life.ResultPending, Is.False);
+            Assert.That(life.Campaigning, Is.False);
+            Assert.That(life.MissionTitle, Is.EqualTo("KETUA RT 03"));
+        }
+
+        [Test]
+        public void NotVotingLosesAndBringsARerun()
+        {
+            var life = new KarierLife(Layout(), 7);
+            Assert.That(life.TryLoad(Registered), Is.True);
+            WaitUntilDay(life, 3, 17 * 60 + 2);
+            Assert.That(life.ResultPending, Is.True, "TPS closed: counted without you");
+            Assert.That(life.Hasil, Is.EqualTo(KarierHasil.Kalah));
+            Assert.That(life.ElectionsLost, Is.EqualTo(1));
+            life.AckResult();
+            Assert.That(life.Campaigning, Is.True);
+            Assert.That(life.ElectionDay, Is.EqualTo(3 + CampaignTuning.Karier.PemiluUlangHari));
+        }
+
+        [Test]
+        public void SeranganFajarBuysVotesWithARecord()
+        {
+            var life = new KarierLife(Layout(), 7);
+            Assert.That(life.TryLoad(Registered), Is.True);
+            Stand(life, Away, 0.1f);
+            Assert.That(life.SeranganFajar(out string reason), Is.False, "Only at dawn of election day");
+            Assert.That(reason, Does.Contain("04.00"));
+            WaitUntilDay(life, 3, 5 * 60);
+            int before = life.PoinKamu;
+            int catatan = life.CatatanHitam;
+            Assert.That(life.SeranganFajar(out _), Is.True);
+            Assert.That(life.Fajar, Is.True);
+            Assert.That(life.CatatanHitam - catatan, Is.EqualTo(CampaignTuning.Karier.FajarCatatan));
+            int expected = before + CampaignTuning.Karier.FajarPoin - (life.FajarKetahuan ? CampaignTuning.Karier.FajarKetahuanPoin : 0) -
+                (catatan + CampaignTuning.Karier.FajarCatatan) / 3 + catatan / 3;
+            Assert.That(life.PoinKamu, Is.EqualTo(expected));
+            Assert.That(life.SeranganFajar(out _), Is.False, "Once");
+        }
+
+        [Test]
+        public void VotesSplitByLargestRemainder()
+        {
+            KarierLife.Split(60, 1, 1, 1, out int a, out int b, out int c);
+            Assert.That(new[] { a, b, c }, Is.EqualTo(new[] { 20, 20, 20 }));
+            KarierLife.Split(100, 2, 1, 1, out a, out b, out c);
+            Assert.That(new[] { a, b, c }, Is.EqualTo(new[] { 50, 25, 25 }));
+            KarierLife.Split(60, 0, 0, 0, out a, out b, out c);
+            Assert.That(a + b + c, Is.EqualTo(60));
         }
 
         [Test]

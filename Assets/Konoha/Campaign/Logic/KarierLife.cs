@@ -60,7 +60,10 @@ namespace Konoha.Campaign
 
     public enum KarierCue { Notif, Koin, Gagal, Teriak, Melerai, Sirene, Restu, Daftar, Misi, Tabrak, Peluit }
 
-    public enum KarierAction { None, Makan, Sapa, DaftarRT, BeliSiomay, BeliSalome, BeliBakso, SewaSepeda, SewaMotor, Turun }
+    public enum KarierAction { None, Makan, Sapa, DaftarRT, BeliSiomay, BeliSalome, BeliBakso, SewaSepeda, SewaMotor, Turun, Kampanye, Coblos }
+
+    // 0.6.4: outcome of the Ketua RT election.
+    public enum KarierHasil { Belum, Menang, Kalah }
 
     public enum KarierRide { None, Sepeda, Motor }
 
@@ -178,6 +181,22 @@ namespace Konoha.Campaign
         // The congratulations after the last mission (shown once, then saved as seen).
         public bool CelebrationPending { get; private set; }
         private bool celebrationSeen;
+        // 0.6.4 PEMILIHAN KETUA RT (saved).
+        public int RegisteredDay { get; private set; }
+        public int ElectionDay { get; private set; }
+        public KarierHasil Hasil { get; private set; }
+        public int ElectionsLost { get; private set; }
+        public int KampanyeCount { get; private set; }
+        public int KampanyeDay { get; private set; }
+        public int KampanyeMask { get; private set; }
+        public bool Fajar { get; private set; }
+        public bool FajarKetahuan { get; private set; }
+        public int VotesKamu { get; private set; }
+        public int VotesJuragan { get; private set; }
+        public int VotesHaji { get; private set; }
+        // The count waits to be shown (KarierController: tally panel, then the Grup WA).
+        public bool ResultPending { get; private set; }
+        public bool KetuaRT => Hasil == KarierHasil.Menang;
 
         // --- Current activity (not saved) -------------------------------------------------
         public KarierJob Job { get; private set; }
@@ -263,6 +282,12 @@ namespace Konoha.Campaign
             tugasBase[0] = tugasBase[1] = tugasBase[2] = 0;
             CelebrationPending = false;
             celebrationSeen = false;
+            RegisteredDay = ElectionDay = ElectionsLost = 0;
+            Hasil = KarierHasil.Belum;
+            KampanyeCount = KampanyeDay = KampanyeMask = 0;
+            Fajar = FajarKetahuan = false;
+            VotesKamu = VotesJuragan = VotesHaji = 0;
+            ResultPending = false;
             ClearActivity();
         }
 
@@ -350,6 +375,7 @@ namespace Konoha.Campaign
             TickKeributan(deltaTime, fighting && !heroDown);
             CheckMission();
             CheckTugas();
+            CheckElection();
         }
 
         // --- 0.6.3 Day and night ------------------------------------------------------------
@@ -397,6 +423,10 @@ namespace Konoha.Campaign
                 Clock -= 1440f;
                 Day++;
                 Say("HARI KE-" + Day + " dimulai (" + ClockText + "). Tugas harian baru, cicilan juga baru.");
+                if (Campaigning)
+                    Say(Day == ElectionDay
+                        ? "HARI PEMILIHAN KETUA RT! Coblos di POS RONDA jam 09.00-17.00. Juragan Kos sudah keliling bawa amplop dari subuh..."
+                        : "Juragan Kos bagi sembako di plaza lagi. Survei grup WA: Juragan naik. Pemilihan HARI KE-" + ElectionDay + ".");
             }
         }
 
@@ -951,12 +981,19 @@ namespace Konoha.Campaign
             float radius = CampaignTuning.Karier.ZoneRadius;
             if (CanDaftar && KarierPoint.Near(hero, layout.PosRt, radius))
                 return KarierAction.DaftarRT;
+            if (PollsOpen && KarierPoint.Near(hero, layout.PosRt, radius))
+                return KarierAction.Coblos;
             for (int i = 0; i < layout.SapaPoints.Length; i++)
             {
                 if (!Sapa(i) && KarierPoint.Near(hero, layout.SapaPoints[i], radius))
                 {
                     sapaIndex = i;
                     return KarierAction.Sapa;
+                }
+                if (CanKampanye(i) && KarierPoint.Near(hero, layout.SapaPoints[i], radius))
+                {
+                    sapaIndex = i;
+                    return KarierAction.Kampanye;
                 }
             }
             if (Step != KarierStep.BuzzerKetik && KarierPoint.Near(hero, layout.Warkop, radius))
@@ -1016,6 +1053,14 @@ namespace Konoha.Campaign
                     AddRestu(CampaignTuning.Karier.SapaRestu);
                     Say(SapaLines[sapaIndex % SapaLines.Length] + CampaignTuning.Karier.SapaRestu);
                     Cue(KarierCue.Restu);
+                    return true;
+                case KarierAction.Kampanye:
+                    return Kampanye(sapaIndex);
+                case KarierAction.Coblos:
+                    if (!PollsOpen)
+                        return false;
+                    Say("Kamu mencoblos di bilik POS RONDA (kardus bekas mi instan). Jari dicelup tinta. Penghitungan dimulai!");
+                    Count(false);
                     return true;
                 case KarierAction.DaftarRT:
                     if (!CanDaftar)
@@ -1283,7 +1328,8 @@ namespace Konoha.Campaign
         public int RebahanCount { get; private set; }
         public bool RodeToPlaza { get; private set; }
         public bool AllMissionsDone => Mission >= MissionTitles.Length;
-        public string MissionTitle => AllMissionsDone ? "TUGAS HARIAN" : MissionTitles[Mission];
+        public string MissionTitle => !AllMissionsDone ? MissionTitles[Mission]
+            : KetuaRT ? "KETUA RT 03" : Campaigning ? "PEMILIHAN KETUA RT" : "TUGAS HARIAN";
         public string MissionIntroText => AllMissionsDone ? string.Empty : MissionIntro[Mission];
 
         // The current step of the current mission: what to do, where (arrow), or which button.
@@ -1384,6 +1430,12 @@ namespace Konoha.Campaign
                         phone = true;
                     return "Duit syukuran " + Rupiah(Duit) + " / " + Rupiah(CampaignTuning.Karier.SyukuranRT) + (Busy ? string.Empty : " • HP > kerja");
                 default:
+                    if (Campaigning)
+                    {
+                        string election = ElectionStep(out point, out label, out phone);
+                        if (election != null)
+                            return election;
+                    }
                     return TugasStep(out point, out label, out phone);
             }
         }
@@ -1623,6 +1675,221 @@ namespace Konoha.Campaign
             EnsureTugas();
         }
 
+        // --- 0.6.4 PEMILIHAN KETUA RT ----------------------------------------------------------
+        // Registered: the election comes two days later at the pos ronda. Until then: KAMPANYE
+        // at the warga spots (kopi + rokok, once per spot per day), daily tasks, ronda and
+        // chasing the preman of the rival's tim sukses all raise your votes. On the morning of
+        // the election you may also do a SERANGAN FAJAR (envelopes: votes, Catatan Hitam, and a
+        // chance the video goes viral). Rivals: Juragan Kos (sembako every day, envelopes at
+        // dawn) and Pak Haji (long respected). Lost: a re-run three days later.
+
+        public bool Campaigning => Registered && !KetuaRT && ElectionDay > 0;
+
+        public bool PollsOpen => Campaigning && Day == ElectionDay &&
+            Between(Clock, CampaignTuning.Karier.PemiluBuka, CampaignTuning.Karier.PemiluTutup) && !ResultPending;
+
+        public bool CanFajarNow => Campaigning && Day == ElectionDay && !Fajar &&
+            Between(Clock, CampaignTuning.Karier.FajarFrom, CampaignTuning.Karier.FajarUntil);
+
+        public int KampanyeToday
+        {
+            get
+            {
+                if (KampanyeDay != Day)
+                    return 0;
+                int count = 0;
+                for (int i = 0; i < layout.SapaPoints.Length; i++)
+                    if ((KampanyeMask & (1 << i)) != 0) count++;
+                return count;
+            }
+        }
+
+        public bool CanKampanye(int index) =>
+            Campaigning && Day <= ElectionDay && index >= 0 && index < layout.SapaPoints.Length && Sapa(index) &&
+            !(KampanyeDay == Day && (KampanyeMask & (1 << index)) != 0) && !PollsOpen;
+
+        // Your votes before the count (also the survey).
+        public int PoinKamu => Restu + KampanyeCount * CampaignTuning.Karier.KampanyePoin + 2 * Math.Min(RondaCount, 10) +
+            3 * Math.Min(PremanBeaten, 8) + (Fajar ? CampaignTuning.Karier.FajarPoin : 0) -
+            (FajarKetahuan ? CampaignTuning.Karier.FajarKetahuanPoin : 0) - CatatanHitam / 3 - 4 * Math.Min(TabrakCount, 5);
+
+        public int PoinJuragan => CampaignTuning.Karier.JuraganBase +
+            CampaignTuning.Karier.JuraganPerHari * Clamp(Day - RegisteredDay, 0, CampaignTuning.Karier.JuraganHariMax) +
+            (Day >= ElectionDay && ElectionDay > 0 && Clock >= CampaignTuning.Karier.FajarFrom ? CampaignTuning.Karier.JuraganFajar : 0);
+
+        public int PoinHaji => CampaignTuning.Karier.HajiBase;
+
+        // Survey shares in percent (kamu, juragan, haji), summing to 100.
+        public void Survey(out int kamu, out int juragan, out int haji)
+        {
+            Split(100, Math.Max(1, PoinKamu), PoinJuragan, PoinHaji, out kamu, out juragan, out haji);
+        }
+
+        // Largest-remainder split of total seats between three weights.
+        public static void Split(int total, int a, int b, int c, out int ra, out int rb, out int rc)
+        {
+            a = Math.Max(0, a); b = Math.Max(0, b); c = Math.Max(0, c);
+            int sum = Math.Max(1, a + b + c);
+            double fa = (double)total * a / sum, fb = (double)total * b / sum, fc = (double)total * c / sum;
+            ra = (int)fa; rb = (int)fb; rc = (int)fc;
+            int left = total - ra - rb - rc;
+            double[] rest = { fa - ra, fb - rb, fc - rc };
+            for (; left > 0; left--)
+            {
+                int best = rest[0] >= rest[1] && rest[0] >= rest[2] ? 0 : rest[1] >= rest[2] ? 1 : 2;
+                rest[best] = -1;
+                if (best == 0) ra++; else if (best == 1) rb++; else rc++;
+            }
+        }
+
+        private void CheckElection()
+        {
+            // Only after the whole mission chain (registering can happen earlier).
+            if (!Registered || KetuaRT || !AllMissionsDone)
+                return;
+            if (ElectionDay == 0)
+            {
+                RegisteredDay = Day;
+                ElectionDay = Day + CampaignTuning.Karier.PemiluJedaHari;
+                Say("Pak RT: \"Pemilihan Ketua RT HARI KE-" + ElectionDay + " jam 09.00-17.00 di POS RONDA. Lawanmu: JURAGAN KOS dan PAK HAJI.\"  KAMPANYE di titik warga!");
+                Cue(KarierCue.Notif);
+                return;
+            }
+            // Slept through, or never came: the count happens without your own vote.
+            if (!ResultPending && (Day > ElectionDay || (Day == ElectionDay && Clock >= CampaignTuning.Karier.PemiluTutup)))
+            {
+                Say("TPS POS RONDA ditutup jam 17.00. Kamu tidak datang mencoblos... penghitungan dimulai tanpamu.");
+                Count(true);
+            }
+        }
+
+        public bool Kampanye(int index)
+        {
+            if (!CanKampanye(index))
+                return false;
+            if (Duit < CampaignTuning.Karier.KampanyeBiaya)
+            {
+                Say("Duit kurang buat kopi dan rokok kampanye. Warga: \"Visi-misinya apa, Mas? Kopinya mana?\"");
+                Cue(KarierCue.Gagal);
+                return false;
+            }
+            if (KampanyeDay != Day)
+            {
+                KampanyeDay = Day;
+                KampanyeMask = 0;
+            }
+            KampanyeMask |= 1 << index;
+            KampanyeCount++;
+            AddDuit(-CampaignTuning.Karier.KampanyeBiaya);
+            Say(KampanyeLines[(KampanyeCount - 1) % KampanyeLines.Length] + " (kampanye hari ini " + KampanyeToday + "/" + layout.SapaPoints.Length + ")");
+            Cue(KarierCue.Restu);
+            return true;
+        }
+
+        private static readonly string[] KampanyeLines =
+        {
+            "Kamu janji jalan kampung diaspal. Bapak-bapak: \"Yang dulu juga janji gitu.\"  Tapi kopinya diminum.",
+            "Ibu-ibu: \"Kalau jadi RT, arisan jangan diganggu ya.\"  Kamu mengangguk mantap.",
+            "Driver ojol minta pangkalan ada atapnya. Kamu catat di HP (lalu lupa disimpan).",
+            "Kamu pasang stiker wajah sendiri di gerobak. Tukang sayur: \"Ini bayar sewa nggak?\"",
+            "Kamu dengarkan keluhan got mampet 20 menit penuh. Warga terharu, ada yang didengarkan."
+        };
+
+        public bool SeranganFajar(out string reason)
+        {
+            reason = null;
+            if (!CanFajarNow)
+                reason = "SERANGAN FAJAR cuma di pagi HARI PEMILIHAN, jam 04.00-09.00.";
+            else if (Duit < CampaignTuning.Karier.FajarBiaya)
+                reason = "Amplop butuh " + Rupiah(CampaignTuning.Karier.FajarBiaya) + ". Dompetmu belum setebal Juragan Kos.";
+            if (reason != null)
+                return false;
+            AddDuit(-CampaignTuning.Karier.FajarBiaya);
+            AddCatatan(CampaignTuning.Karier.FajarCatatan);
+            Fajar = true;
+            double chance = 0.15 + CatatanHitam / 250.0;
+            FajarKetahuan = random.NextDouble() < chance;
+            Say("SERANGAN FAJAR: 60 amplop \"uang bensin\" diselipkan di pintu warga sebelum subuh. CATATAN HITAM +" +
+                CampaignTuning.Karier.FajarCatatan + ".");
+            if (FajarKetahuan)
+                Say("Ketahuan! Video kamu menyelipkan amplop VIRAL di grup RT. Warga: \"Sama aja kayak Juragan...\"");
+            Cue(KarierCue.Koin);
+            return true;
+        }
+
+        private void Count(bool absent)
+        {
+            int kamu = Math.Max(1, PoinKamu - (absent ? CampaignTuning.Karier.AbsenPoin : 0));
+            int juragan = PoinJuragan, haji = PoinHaji;
+            Split(CampaignTuning.Karier.PemilihKK, kamu, juragan, haji, out int vk, out int vj, out int vh);
+            VotesKamu = vk;
+            VotesJuragan = vj;
+            VotesHaji = vh;
+            // Ties go to the elder (Pak Haji, then Juragan): "yang muda ngalah dulu".
+            bool win = vk > vj && vk > vh;
+            ResultPending = true;
+            if (win)
+            {
+                Hasil = KarierHasil.Menang;
+                AddRestu(10);
+                Say("MENANG! " + VotesKamu + " dari " + CampaignTuning.Karier.PemilihKK + " KK memilihmu. Kamu KETUA RT 03 yang baru!");
+                Cue(KarierCue.Daftar);
+            }
+            else
+            {
+                Hasil = KarierHasil.Kalah;
+                ElectionsLost++;
+                Say("KALAH. Kamu " + VotesKamu + " suara, Juragan Kos " + VotesJuragan + ", Pak Haji " + VotesHaji +
+                    ". Pemilihan ULANG HARI KE-" + (Day + CampaignTuning.Karier.PemiluUlangHari) + " (kotak suara tertukar dengan kotak nasi).");
+                Cue(KarierCue.Gagal);
+            }
+        }
+
+        public string Winner => VotesKamu > VotesJuragan && VotesKamu > VotesHaji ? "KAMU"
+            : VotesHaji >= VotesJuragan ? "PAK HAJI" : "JURAGAN KOS";
+
+        // The tally and the Grup WA were shown: a lost election gets its re-run date.
+        public void AckResult()
+        {
+            if (!ResultPending)
+                return;
+            ResultPending = false;
+            if (Hasil == KarierHasil.Kalah)
+            {
+                Hasil = KarierHasil.Belum;
+                ElectionDay = Day + CampaignTuning.Karier.PemiluUlangHari;
+                RegisteredDay = Day;
+                KampanyeCount /= 2;
+                Fajar = FajarKetahuan = false;
+            }
+        }
+
+        private string ElectionStep(out KarierPoint point, out string label, out bool phone)
+        {
+            point = new KarierPoint(0f, 0f);
+            label = string.Empty;
+            phone = false;
+            if (ResultPending)
+                return "Penghitungan suara di POS RONDA...";
+            if (PollsOpen)
+            {
+                point = layout.PosRt;
+                label = "COBLOS";
+                return "HARI PEMILIHAN: COBLOS di POS RONDA (tombol COBLOS) sebelum 17.00";
+            }
+            if (Day == ElectionDay && Clock < CampaignTuning.Karier.PemiluBuka)
+                return "TPS buka jam 09.00 di POS RONDA" + (CanFajarNow ? " (atau... SERANGAN FAJAR di HP)" : string.Empty);
+            if (Day <= ElectionDay)
+                for (int i = 0; i < layout.SapaPoints.Length; i++)
+                    if (CanKampanye(i) && Duit >= CampaignTuning.Karier.KampanyeBiaya)
+                    {
+                        point = layout.SapaPoints[i];
+                        label = "KAMPANYE";
+                        return "KAMPANYE " + KampanyeToday + "/" + layout.SapaPoints.Length + " hari ini (ikuti panah) • pemilihan HARI " + ElectionDay;
+                    }
+            return null; // Kampanye done for today: the daily tasks guide.
+        }
+
         // --- Helpers ------------------------------------------------------------------------
 
         public KarierPoint Place(int index) =>
@@ -1710,7 +1977,7 @@ namespace Konoha.Campaign
         {
             return string.Join(";", new[]
             {
-                "K4", Duit.ToString(CultureInfo.InvariantCulture), Energi.ToString(CultureInfo.InvariantCulture),
+                "K5", Duit.ToString(CultureInfo.InvariantCulture), Energi.ToString(CultureInfo.InvariantCulture),
                 Restu.ToString(CultureInfo.InvariantCulture), CatatanHitam.ToString(CultureInfo.InvariantCulture),
                 SapaMask.ToString(CultureInfo.InvariantCulture), Registered ? "1" : "0",
                 TripsOjol.ToString(CultureInfo.InvariantCulture), SetKuli.ToString(CultureInfo.InvariantCulture),
@@ -1724,7 +1991,14 @@ namespace Konoha.Campaign
                 TabrakCount.ToString(CultureInfo.InvariantCulture), TugasDay.ToString(CultureInfo.InvariantCulture),
                 tugasBase[0].ToString(CultureInfo.InvariantCulture), tugasBase[1].ToString(CultureInfo.InvariantCulture),
                 tugasBase[2].ToString(CultureInfo.InvariantCulture), TugasMask.ToString(CultureInfo.InvariantCulture),
-                celebrationSeen ? "1" : "0"
+                celebrationSeen ? "1" : "0",
+                // 0.6.4 (K5): the election.
+                RegisteredDay.ToString(CultureInfo.InvariantCulture), ElectionDay.ToString(CultureInfo.InvariantCulture),
+                ((int)Hasil).ToString(CultureInfo.InvariantCulture), ElectionsLost.ToString(CultureInfo.InvariantCulture),
+                KampanyeCount.ToString(CultureInfo.InvariantCulture), KampanyeDay.ToString(CultureInfo.InvariantCulture),
+                KampanyeMask.ToString(CultureInfo.InvariantCulture), Fajar ? "1" : "0", FajarKetahuan ? "1" : "0",
+                VotesKamu.ToString(CultureInfo.InvariantCulture), VotesJuragan.ToString(CultureInfo.InvariantCulture),
+                VotesHaji.ToString(CultureInfo.InvariantCulture), ResultPending ? "1" : "0"
             });
         }
 
@@ -1738,7 +2012,8 @@ namespace Konoha.Campaign
             bool v2 = parts.Length == 14 && parts[0] == "K2";
             bool v3 = parts.Length == 16 && parts[0] == "K3";
             bool v4 = parts.Length == 27 && parts[0] == "K4";
-            if (!v1 && !v2 && !v3 && !v4)
+            bool v5 = parts.Length == 40 && parts[0] == "K5";
+            if (!v1 && !v2 && !v3 && !v4 && !v5)
                 return false;
             var values = new int[parts.Length - 1];
             for (int i = 0; i < values.Length; i++)
@@ -1755,12 +2030,12 @@ namespace Konoha.Campaign
             SetKuli = Math.Max(0, values[7]);
             PostBuzzer = Math.Max(0, values[8]);
             PremanBeaten = Math.Max(0, values[9]);
-            if (v3 || v4)
+            if (v3 || v4 || v5)
             {
                 RebahanCount = Math.Max(0, values[13]);
                 RodeToPlaza = values[14] == 1;
             }
-            if (v4)
+            if (v4 || v5)
             {
                 Day = Math.Max(1, values[15]);
                 Clock = Clamp(values[16], 0, 1439);
@@ -1774,11 +2049,27 @@ namespace Konoha.Campaign
                 TugasMask = Clamp(values[24], 0, (1 << TugasCount) - 1);
                 celebrationSeen = values[25] == 1;
             }
-            if (v2 || v3 || v4)
+            if (v5)
+            {
+                RegisteredDay = Math.Max(0, values[26]);
+                ElectionDay = Math.Max(0, values[27]);
+                Hasil = values[28] == 1 ? KarierHasil.Menang : values[28] == 2 ? KarierHasil.Kalah : KarierHasil.Belum;
+                ElectionsLost = Math.Max(0, values[29]);
+                KampanyeCount = Math.Max(0, values[30]);
+                KampanyeDay = Math.Max(0, values[31]);
+                KampanyeMask = Math.Max(0, values[32]);
+                Fajar = values[33] == 1;
+                FajarKetahuan = values[34] == 1;
+                VotesKamu = Math.Max(0, values[35]);
+                VotesJuragan = Math.Max(0, values[36]);
+                VotesHaji = Math.Max(0, values[37]);
+                ResultPending = values[38] == 1;
+            }
+            if (v2 || v3 || v4 || v5)
             {
                 // 0.6.1 saves used another mission list: start the 0.6.2 chain again (done
                 // missions finish themselves one per tick).
-                Mission = v3 || v4 ? Clamp(values[10], 0, MissionTitles.Length) : 0;
+                Mission = v3 || v4 || v5 ? Clamp(values[10], 0, MissionTitles.Length) : 0;
                 FoodBought = Math.Max(0, values[11]);
                 RideCount = Math.Max(0, values[12]);
             }

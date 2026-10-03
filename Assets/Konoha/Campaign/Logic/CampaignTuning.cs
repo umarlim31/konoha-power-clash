@@ -355,6 +355,25 @@ namespace Konoha.Campaign
             public const int TugasReward = 15000;
             public const int TugasBonus = 30000;
             public const int TugasRestu = 1;
+
+            // 0.6.4 PEMILIHAN KETUA RT (Docs/VISI_KONOHA_HIDUP_v3.md §3 "Tujuan Level 1").
+            public const int PemiluJedaHari = 2;        // Election day = registration day + 2.
+            public const int PemiluUlangHari = 3;       // Lost: a re-run three days later.
+            public const int PemiluBuka = 9 * 60, PemiluTutup = 17 * 60;
+            public const int FajarFrom = 4 * 60, FajarUntil = 9 * 60;
+            public const int PemilihKK = 60;            // Households of RT 03.
+            public const int KampanyeBiaya = 20000;     // Kopi + rokok per meeting.
+            public const int KampanyePoin = 5;
+            public const int FajarBiaya = 300000;
+            public const int FajarPoin = 30;
+            public const int FajarCatatan = 20;
+            public const int FajarKetahuanPoin = 40;
+            public const int AbsenPoin = 10;            // Not coming to vote for yourself.
+            public const int JuraganBase = 80;
+            public const int JuraganPerHari = 8;        // Sembako every day of the campaign...
+            public const int JuraganHariMax = 5;
+            public const int JuraganFajar = 20;         // ...and his own envelopes at dawn.
+            public const int HajiBase = 75;
         }
 
         // 0.0.9.2.1 RESTU RAKYAT: reward for clearing the Gerbang Rakyat, lasts for the run
