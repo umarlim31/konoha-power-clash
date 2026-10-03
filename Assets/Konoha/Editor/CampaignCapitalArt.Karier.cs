@@ -92,7 +92,7 @@ namespace Konoha.Editor
             // The crowd of a fight: [0] shouts, [1] melerai (peci), the rest record it.
             var crowd = new GameObject("Karier kerumunan").AddComponent<KarierCrowd>();
             crowd.transform.SetParent(kotaRoot, false);
-            int[] seeds = { 3, 2, 1, 4, 6, 8, 11, 13, 16, 9 };
+            int[] seeds = { 3, 2, 6, 4, 7, 8, 12, 13, 5, 10 }; // 0.6.2: mixed crowd, not all jilbab
             var people = new List<CampaignCityLife.Walker>();
             for (int i = 0; i < seeds.Length; i++)
             {

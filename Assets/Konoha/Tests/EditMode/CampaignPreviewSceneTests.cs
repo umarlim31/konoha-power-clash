@@ -37,9 +37,9 @@ namespace Konoha.Tests
                 var preview = Object.FindFirstObjectByType<CampaignPreviewController>();
                 Assert.That(preview, Is.Not.Null);
                 Assert.That(GameObject.Find("CampaignRevision").GetComponent<UnityEngine.UI.Text>().text,
-                    Is.EqualTo("JALUR TAKHTA 0.6.1  •  SOLO PREVIEW"));
-                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.6.1"));
-                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(47));
+                    Is.EqualTo("JALUR TAKHTA 0.6.2  •  SOLO PREVIEW"));
+                Assert.That(PlayerSettings.bundleVersion, Is.EqualTo("0.6.2"));
+                Assert.That(PlayerSettings.Android.bundleVersionCode, Is.EqualTo(48));
                 Assert.That(preview.sitButton, Is.Not.Null);
                 Assert.That(preview.feedbackText, Is.Not.Null);
                 Assert.That(preview.waypointText, Is.Not.Null);
@@ -354,7 +354,12 @@ namespace Konoha.Tests
                 Assert.That(city, Is.Not.Null);
                 Assert.That(city.ringCorners, Has.Length.EqualTo(4));
                 Assert.That(city.vehicles.Length, Is.InRange(8, 14));
-                Assert.That(city.walkers.Length, Is.InRange(20, 36));
+                // 0.5.0 crowds and 0.6.2 children raised the count (the old 36 cap was stale).
+                Assert.That(city.walkers.Length, Is.InRange(20, 90));
+                // 0.6.2: no walker path crosses anything solid.
+                foreach (var walker in city.walkers)
+                    if (!walker.idle)
+                        Assert.That(KarierCrowd.Blocked(walker.from, walker.to, .3f), Is.False, "Walker path through a wall: " + walker.root.name);
                 Assert.That(city.jets.Length, Is.EqualTo(city.nozzles.Length));
                 Assert.That(city.droplets.Length, Is.GreaterThan(0));
                 foreach (var vehicle in city.vehicles) Assert.That(vehicle.body, Is.Not.Null);

@@ -30,6 +30,8 @@ namespace Konoha.Editor
         internal CampaignCityLife CityLife { get; private set; }
 
         private Material[] carPaints, shirts, skins, wallTints, awnings;
+        private Material[] hijabs;
+        private Material hairGrey;
         private Material pants, hair, hijabCloth, helmet, shutter, windowGlass, bay, lighthouseWhite, sail, lampLit;
         private Transform kotaRoot;
 
@@ -91,6 +93,16 @@ namespace Konoha.Editor
             pants = Surface("KotaCelana", new Color(.14f, .15f, .19f), .1f);
             hair = Surface("KotaRambut", new Color(.05f, .04f, .04f), .35f);
             hijabCloth = Surface("KotaJilbab", new Color(.55f, .36f, .45f), .1f);
+            // 0.6.2: more varied people (owner: "lebih nyata"): jilbab colours and grey hair.
+            hijabs = new[]
+            {
+                hijabCloth,
+                Surface("KotaJilbabNavy", new Color(.16f, .20f, .34f), .1f),
+                Surface("KotaJilbabKrem", new Color(.84f, .76f, .62f), .1f),
+                Surface("KotaJilbabHitam", new Color(.08f, .08f, .09f), .1f),
+                Surface("KotaJilbabHijau", new Color(.22f, .42f, .34f), .1f)
+            };
+            hairGrey = Surface("KotaRambutUban", new Color(.55f, .54f, .52f), .3f);
             helmet = Surface("KotaHelm", new Color(.85f, .85f, .82f), .6f);
             shutter = Surface("KotaRolling", new Color(.55f, .57f, .58f), .45f, .4f);
             windowGlass = Surface("KotaKaca", new Color(.20f, .27f, .31f), .85f);
@@ -498,6 +510,20 @@ namespace Konoha.Editor
             }
             Walk(new Vector3(-40f, 0f, NorthRoadZ + 5.5f), new Vector3(40f, 0f, NorthRoadZ + 5.5f), .5f);
 
+            // 0.6.2: children walking along with the grown-ups (a kampung is never only adults).
+            void Kid(Vector3 from, Vector3 to, float progress)
+            {
+                Walk(from, to, progress);
+                CampaignCityLife.Walker kid = walkers[walkers.Count - 1];
+                kid.root.localScale = new Vector3(.62f, .62f, .62f);
+                kid.root.name = "Kota anak jalan";
+                kid.speed *= 1.25f;
+            }
+            Kid(new Vector3(-8f, 0f, -52f), new Vector3(-8f, 0f, -24f), .64f);
+            Kid(new Vector3(8f, 0f, -52f), new Vector3(8f, 0f, -24f), .24f);
+            Kid(new Vector3(-20.7f, 0f, -11f), new Vector3(-20.7f, 0f, 17f), .3f);
+            Kid(new Vector3(9f, 0f, -13.2f), new Vector3(21f, 0f, -13.2f), .45f);
+
             // Vendors and their customers, onlookers at the pavilions and at the baliho.
             Stand(new Vector3(-12.6f, .1f, -40.5f), 90f);  // penjual kopi behind the warung counter (on its floor)
             Stand(new Vector3(-9.9f, 0f, -41f), -90f);     // pembeli kopi, in front of the bench
@@ -658,6 +684,12 @@ namespace Konoha.Editor
             Material shirt = shirtOverride != null ? shirtOverride : shirts[(seed * 3 + 1) % shirts.Length];
             int headwear = seed % 5; // 0,3 hair; 1 jilbab; 2 peci; 4 topi
             bool gamis = headwear == 1;
+            // 0.6.2 variety: scarf colour, some grey heads, slightly different heights and builds.
+            Material hijabCloth = hijabs != null && hijabs.Length > 0 ? hijabs[(seed / 5 + seed) % hijabs.Length] : this.hijabCloth;
+            Material hair = seed % 7 == 3 && hairGrey != null ? hairGrey : this.hair;
+            float tall = .93f + (seed * 37 % 13) * .011f;
+            float wide = .94f + (seed * 53 % 11) * .012f;
+            person.localScale = new Vector3(wide, tall, wide);
 
             Transform Pivot(string name, Vector3 local)
             {

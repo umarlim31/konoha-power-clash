@@ -256,6 +256,12 @@ namespace Konoha.Editor
 
             Transform shortHair = head.Find("Rambut");
             look.hairShort = shortHair != null ? shortHair.gameObject : null;
+            // 0.6.2 details (owner: "lebih realistis"): a front fringe, shirt collar, belt.
+            if (shortHair != null)
+                Part(parts, "Poni", PrimitiveType.Sphere, shortHair, new Vector3(0f, .1f, .36f), new Vector3(.86f, .32f, .3f), hair, false);
+            Accent(parts, "Kerah", PrimitiveType.Cylinder, new Vector3(0f, .53f, .01f), new Vector3(.2f, .025f, .17f), shirt, Vector3.zero);
+            Part(parts, "Ikat pinggang", PrimitiveType.Cylinder, parts.rig.pelvis, new Vector3(0f, .07f, 0f), new Vector3(.39f, .03f, .27f),
+                Lit("RigSepatu", new Color(.06f, .05f, .05f), .6f), false);
 
             var longHair = Pivot("Rambut panjang", head, Vector3.zero);
             Part(parts, "Rambut atas", PrimitiveType.Sphere, longHair, new Vector3(0f, .18f, -.025f), new Vector3(.25f, .22f, .27f), hair, false);

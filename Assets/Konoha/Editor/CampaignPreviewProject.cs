@@ -19,7 +19,7 @@ namespace Konoha.Editor
     {
         public const string ScenePath = SpikeProject.Generated + "/JalurTakhtaPreview.unity";
 
-        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.6.1")]
+        [MenuItem("Konoha/Prepare Jalur Takhta Preview 0.6.2")]
         public static void Prepare()
         {
             // Generate a separate scene using the same Android, URP, input, camera and
@@ -27,8 +27,8 @@ namespace Konoha.Editor
             SpikeProject.Prepare();
             var scene = EditorSceneManager.OpenScene(SpikeProject.ScenePath, OpenSceneMode.Single);
             PlayerSettings.productName = "KONOHA Jalur Takhta Preview";
-            PlayerSettings.bundleVersion = "0.6.1";
-            PlayerSettings.Android.bundleVersionCode = 47;
+            PlayerSettings.bundleVersion = "0.6.2";
+            PlayerSettings.Android.bundleVersionCode = 48;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.konoha.powerclash.jalurtakhta");
 
             // The PvP host/client panel is replaced by CampaignSession (automatic local host).
@@ -231,7 +231,7 @@ namespace Konoha.Editor
             var footer = Text("CampaignRevision", safe, new Vector2(0.5f, 0f),
                 new Vector2(0, 6), new Vector2(360, 22), 13);
             footer.alignment = TextAnchor.MiddleCenter;
-            footer.text = "JALUR TAKHTA 0.6.1  •  SOLO PREVIEW";
+            footer.text = "JALUR TAKHTA 0.6.2  •  SOLO PREVIEW";
             // 0.3.1: which owner models (Art/Models/<Slot>) are in this build; hidden when none.
             string modelSummary = CampaignModelSlots.Summary();
             if (modelSummary.Length > 0)
@@ -409,6 +409,9 @@ namespace Konoha.Editor
             var interior = new GameObject("CampaignInteriorCamera").AddComponent<CampaignInteriorCamera>();
             interior.follow = follow;
             interior.occluders = occluders;
+            // 0.6.2 (owner: "tidak boleh ada karakter yang menembus tembok"): street walkers
+            // whose path crosses something solid walk only the free part of it.
+            TrimWalkerPaths(capital.CityLife);
             var karier = CreateKarier(safe, objective, status, waypoint, heroText, feedback, fillImage, traversal, bodies,
                 new[] { s1, s2, ultimate, heroButton }, karierScene, stage);
             var avatarPanel = CreateAvatarPanel(safe, karier, follow);
@@ -446,6 +449,59 @@ namespace Konoha.Editor
         }
 
         // --- 0.6.0 KARIER ---------------------------------------------------------------
+
+        // Shortens every walker path to the free stretch around the walker (scene colliders,
+        // characters ignored); a stretch shorter than 2 m makes the walker stand still.
+        internal static int TrimWalkerPaths(CampaignCityLife life)
+        {
+            if (life == null || life.walkers == null)
+                return 0;
+            Physics.SyncTransforms();
+            int trimmed = 0;
+            foreach (CampaignCityLife.Walker walker in life.walkers)
+            {
+                if (walker == null || walker.root == null || walker.idle)
+                    continue;
+                if (!KarierCrowd.Blocked(walker.from, walker.to, .3f))
+                    continue;
+                trimmed++;
+                Vector3 here = Vector3.Lerp(walker.from, walker.to, walker.progress);
+                here.y = walker.from.y;
+                if (!KarierCrowd.Free(here))
+                {
+                    // Start on the first free spot along the path.
+                    bool found = false;
+                    for (int i = 0; i <= 20 && !found; i++)
+                    {
+                        Vector3 probe = Vector3.Lerp(walker.from, walker.to, i / 20f);
+                        if (KarierCrowd.Free(probe)) { here = probe; found = true; }
+                    }
+                    if (!found)
+                    {
+                        walker.root.gameObject.SetActive(false);
+                        walker.idle = true;
+                        continue;
+                    }
+                }
+                Vector3 a = KarierCrowd.Reach(here, walker.from, .3f);
+                Vector3 b = KarierCrowd.Reach(here, walker.to, .3f);
+                a.y = b.y = walker.from.y;
+                bool stillBlocked = KarierCrowd.Blocked(a, b, .3f) || KarierCrowd.Blocked(b, a, .3f);
+                if (stillBlocked || (b - a).magnitude < 2f)
+                {
+                    walker.from = walker.to = here;
+                    walker.idle = true;
+                }
+                else
+                {
+                    walker.from = a;
+                    walker.to = b;
+                    walker.progress = Mathf.Clamp01((here - a).magnitude / (b - a).magnitude);
+                }
+                walker.root.position = here;
+            }
+            return trimmed;
+        }
 
         // Small gold chevron (two bars, doubled) for the hero's feet, a dashed ring and a label
         // for the target. CampaignGuideArrow places them; all start hidden, no colliders.
