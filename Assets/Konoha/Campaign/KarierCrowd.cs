@@ -612,7 +612,7 @@ namespace Konoha.Campaign
         }
 
         // The farthest point towards 'to' that can be reached in a straight line.
-        private static Vector3 Reach(Vector3 from, Vector3 to, float radius)
+        public static Vector3 Reach(Vector3 from, Vector3 to, float radius)
         {
             Vector3 start = new Vector3(from.x, from.y + 0.75f, from.z);
             Vector3 direction = to - from;

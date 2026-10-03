@@ -337,6 +337,9 @@ namespace Konoha.Campaign
                 offset.y = 0f;
                 if (offset.sqrMagnitude < personalSpace * personalSpace)
                     wantedDodge = Vector3.Dot(offset, side) >= 0f ? 1.6f : -1.6f;
+                // 0.6.2: never step aside into a wall; try the other side, else stay on the path.
+                if (wantedDodge != 0f && KarierCrowd.Blocked(basePoint, basePoint + side * wantedDodge, .28f))
+                    wantedDodge = 0f; // The other side is the hero: just keep walking on the path.
             }
             walker.dodge = Mathf.MoveTowards(walker.dodge, wantedDodge, 3f * dt);
 

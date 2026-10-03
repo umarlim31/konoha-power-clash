@@ -13,16 +13,19 @@ namespace Konoha.Campaign
     {
         public MobileCombatCamera follow;
         public CampaignOccluders occluders;
-        public float distance = 3.3f;
-        public float pitch = 9f;
-        public float focusHeight = 1.45f;
-        public float minRoofHeight = 1.9f;
-        public float maxRoofHeight = 7f;
+        // 0.6.2: lower and closer (the pendopo roof starts only ~1.7 m above its floor), and the
+        // roof over the hero is kept visible by CampaignOccluders while inside.
+        public float distance = 2.8f;
+        public float pitch = 6f;
+        public float focusHeight = 1.3f;
+        public float minRoofHeight = 1.2f;
+        public float maxRoofHeight = 9f;
         public float minSize = 1.8f;
         public float maxArea = 170f;
         public float leaveDelay = 0.4f;
 
         private Bounds[] roofs = new Bounds[0];
+        private Renderer[] roofRenderers = new Renderer[0];
         private bool inside;
         private float outsideSince = -1f;
         private float nextCheck;
@@ -36,6 +39,7 @@ namespace Konoha.Campaign
             if (occluders == null || occluders.candidates == null)
                 return;
             var list = new System.Collections.Generic.List<Bounds>();
+            var owners = new System.Collections.Generic.List<Renderer>();
             foreach (Renderer candidate in occluders.candidates)
             {
                 if (candidate == null || !candidate.gameObject.activeInHierarchy || !LooksLikeRoof(candidate.name))
@@ -44,8 +48,10 @@ namespace Konoha.Campaign
                 if (b.size.x < minSize || b.size.z < minSize || b.size.x * b.size.z > maxArea)
                     continue;
                 list.Add(b);
+                owners.Add(candidate);
             }
             roofs = list.ToArray();
+            roofRenderers = owners.ToArray();
         }
 
         private void Update()
@@ -56,10 +62,17 @@ namespace Konoha.Campaign
             Transform hero = occluders != null ? occluders.target : null;
             if (follow == null || !follow.enabled || hero == null)
             {
+                if (occluders != null) occluders.kept.Clear();
                 if (inside) Leave();
                 return;
             }
             bool under = UnderRoof(hero.position);
+            // Every roof over the hero stays drawn (owner: "atapnya jangan hilang").
+            occluders.kept.Clear();
+            if (under)
+                for (int i = 0; i < roofs.Length; i++)
+                    if (Covers(roofs[i], hero.position))
+                        occluders.kept.Add(roofRenderers[i]);
             if (under)
             {
                 outsideSince = -1f;
@@ -83,14 +96,17 @@ namespace Konoha.Campaign
         public bool UnderRoof(Vector3 p)
         {
             foreach (Bounds b in roofs)
-            {
-                float above = b.min.y - p.y;
-                if (above < minRoofHeight || above > maxRoofHeight)
-                    continue;
-                if (p.x > b.min.x + 0.25f && p.x < b.max.x - 0.25f && p.z > b.min.z + 0.25f && p.z < b.max.z - 0.25f)
+                if (Covers(b, p))
                     return true;
-            }
             return false;
+        }
+
+        private bool Covers(Bounds b, Vector3 p)
+        {
+            float above = b.min.y - p.y;
+            if (above < minRoofHeight || above > maxRoofHeight)
+                return false;
+            return p.x > b.min.x + 0.25f && p.x < b.max.x - 0.25f && p.z > b.min.z + 0.25f && p.z < b.max.z - 0.25f;
         }
 
         private void Enter()

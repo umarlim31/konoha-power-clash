@@ -246,7 +246,9 @@ namespace Konoha.Campaign
                 Salome = Point(salomePoint),
                 Bakso = Point(baksoPoint),
                 SewaSepeda = Point(sepedaPoint),
-                SewaMotor = Point(motorRentPoint)
+                SewaMotor = Point(motorRentPoint),
+                PremanSpot = Point(premanCenter),
+                Plaza = Point(PlazaPoint())
             };
             for (int i = 0; i < placePoints.Length; i++)
                 layout.Places[i] = Point(placePoints[i]);
@@ -256,6 +258,14 @@ namespace Konoha.Campaign
         }
 
         private static KarierPoint Point(Vector3 v) => new KarierPoint(v.x, v.z);
+
+        private Vector3 PlazaPoint()
+        {
+            for (int i = 0; i < placeNames.Length && i < placePoints.Length; i++)
+                if (placeNames[i] == "PLAZA")
+                    return placePoints[i];
+            return new Vector3(0f, 0f, -6.5f);
+        }
         private static Vector3 World(KarierPoint p) => new Vector3(p.X, 0f, p.Z);
 
         // --- Update ---------------------------------------------------------------------------
@@ -302,6 +312,7 @@ namespace Konoha.Campaign
             UpdateGuidance(position);
             UpdateAction(position);
             UpdateHud(combat);
+            UpdatePhoneHint();
             UpdateMessages();
             UpdateRebahanFeed();
 
@@ -376,8 +387,8 @@ namespace Konoha.Campaign
             {
                 if (premanSince < 0f)
                     premanSince = Time.time;
-                if (!fighting && !life.PoliceCalled && Time.time - premanSince > CampaignTuning.Karier.PremanLeaveSeconds &&
-                    director.IsServer)
+                if (!fighting && !life.PoliceCalled && life.Mission != KarierLife.MisiPreman &&
+                    Time.time - premanSince > CampaignTuning.Karier.PremanLeaveSeconds && director.IsServer)
                 {
                     director.ServerKarierClear(false);
                     Say("Preman pergi membawa uang palakan. Warga menggerutu: \"Nggak ada yang berani...\"");
@@ -388,12 +399,17 @@ namespace Konoha.Campaign
             premanSince = -1f;
             if (life.PoliceCalled || life.PoliceEta >= 0f || life.Rebahan || life.InJail || arrest != Arrest.None || !director.IsServer)
                 return;
+            // 0.6.2: preman belong to the story. None before mission PAHLAWAN GANG, right away
+            // during it, and only now and then afterwards.
+            bool missionPreman = life.Mission == KarierLife.MisiPreman;
+            if (life.Mission < KarierLife.MisiPreman)
+                return;
             premanClock += dt;
-            if (premanClock < nextPremanAt)
+            if (missionPreman ? premanClock < 3f : premanClock < nextPremanAt)
                 return;
             premanClock = 0f;
             nextPremanAt = CampaignTuning.Karier.PremanEverySeconds * (0.8f + 0.4f * (float)random.NextDouble());
-            bool boss = premanEvents >= 1 && random.NextDouble() < 0.5;
+            bool boss = !missionPreman && premanEvents >= 1 && random.NextDouble() < 0.5;
             if (director.ServerKarierSpawnPreman(premanCenter, premanPoints, premanLook, boss) > 0)
             {
                 premanEvents++;
@@ -428,6 +444,10 @@ namespace Konoha.Campaign
                     crowd.DispatchPolice(heroPosition);
                 if (police && !life.PoliceArrived && (crowd.PoliceArrived || crowd.policeMotor == null))
                 {
+                    // PAHLAWAN GANG: a preman the police take away after your fight counts as driven off.
+                    int standing = StandingPreman();
+                    if (life.Mission == KarierLife.MisiPreman && standing > 0 && life.PoliceReason == KarierPoliceReason.Keributan)
+                        life.OnPremanBeaten(standing);
                     life.PoliceArrive();
                     if (director.IsServer)
                         director.ServerKarierClear(true);
@@ -1142,6 +1162,36 @@ namespace Konoha.Campaign
             if (life.CatatanHitam >= CampaignTuning.Karier.PasalKaretFrom)
                 text += "\n<color=#FF7A6A>Catatan hitam tinggi: awas pasal karet</color>";
             return text;
+        }
+
+        // 0.6.2: the HP button blinks when the current mission step is done in the HP.
+        private Color phoneBase;
+        private Text phoneLabel;
+        private bool phoneBaseKnown;
+
+        private void UpdatePhoneHint()
+        {
+            if (phoneButton == null || phoneButton.targetGraphic == null)
+                return;
+            if (!phoneBaseKnown)
+            {
+                phoneBase = phoneButton.targetGraphic.color;
+                phoneBaseKnown = true;
+            }
+            bool hint = (phonePanel == null || !phonePanel.activeSelf) && arrest == Arrest.None && !life.InJail &&
+                !life.Rebahan && !life.PoliceCalled && life.MissionNeedsPhone;
+            phoneButton.targetGraphic.color = hint
+                ? Color.Lerp(phoneBase, new Color(1f, 0.82f, 0.30f, 1f), 0.5f + 0.5f * Mathf.Sin(Time.time * 6f))
+                : phoneBase;
+            if (phoneLabel == null)
+                phoneLabel = phoneButton.GetComponentInChildren<Text>(true);
+            Text label = phoneLabel;
+            if (label != null)
+            {
+                string text = hint ? "HP • KERJA  <" : "HP • KERJA";
+                if (label.text != text)
+                    label.text = text;
+            }
         }
 
         private void ShowHud(bool show)
