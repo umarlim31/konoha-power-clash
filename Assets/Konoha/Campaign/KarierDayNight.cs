@@ -13,9 +13,10 @@ namespace Konoha.Campaign
         public Light fill;
         public GameObject lampGlows;
         public Color nightSun = new Color(.55f, .66f, 1f);
-        public float nightSunIntensity = .32f;
-        public Color nightSky = new Color(.12f, .16f, .30f);
-        public Color nightEquator = new Color(.10f, .11f, .17f);
+        // 0.6.5: a little brighter (the owner's night video was hard to read on the tablet).
+        public float nightSunIntensity = .46f;
+        public Color nightSky = new Color(.19f, .23f, .40f);
+        public Color nightEquator = new Color(.15f, .16f, .24f);
         public Color nightGround = new Color(.05f, .05f, .07f);
         public Color nightFog = new Color(.07f, .09f, .16f);
         public Color duskSun = new Color(1f, .62f, .36f);
