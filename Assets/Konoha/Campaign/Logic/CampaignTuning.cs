@@ -246,12 +246,12 @@ namespace Konoha.Campaign
 
             // Preman memalak warga at the gang (optional fights).
             public const float PremanFirstSeconds = 40f;
-            public const float PremanEverySeconds = 85f;
+            public const float PremanEverySeconds = 150f;   // 0.6.2: after mission PAHLAWAN GANG only.
             public const float PremanLeaveSeconds = 70f;  // Ignored long enough, they leave.
             public const int PremanWibawa = 70;
             public const int BosPremanWibawa = 160;
             public const float PremanLeashRadius = 9f;
-            public const int PremanRestu = 8;           // Per preman beaten.
+            public const int PremanRestu = 4;           // Per preman beaten (0.6.2: was 8, restu came too easily).
             public const int PremanTip = 20000;         // Thanks from the warga.
             public const int PingsanBiaya = 50000;      // Puskesmas after collapsing.
             public const int PingsanEnergi = 30;

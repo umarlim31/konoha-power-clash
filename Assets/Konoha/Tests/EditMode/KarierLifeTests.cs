@@ -25,6 +25,8 @@ namespace Konoha.Tests
                 Bakso = new KarierPoint(9.4f, -40f),
                 SewaSepeda = new KarierPoint(-11f, -47f),
                 SewaMotor = new KarierPoint(15f, -24f),
+                PremanSpot = new KarierPoint(1f, -29.5f),
+                Plaza = new KarierPoint(0f, -6.5f),
                 SapaNames = new[] { "POS RONDA", "IBU-IBU", "OJOL" },
                 SapaPoints = new[] { new KarierPoint(-8.6f, -26f), new KarierPoint(8.6f, -26f), new KarierPoint(13f, -21f) }
             };
@@ -63,10 +65,8 @@ namespace Konoha.Tests
                 Assert.That(life.Carrying, Is.False);
             }
             Assert.That(life.Job, Is.EqualTo(KarierJob.None));
-            // The first job also finishes mission KERJA PERTAMA (0.6.1).
-            Assert.That(life.Duit - start, Is.EqualTo(CampaignTuning.Karier.KuliWage - CampaignTuning.Karier.KuliMandorCut +
-                CampaignTuning.Karier.MisiKerjaReward));
-            Assert.That(life.Mission, Is.EqualTo(1));
+            Assert.That(life.Duit - start, Is.EqualTo(CampaignTuning.Karier.KuliWage - CampaignTuning.Karier.KuliMandorCut));
+            Assert.That(life.Mission, Is.EqualTo(0), "0.6.2: the chain starts with Pak RT, not with work");
             Assert.That(life.Energi, Is.EqualTo(CampaignTuning.Karier.EnergiMax - CampaignTuning.Karier.KuliSacks * CampaignTuning.Karier.KuliEnergiPerSack));
         }
 
@@ -96,7 +96,7 @@ namespace Konoha.Tests
             Stand(life, to, CampaignTuning.Karier.OjolPickupSeconds + 0.1f);
             int gross = KarierLife.OjolGrossFare(KarierPoint.Distance(from, to));
             int cut = KarierLife.Round500(gross * CampaignTuning.Karier.OjolAppCut);
-            Assert.That(life.Duit - start, Is.EqualTo(gross - cut + CampaignTuning.Karier.MisiKerjaReward));
+            Assert.That(life.Duit - start, Is.EqualTo(gross - cut));
             Assert.That(life.TripsOjol, Is.EqualTo(1));
             Assert.That(life.Job, Is.EqualTo(KarierJob.Ojol), "A new order comes in automatically");
             Assert.That(life.Step, Is.EqualTo(KarierStep.OjolJemput));
@@ -190,32 +190,57 @@ namespace Konoha.Tests
         }
 
         [Test]
-        public void MissionChainAdvancesAndWaitsForTheOffer()
+        public void MissionChainGuidesEveryStep()
         {
             KarierLayout layout = Layout();
-            var life = new KarierLife(layout);
-            Assert.That(life.MissionTitle, Is.EqualTo("KERJA PERTAMA"));
-            life.TakeJob(KarierJob.Kuli, out _);
+            var life = new KarierLife(layout, 7);
+            Assert.That(life.MissionTitle, Is.EqualTo("KENALAN PAK RT"));
+            Assert.That(life.MissionTarget(out KarierPoint target, out _), Is.True, "The arrow points to Pak RT");
+            Assert.That(KarierPoint.Distance(target, layout.PosRt), Is.LessThan(0.01f));
+            life.DoAction(KarierAction.Sapa, 0);
+            Stand(life, Away, 0.1f);
+            Assert.That(life.Mission, Is.EqualTo(1));
+            Assert.That(life.MissionNeedsPhone, Is.True, "CARI KERJA: press the HP button");
+
+            Assert.That(life.TakeJob(KarierJob.Ojol, out _), Is.True);
+            Assert.That(life.MissionNeedsPhone, Is.False);
+            Stand(life, life.Place(life.OjolFrom), CampaignTuning.Karier.OjolPickupSeconds + 0.1f);
+            Stand(life, life.Place(life.OjolTo), CampaignTuning.Karier.OjolPickupSeconds + 0.1f);
+            Assert.That(life.Mission, Is.EqualTo(2));
+            life.CancelJob();
+
+            Assert.That(life.DoAction(KarierAction.BeliSiomay, -1), Is.True);
+            Stand(life, Away, 0.1f);
+            Assert.That(life.Mission, Is.EqualTo(3));
+            Assert.That(life.DoAction(KarierAction.SewaSepeda, -1), Is.True);
+            Assert.That(life.MissionTarget(out target, out _), Is.True);
+            Assert.That(KarierPoint.Distance(target, layout.Plaza), Is.LessThan(0.01f), "Then gowes to the plaza");
+            Stand(life, layout.Plaza, 0.2f);
+            Assert.That(life.Mission, Is.EqualTo(4));
+
+            Assert.That(life.TakeJob(KarierJob.Kuli, out _), Is.True);
             for (int i = 0; i < CampaignTuning.Karier.KuliSacks; i++)
             {
                 Stand(life, layout.KuliPickup, CampaignTuning.Karier.KuliPickSeconds + 0.1f);
                 Stand(life, layout.KuliDrop, CampaignTuning.Karier.KuliDropSeconds + 0.1f);
             }
-            for (int i = 0; i < 3; i++) life.DoAction(KarierAction.Sapa, i);
-            Stand(life, Away, 0.2f);
-            Assert.That(life.Mission, Is.EqualTo(2));
-            life.DoAction(KarierAction.BeliBakso, -1);
-            life.DoAction(KarierAction.SewaMotor, -1);
+            Assert.That(life.Mission, Is.EqualTo(5));
+            life.DoAction(KarierAction.Sapa, 1);
+            life.DoAction(KarierAction.Sapa, 2);
+            Stand(life, Away, 0.1f);
+            Assert.That(life.Mission, Is.EqualTo(KarierLife.MisiPreman));
+            Assert.That(life.MissionTarget(out target, out _), Is.True);
+            Assert.That(KarierPoint.Distance(target, layout.PremanSpot), Is.LessThan(0.01f));
             life.OnPremanBeaten(1);
-            Stand(life, Away, 0.5f);
-            Assert.That(life.Mission, Is.EqualTo(KarierLife.MisiTawaran));
+            Stand(life, Away, 0.1f);
             Assert.That(life.OfferPending, Is.True);
-            Stand(life, Away, 0.5f);
+            Stand(life, Away, 0.3f);
             Assert.That(life.Mission, Is.EqualTo(KarierLife.MisiTawaran), "The offer waits for an answer");
             int restu = life.Restu;
             Assert.That(life.AnswerOffer(false), Is.True);
             Assert.That(life.Restu, Is.EqualTo(restu + CampaignTuning.Karier.TolakRestu));
             Assert.That(life.Mission, Is.EqualTo(KarierLife.MisiTawaran + 1));
+            Assert.That(life.MissionProgress, Is.Not.Empty);
         }
 
         [Test]

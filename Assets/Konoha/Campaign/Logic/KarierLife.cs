@@ -37,6 +37,8 @@ namespace Konoha.Campaign
         public KarierPoint KuliPickup, KuliDrop, Warkop, PosRt;
         // 0.6.1: jajan stalls and rentals.
         public KarierPoint Siomay, Salome, Bakso, SewaSepeda, SewaMotor;
+        // 0.6.2: where the gang preman stand and the plaza (missions).
+        public KarierPoint PremanSpot, Plaza;
         public string[] SapaNames = new string[0];
         public KarierPoint[] SapaPoints = new KarierPoint[0];
     }
@@ -220,6 +222,8 @@ namespace Konoha.Campaign
             Registered = false;
             TripsOjol = SetKuli = PostBuzzer = PremanBeaten = 0;
             FoodBought = RideCount = 0;
+            RebahanCount = 0;
+            RodeToPlaza = false;
             Mission = 0;
             ClearActivity();
         }
@@ -250,8 +254,11 @@ namespace Konoha.Campaign
         // --- Tick -------------------------------------------------------------------------
 
         // fighting: a standing preman is close to the hero. heroDown: the hero lies in Runtuh.
+        private KarierPoint? lastHero;
+
         public void Tick(KarierPoint hero, float deltaTime, bool fighting, bool heroDown)
         {
+            lastHero = hero;
             if (deltaTime <= 0f)
                 return;
             if (EatLeft > 0f)
@@ -735,6 +742,7 @@ namespace Konoha.Campaign
                 return false;
             Ride = KarierRide.None;
             RebahanLeft = CampaignTuning.Karier.RebahanSeconds;
+            RebahanCount++;
             Say("Rebahan sambil scroll sosmed...");
             return true;
         }
@@ -877,74 +885,162 @@ namespace Konoha.Campaign
             return true;
         }
 
-        // --- Missions (0.6.1): a long chain that teaches the life and ends at Ketua RT -------
+        // --- Missions (0.6.2): a guided chain, every step says what to do and where -------
+        // Owner (0.6.1): "banyak momen aku bingung mau ngapain". Each mission has steps with
+        // an instruction, a place for the arrow (or the HP button to press), and a check.
 
-        public const int MisiTawaran = 5;
+        public const int MisiPreman = 6;
+        public const int MisiTawaran = 7;
 
         public static readonly string[] MissionTitles =
         {
-            "KERJA PERTAMA", "KENALAN TETANGGA", "JAJAN DULU", "COBA KENDARAAN", "PAHLAWAN GANG",
-            "TAWARAN GELAP", "TABUNGAN", "RESTU WARGA", "DAFTAR CALON RT"
+            "KENALAN PAK RT", "CARI KERJA", "JAJAN SIOMAY", "GOWES KE PLAZA", "KULI HARIAN", "KENALAN WARGA",
+            "PAHLAWAN GANG", "TAWARAN GELAP", "ISTIRAHAT", "TABUNGAN", "RESTU WARGA", "DAFTAR CALON RT"
         };
 
         private static readonly string[] MissionIntro =
         {
-            "Ibu kos (WA): \"Kontrakan bulan ini belum dibayar ya. Cari kerja dulu: OJOL atau KULI.\"",
-            "Pak RT (WA): \"Kalau mau dikenal, sapa warga: bapak-bapak pos ronda, ibu-ibu, driver ojol.\"",
-            "Perut keroncongan. Jajan siomay, salome, bakso, atau makan di warkop.",
-            "Di dekat gerbang ada SEWA SEPEDA, di pangkalan ojol ada SEWA MOTOR. Coba salah satu.",
-            "Warga (WA): \"Preman di mulut gang malak lagi. Ada yang berani?\"",
+            "Hari pertama di RT 03. Sapa PAK RT di POS RONDA dulu (ikuti panah kecil di tanah).",
+            "Pak RT: \"Mau jadi Ketua RT? Syaratnya syukuran Rp 1 juta dan dipercaya warga. Kerja dulu!\"",
+            "Perut keroncongan. Beli SIOMAY di gerobak dekat boulevard.",
+            "Sewa SEPEDA di dekat gerbang, lalu gowes ke PLAZA.",
+            "Mandor (WA): \"Butuh kuli hari ini, 5 sak semen.\"  Buka HP > KULI.",
+            "Kenalan dengan ibu-ibu tukang sayur dan driver ojol.",
+            "Warga (WA): \"Preman malak di mulut gang! Ada yang berani?\"",
             "Nomor tak dikenal (WA): \"Mau duit cepat? Sebar pesan ini ke grup. Rp 250rb langsung cair.\"",
-            "Syukuran RT butuh modal. Kumpulkan dulu tabungan " + Rupiah(CampaignTuning.Karier.MisiTabungan) + ".",
+            "Badan pegal. Buka HP > REBAHAN sebentar.",
+            "Syukuran RT butuh modal. Kumpulkan tabungan " + Rupiah(CampaignTuning.Karier.MisiTabungan) + " (OJOL, KULI, atau... BUZZER).",
             "Pak Haji: \"Calon RT harus dipercaya warga.\"  Kumpulkan RESTU " + CampaignTuning.Karier.RestuSyaratRT + ".",
-            "Syarat hampir lengkap: " + Rupiah(CampaignTuning.Karier.SyukuranRT) + " untuk syukuran, lalu DAFTAR di POS RONDA."
+            "Kumpulkan " + Rupiah(CampaignTuning.Karier.SyukuranRT) + " untuk syukuran, lalu DAFTAR di POS RONDA."
         };
 
+        public int RebahanCount { get; private set; }
+        public bool RodeToPlaza { get; private set; }
         public bool AllMissionsDone => Mission >= MissionTitles.Length;
-
         public string MissionTitle => AllMissionsDone ? "MENUNGGU PEMILIHAN" : MissionTitles[Mission];
+        public string MissionIntroText => AllMissionsDone ? string.Empty : MissionIntro[Mission];
 
-        public string MissionProgress
+        // The current step of the current mission: what to do, where (arrow), or which button.
+        public string MissionProgress => MissionStep(out _, out _, out _);
+
+        // True when the step is done in the HP (KONOHA KERJA): the HP button blinks.
+        public bool MissionNeedsPhone
         {
             get
             {
-                switch (Mission)
-                {
-                    case 0: return "Selesaikan 1 antar OJOL atau 1 set KULI";
-                    case 1: return "Sapa warga " + SapaCount + "/" + layout.SapaPoints.Length;
-                    case 2: return "Beli jajanan atau makan";
-                    case 3: return "Sewa sepeda atau motor";
-                    case 4: return "Usir preman di mulut gang";
-                    case 5: return "Jawab WA nomor tak dikenal";
-                    case 6: return "Tabungan " + Rupiah(Duit) + " / " + Rupiah(CampaignTuning.Karier.MisiTabungan);
-                    case 7: return "RESTU " + Restu + " / " + CampaignTuning.Karier.RestuSyaratRT;
-                    case 8: return "DAFTAR di POS RONDA (" + Rupiah(CampaignTuning.Karier.SyukuranRT) + ")";
-                    default: return "Pemilihan Ketua RT hadir di versi berikutnya";
-                }
+                MissionStep(out _, out _, out bool phone);
+                return phone;
             }
         }
 
-        public string MissionIntroText => AllMissionsDone ? string.Empty : MissionIntro[Mission];
+        public bool MissionTarget(out KarierPoint point, out string label)
+        {
+            MissionStep(out point, out label, out _);
+            return label.Length > 0;
+        }
+
+        private string MissionStep(out KarierPoint point, out string label, out bool phone)
+        {
+            point = new KarierPoint(0f, 0f);
+            label = string.Empty;
+            phone = false;
+            switch (Mission)
+            {
+                case 0:
+                    point = layout.PosRt;
+                    label = "PAK RT";
+                    return "Sapa PAK RT di POS RONDA (tombol SAPA)";
+                case 1:
+                    if (Job == KarierJob.Ojol)
+                        return "Antar 1 penumpang OJOL (ikuti panah)";
+                    phone = true;
+                    return "Tekan HP • KERJA, lalu pilih OJOL";
+                case 2:
+                    point = layout.Siomay;
+                    label = "SIOMAY";
+                    return "Beli SIOMAY di gerobak (tombol SIOMAY)";
+                case 3:
+                    if (Ride == KarierRide.None)
+                    {
+                        point = layout.SewaSepeda;
+                        label = "SEWA SEPEDA";
+                        return "Sewa SEPEDA di dekat gerbang";
+                    }
+                    point = layout.Plaza;
+                    label = "PLAZA";
+                    return "Gowes ke PLAZA";
+                case 4:
+                    if (Job == KarierJob.Kuli)
+                        return "Angkut 5 sak: TUMPUKAN SEMEN > PROYEK";
+                    phone = true;
+                    return "Tekan HP • KERJA, lalu pilih KULI";
+                case 5:
+                    for (int i = 0; i < layout.SapaPoints.Length; i++)
+                        if (!Sapa(i))
+                        {
+                            point = layout.SapaPoints[i];
+                            label = "SAPA " + (i < layout.SapaNames.Length ? layout.SapaNames[i] : "WARGA");
+                            return "Sapa warga " + SapaCount + "/" + layout.SapaPoints.Length + " (ikuti panah)";
+                        }
+                    return "Sapa warga " + SapaCount + "/" + layout.SapaPoints.Length;
+                case 6:
+                    point = layout.PremanSpot;
+                    label = "PREMAN";
+                    return "Usir PREMAN di mulut gang (tombol pukul)";
+                case 7:
+                    return "Jawab WA nomor tak dikenal: TERIMA atau TOLAK";
+                case 8:
+                    if (Energi >= CampaignTuning.Karier.EnergiMax)
+                        return "Energi masih penuh: kerja dulu, lalu REBAHAN";
+                    phone = true;
+                    return "Tekan HP • KERJA, lalu pilih REBAHAN";
+                case 9:
+                    if (!Busy)
+                        phone = true;
+                    return "Tabungan " + Rupiah(Duit) + " / " + Rupiah(CampaignTuning.Karier.MisiTabungan) + (Busy ? string.Empty : " • HP > kerja");
+                case 10:
+                    return "RESTU " + Restu + " / " + CampaignTuning.Karier.RestuSyaratRT + " • sapa, antar tepat waktu, usir preman";
+                case 11:
+                    if (Duit >= CampaignTuning.Karier.SyukuranRT)
+                    {
+                        point = layout.PosRt;
+                        label = "DAFTAR RT";
+                        return "DAFTAR di POS RONDA (tombol DAFTAR)";
+                    }
+                    if (!Busy)
+                        phone = true;
+                    return "Duit syukuran " + Rupiah(Duit) + " / " + Rupiah(CampaignTuning.Karier.SyukuranRT) + (Busy ? string.Empty : " • HP > kerja");
+                default:
+                    return "Pemilihan Ketua RT hadir di versi berikutnya. Tetap cari duit & restu.";
+            }
+        }
 
         private bool MissionDone(int index)
         {
             switch (index)
             {
-                case 0: return TripsOjol > 0 || SetKuli > 0;
-                case 1: return SapaCount >= layout.SapaPoints.Length;
+                case 0: return Sapa(0);
+                case 1: return TripsOjol > 0;
                 case 2: return FoodBought > 0;
-                case 3: return RideCount > 0;
-                case 4: return PremanBeaten > 0;
-                case 5: return false; // Answered through AnswerOffer.
-                case 6: return Duit >= CampaignTuning.Karier.MisiTabungan;
-                case 7: return Restu >= CampaignTuning.Karier.RestuSyaratRT;
-                case 8: return Registered;
+                case 3: return RodeToPlaza;
+                case 4: return SetKuli > 0;
+                case 5: return SapaCount >= layout.SapaPoints.Length;
+                case 6: return PremanBeaten > 0;
+                case 7: return false; // Answered through AnswerOffer.
+                case 8: return RebahanCount > 0;
+                case 9: return Duit >= CampaignTuning.Karier.MisiTabungan || Registered;
+                case 10: return Restu >= CampaignTuning.Karier.RestuSyaratRT;
+                case 11: return Registered;
                 default: return false;
             }
         }
 
         private void CheckMission()
         {
+            // Gowes ke plaza: arriving there on a rented bike or motor.
+            if (!RodeToPlaza && Ride != KarierRide.None && lastHero.HasValue &&
+                KarierPoint.Near(lastHero.Value, layout.Plaza, CampaignTuning.Karier.ZoneRadius * 1.5f))
+                RodeToPlaza = true;
             // Several can finish at once (e.g. a loaded save); one per tick keeps messages readable.
             if (!AllMissionsDone && MissionDone(Mission))
                 CompleteMission();
@@ -955,16 +1051,15 @@ namespace Konoha.Campaign
             int done = Mission;
             switch (done)
             {
-                case 0: AddDuit(CampaignTuning.Karier.MisiKerjaReward); break;
-                case 1: AddRestu(CampaignTuning.Karier.SapaRestu); break;
-                case 2: AddEnergi(10); break;
-                case 4: AddRestu(CampaignTuning.Karier.SapaRestu); break;
-                case 6: AddRestu(3); break;
+                case 1: AddDuit(CampaignTuning.Karier.MisiKerjaReward); break;
+                case 3: AddRestu(2); break;
+                case 5: AddRestu(CampaignTuning.Karier.SapaRestu); break;
+                case 9: AddRestu(3); break;
             }
             Mission++;
-            Say("MISI SELESAI: " + MissionTitles[done] + (done == 0 ? " (+" + Rupiah(CampaignTuning.Karier.MisiKerjaReward) + ")" : string.Empty) + ".");
+            Say("MISI SELESAI: " + MissionTitles[done] + (done == 1 ? " (+" + Rupiah(CampaignTuning.Karier.MisiKerjaReward) + ")" : string.Empty) + ".");
             if (!AllMissionsDone)
-                Say(MissionIntro[Mission]);
+                Say("MISI " + (Mission + 1) + ": " + MissionTitles[Mission] + ". " + MissionIntro[Mission]);
             Cue(KarierCue.Misi);
         }
 
@@ -1017,34 +1112,9 @@ namespace Konoha.Campaign
                 label = "DAFTAR RT: POS RONDA";
                 return true;
             }
-            if (!InJail && !PoliceCalled)
-            {
-                // 0.6.1: the current mission points the way when no job runs.
-                switch (Mission)
-                {
-                    case 1:
-                        for (int i = 0; i < layout.SapaPoints.Length; i++)
-                            if (!Sapa(i))
-                            {
-                                point = layout.SapaPoints[i];
-                                label = "SAPA: " + (i < layout.SapaNames.Length ? layout.SapaNames[i] : "WARGA");
-                                return true;
-                            }
-                        break;
-                    case 2:
-                        point = layout.Siomay;
-                        label = "JAJAN: SIOMAY";
-                        return true;
-                    case 3:
-                        if (Ride == KarierRide.None)
-                        {
-                            point = layout.SewaSepeda;
-                            label = "SEWA SEPEDA";
-                            return true;
-                        }
-                        break;
-                }
-            }
+            // 0.6.2: the current mission points the way when no job runs.
+            if (!InJail && !PoliceCalled && MissionTarget(out point, out label))
+                return true;
             point = new KarierPoint(0f, 0f);
             label = string.Empty;
             return false;
@@ -1082,13 +1152,14 @@ namespace Konoha.Campaign
         {
             return string.Join(";", new[]
             {
-                "K2", Duit.ToString(CultureInfo.InvariantCulture), Energi.ToString(CultureInfo.InvariantCulture),
+                "K3", Duit.ToString(CultureInfo.InvariantCulture), Energi.ToString(CultureInfo.InvariantCulture),
                 Restu.ToString(CultureInfo.InvariantCulture), CatatanHitam.ToString(CultureInfo.InvariantCulture),
                 SapaMask.ToString(CultureInfo.InvariantCulture), Registered ? "1" : "0",
                 TripsOjol.ToString(CultureInfo.InvariantCulture), SetKuli.ToString(CultureInfo.InvariantCulture),
                 PostBuzzer.ToString(CultureInfo.InvariantCulture), PremanBeaten.ToString(CultureInfo.InvariantCulture),
                 Mission.ToString(CultureInfo.InvariantCulture), FoodBought.ToString(CultureInfo.InvariantCulture),
-                RideCount.ToString(CultureInfo.InvariantCulture)
+                RideCount.ToString(CultureInfo.InvariantCulture), RebahanCount.ToString(CultureInfo.InvariantCulture),
+                RodeToPlaza ? "1" : "0"
             });
         }
 
@@ -1100,7 +1171,8 @@ namespace Konoha.Campaign
             // K1 = 0.6.0 save (no missions), K2 = 0.6.1.
             bool v1 = parts.Length == 11 && parts[0] == "K1";
             bool v2 = parts.Length == 14 && parts[0] == "K2";
-            if (!v1 && !v2)
+            bool v3 = parts.Length == 16 && parts[0] == "K3";
+            if (!v1 && !v2 && !v3)
                 return false;
             var values = new int[parts.Length - 1];
             for (int i = 0; i < values.Length; i++)
@@ -1117,9 +1189,16 @@ namespace Konoha.Campaign
             SetKuli = Math.Max(0, values[7]);
             PostBuzzer = Math.Max(0, values[8]);
             PremanBeaten = Math.Max(0, values[9]);
-            if (v2)
+            if (v3)
             {
-                Mission = Clamp(values[10], 0, MissionTitles.Length);
+                RebahanCount = Math.Max(0, values[13]);
+                RodeToPlaza = values[14] == 1;
+            }
+            if (v2 || v3)
+            {
+                // 0.6.1 saves used another mission list: start the 0.6.2 chain again (done
+                // missions finish themselves one per tick).
+                Mission = v3 ? Clamp(values[10], 0, MissionTitles.Length) : 0;
                 FoodBought = Math.Max(0, values[11]);
                 RideCount = Math.Max(0, values[12]);
             }
