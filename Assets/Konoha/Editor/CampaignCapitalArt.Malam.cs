@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -52,6 +53,21 @@ namespace Konoha.Editor
             glows.SetActive(false);
             Debug.Log("KARIER lampu malam: " + count + " lampu.");
             return glows;
+        }
+
+        // 0.6.4: every drawn roof of the capital (code roofs too), for the interior camera rooms.
+        internal List<Renderer> RoofRenderers()
+        {
+            var result = new List<Renderer>();
+            foreach (MeshRenderer renderer in root.GetComponentsInChildren<MeshRenderer>(false))
+            {
+                if (renderer.GetComponent<TextMesh>() != null)
+                    continue;
+                string lower = renderer.name.ToLowerInvariant();
+                if (lower.Contains("atap") || lower.Contains("genteng") || lower.Contains("roof") || lower.EndsWith(" atas"))
+                    result.Add(renderer);
+            }
+            return result;
         }
 
         private static bool DrawnBounds(Transform t, out Bounds bounds)

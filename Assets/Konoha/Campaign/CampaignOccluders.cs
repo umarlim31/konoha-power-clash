@@ -19,6 +19,11 @@ namespace Konoha.Campaign
         // camera is below them. 0.6.3: with the real underside of each roof.
         public readonly System.Collections.Generic.Dictionary<Renderer, float> kept = new System.Collections.Generic.Dictionary<Renderer, float>();
 
+        // 0.6.4 KARIER (owner: "atap rumah, pondok dan pohon jangan sampai menghilang"): roofs,
+        // trees and owner models are never hidden; houses and carts are solid and the orbit
+        // camera comes in front of them instead (KarierPadat boxes on the Default layer).
+        public bool keepScenery;
+        private bool[] scenery = new bool[0];
         private float[] hiddenUntil = new float[0];
         private bool[] hidden = new bool[0];
         private ShadowCastingMode[] original = new ShadowCastingMode[0];
@@ -28,10 +33,30 @@ namespace Konoha.Campaign
             hiddenUntil = new float[candidates.Length];
             hidden = new bool[candidates.Length];
             original = new ShadowCastingMode[candidates.Length];
+            scenery = new bool[candidates.Length];
             for (int i = 0; i < candidates.Length; i++)
                 if (candidates[i] != null)
+                {
                     original[i] = candidates[i].shadowCastingMode;
+                    scenery[i] = IsScenery(candidates[i].name);
+                }
         }
+
+        // Roofs, trees and owner models (houses, ruko, warung, gapura, lamps).
+        public static bool IsScenery(string name)
+        {
+            string lower = name.ToLowerInvariant();
+            foreach (string word in SceneryWords)
+                if (lower.Contains(word))
+                    return true;
+            return lower.EndsWith(" atas");
+        }
+
+        private static readonly string[] SceneryWords =
+        {
+            "roof", "atap", "genteng", "palm", "pohon", "tajuk", "frond", "crown", "trunk", "ketapang",
+            "flamboyan", "trembesi", "beringin", "kanopi", "model "
+        };
 
         private void LateUpdate()
         {
@@ -64,6 +89,11 @@ namespace Konoha.Campaign
                     (bounds.IntersectRay(toBody, out float bodyHit) && bodyHit < bodyLength) ||
                     (bounds.IntersectRay(toHead, out float headHit) && headHit < headLength);
 
+                if (keepScenery && scenery[i])
+                {
+                    blocking = false;
+                    hiddenUntil[i] = 0f;
+                }
                 if (kept.Count > 0 && kept.TryGetValue(candidate, out float underside) && eye.y < underside + 0.05f)
                 {
                     blocking = false;

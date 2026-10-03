@@ -29,9 +29,13 @@ namespace Konoha.Campaign
         // Room kept between the camera and the underside of the roof.
         public float headroom = 0.35f;
 
-        private Bounds[] roofs = new Bounds[0];
-        private float[] undersides = new float[0];
-        private Renderer[] roofRenderers = new Renderer[0];
+        // 0.6.4: the rooms are measured by the generator (editor) and saved with the scene, so
+        // nothing depends on renderer bounds at runtime (a statically batched model roof was
+        // never found on the tablet in 0.6.1-0.6.3). A roof renderer may be null (code roofs
+        // that are never hidden anyway).
+        public Bounds[] roofs = new Bounds[0];
+        public float[] undersides = new float[0];
+        public Renderer[] roofRenderers = new Renderer[0];
         private bool inside;
         private float outsideSince = -1f;
         private float nextCheck;
@@ -40,17 +44,19 @@ namespace Konoha.Campaign
         private float appliedMinDistance, appliedMinPitch, appliedMaxDistance, appliedFocus;
 
         public static bool Inside { get; private set; }
+        public int RoomCount => roofs != null ? roofs.Length : 0;
 
-        private void Start()
+        // Generator: measure every room-sized roof among these renderers (editor time).
+        public void Bake(System.Collections.Generic.IEnumerable<Renderer> renderers)
         {
-            if (occluders == null || occluders.candidates == null)
-                return;
             var list = new System.Collections.Generic.List<Bounds>();
             var under = new System.Collections.Generic.List<float>();
             var owners = new System.Collections.Generic.List<Renderer>();
-            foreach (Renderer candidate in occluders.candidates)
+            var seen = new System.Collections.Generic.HashSet<Renderer>();
+            foreach (Renderer candidate in renderers)
             {
-                if (candidate == null || !candidate.gameObject.activeInHierarchy || !LooksLikeRoof(candidate.name))
+                if (candidate == null || !seen.Add(candidate) || !LooksLikeRoof(candidate.name) ||
+                    candidate.GetComponent<TextMesh>() != null)
                     continue;
                 Bounds b = candidate.bounds;
                 if (b.size.x < minSize || b.size.z < minSize || b.size.x * b.size.z > maxArea)
@@ -62,6 +68,17 @@ namespace Konoha.Campaign
             roofs = list.ToArray();
             undersides = under.ToArray();
             roofRenderers = owners.ToArray();
+        }
+
+        private void Start()
+        {
+            // Older scenes without baked rooms: measure now (fallback).
+            if ((roofs == null || roofs.Length == 0) && occluders != null && occluders.candidates != null)
+                Bake(occluders.candidates);
+            if (undersides == null || undersides.Length != roofs.Length)
+                undersides = new float[roofs.Length];
+            if (roofRenderers == null || roofRenderers.Length != roofs.Length)
+                roofRenderers = new Renderer[roofs.Length];
         }
 
         private void Update()
@@ -85,7 +102,8 @@ namespace Konoha.Campaign
                 if (!Covers(i, hero.position))
                     continue;
                 under = true;
-                occluders.kept[roofRenderers[i]] = undersides[i];
+                if (roofRenderers[i] != null)
+                    occluders.kept[roofRenderers[i]] = undersides[i];
                 lowest = Mathf.Min(lowest, undersides[i]);
             }
             if (under)
@@ -125,7 +143,7 @@ namespace Konoha.Campaign
         }
 
         // Trees, palms and gate lintels are not rooms.
-        private static bool LooksLikeRoof(string name)
+        public static bool LooksLikeRoof(string name)
         {
             string lower = name.ToLowerInvariant();
             return !(lower.StartsWith("palm") || lower.Contains("tajuk") || lower.Contains("pohon") ||
@@ -135,6 +153,8 @@ namespace Konoha.Campaign
 
         public bool UnderRoof(Vector3 p)
         {
+            if (roofs == null || undersides == null || undersides.Length != roofs.Length)
+                return false;
             for (int i = 0; i < roofs.Length; i++)
                 if (Covers(i, p))
                     return true;

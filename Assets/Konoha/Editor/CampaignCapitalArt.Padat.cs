@@ -13,8 +13,8 @@ namespace Konoha.Editor
     //  - are separate objects (decor itself still has no collider, as the scene tests demand),
     //  - cover only the body band (ground to 2.4 m), fitted to the vertices in that band,
     //    turned with the prop (trunks and poles stay thin, crowns and roofs are not included),
-    //  - sit on layer 2 (Ignore Raycast) like the other solid walls, so the orbit camera keeps
-    //    looking past them exactly as before,
+    //  - sit on the Default layer (0.6.4), so the orbit camera stops in front of a house or a
+    //    cart instead of the roof being hidden; trunks and poles are thin enough to be ignored,
     //  - are never placed where KARIER needs the hero (job zones, stalls, spawn, POLSEK door
     //    and cell, sapa and preman points): a box overlapping such a point is dropped.
     // Model slot instances (owner FBX) get a recipe per slot: trees and poles a thin trunk,
@@ -193,7 +193,9 @@ namespace Konoha.Editor
                 forward = renderer.transform.up;
                 forward.y = 0f;
             }
-            Quaternion yaw = forward.sqrMagnitude < .01f ? Quaternion.identity : Quaternion.LookRotation(forward.normalized);
+            // Trunks and poles stay axis-aligned so their box stays thin for the orbit camera's
+            // "thin obstacle" rule (world bounds under 0.7 m).
+            Quaternion yaw = forward.sqrMagnitude < .01f || maxWidth < 1f ? Quaternion.identity : Quaternion.LookRotation(forward.normalized);
             Quaternion unyaw = Quaternion.Inverse(yaw);
             Matrix4x4 toWorld = renderer.transform.localToWorldMatrix;
 
@@ -274,7 +276,9 @@ namespace Konoha.Editor
             size.x = Mathf.Max(size.x, .2f);
             size.z = Mathf.Max(size.z, .2f);
             var box = new GameObject("Padat " + name);
-            box.layer = 2; // Ignore Raycast: the orbit camera keeps looking past it (KarierCrowd still sees it).
+            // 0.6.4: Default layer, so the orbit camera comes in front of a house instead of the
+            // house (or its roof) being hidden; thin trunks and poles stay looked past (< 0.7 m).
+            box.layer = 0;
             box.transform.SetParent(parent, false);
             Vector3 centre = yaw * new Vector3(footprint.center.x, 0f, footprint.center.z);
             box.transform.SetPositionAndRotation(new Vector3(centre.x, (bottom + top) * .5f, centre.z), yaw);
